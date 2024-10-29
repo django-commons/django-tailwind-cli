@@ -1,10 +1,10 @@
 # django-tailwind-cli
 
-![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/oliverandrich/django-tailwind-cli/test.yml?style=flat-square)
+![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/django-commons/django-tailwind-cli/test.yml?style=flat-square)
 [![PyPI](https://img.shields.io/pypi/v/django-tailwind-cli.svg?style=flat-square)](https://pypi.org/project/django-tailwind-cli/)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
-![GitHub](https://img.shields.io/github/license/oliverandrich/django-tailwind-cli?style=flat-square)
+![GitHub](https://img.shields.io/github/license/django-commons/django-tailwind-cli?style=flat-square)
 ![Django Versions](https://img.shields.io/pypi/frameworkversions/django/django-tailwind-cli)
 ![Python Versions](https://img.shields.io/pypi/pyversions/django-tailwind-cli)
 [![Downloads](https://static.pepy.tech/badge/django-tailwind-cli)](https://pepy.tech/project/django-tailwind-cli)
@@ -112,4 +112,4 @@ uvx --with tox-uv tox
 
 ## License
 
-This software is licensed under [MIT license](https://github.com/oliverandrich/django-tailwind-cli/blob/main/LICENSE).
+This software is licensed under [MIT license](https://github.com/django-commons/django-tailwind-cli/blob/main/LICENSE).

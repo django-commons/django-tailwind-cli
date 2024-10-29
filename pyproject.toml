@@ -37,7 +37,7 @@ django-extensions = ["django-extensions>=3.2", "werkzeug>=3.0"]
 [project.urls]
 Home = "https://django-tailwind-cli.rtfd.io/"
 Documentation = "https://django-tailwind-cli.rtfd.io/"
-Repository = "https://github.com/oliverandrich/django-tailwind-cli"
+Repository = "https://github.com/django-commons/django-tailwind-cli"
 
 [tool.uv]
 dev-dependencies = [

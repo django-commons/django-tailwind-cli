@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.19.0
+
+- Transfered the project to django-commons.
+
 ## 2.18.1
 
 - Fixed the URLs for PyPI.

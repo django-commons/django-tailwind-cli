@@ -1,6 +1,6 @@
 site_name: django-tailwind-cli
-repo_name: oliverandrich/django-tailwind-cli
-repo_url: https://github.com/oliverandrich/django-tailwind-cli
+repo_name: django-commons/django-tailwind-cli
+repo_url: https://github.com/django-commons/django-tailwind-cli
 theme:
   name: material
   palette:
