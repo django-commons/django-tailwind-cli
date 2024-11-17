@@ -6,6 +6,7 @@
 - Switched from pyright to mypy for type checking.
 - Fixed broken links in the documentation.
 - Bumped default version of Tailwind CSS to 3.4.13.
+- Bumped minimum version of certifi to 2024.8.30. Removed the upper boundary of the version number.
 
 ## 2.19.0
 

@@ -1,3 +1,5 @@
+from typing import Optional
+
 from django.conf import settings
 
 DEFAULT_VERSION = "3.4.13"
@@ -19,7 +21,7 @@ def get_tailwind_cli_automatic_download() -> bool:
     return getattr(settings, "TAILWIND_CLI_AUTOMATIC_DOWNLOAD", True)
 
 
-def get_tailwind_cli_src_css() -> None | str:
+def get_tailwind_cli_src_css() -> Optional[str]:
     """Get the source css file for the Tailwind CSS CLI."""
     return getattr(settings, "TAILWIND_CLI_SRC_CSS", None)
 
