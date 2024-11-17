@@ -13,12 +13,12 @@ from typing import Optional, Union
 
 import certifi
 import typer
+from django.conf import settings
 from django.core.management.base import CommandError
 from django.template.utils import get_app_template_dirs
 from django_typer.management import TyperCommand, command, initialize
 
-from django_tailwind_cli import utils
-from django_tailwind_cli.conf import DEFAULT_SRC_REPO, settings
+from django_tailwind_cli import conf, utils
 
 
 class Command(TyperCommand):
@@ -35,7 +35,7 @@ class Command(TyperCommand):
 
         # Before running the actual subcommand, we need to make sure that the CLI is installed and
         # the config file exists.
-        if settings.TAILWIND_CLI_AUTOMATIC_DOWNLOAD:
+        if conf.get_tailwind_cli_automatic_download():
             self.download_cli()
         self._create_tailwind_config_if_not_exists()
 
@@ -50,7 +50,7 @@ class Command(TyperCommand):
             str(utils.get_full_dist_css_path()),
             "--minify",
         ]
-        if settings.TAILWIND_CLI_SRC_CSS is not None:
+        if conf.get_tailwind_cli_src_css() is not None:
             build_cmd.extend(
                 [
                     "--input",
@@ -75,7 +75,7 @@ class Command(TyperCommand):
             str(utils.get_full_dist_css_path()),
             "--watch",
         ]
-        if settings.TAILWIND_CLI_SRC_CSS is not None:
+        if conf.get_tailwind_cli_src_css() is not None:
             watch_cmd.extend(
                 [
                     "--input",
@@ -89,7 +89,7 @@ class Command(TyperCommand):
             self._write_success("Stopped watching for changes.")
 
     @command(name="list_templates", help="List the templates of your django project.")
-    def list_templates(self):
+    def list_templates(self) -> None:
         template_files: list[str] = []
         app_template_dirs = get_app_template_dirs("templates")
         for app_template_dir in app_template_dirs:
@@ -272,8 +272,8 @@ class Command(TyperCommand):
         dest_file = utils.get_full_cli_path()
         extra_msg = (
             ""
-            if settings.TAILWIND_CLI_SRC_REPO == DEFAULT_SRC_REPO
-            else f" from '{settings.TAILWIND_CLI_SRC_REPO}'"
+            if conf.get_tailwind_cli_src_repo() == conf.DEFAULT_SRC_REPO
+            else f" from '{conf.get_tailwind_cli_src_repo()}'"
         )
 
         if dest_file.exists():

@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.20.0
+
+- Removed django-appconf again.
+- Switched from pyright to mypy for type checking.
+- Fixed broken links in the documentation.
+
 ## 2.19.0
 
 - Transfered the project to django-commons.
