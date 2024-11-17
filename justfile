@@ -50,11 +50,3 @@ VENV_DIRNAME := ".venv"
 # serve docs during development
 @serve-docs:
     uvx --with mkdocs-material mkdocs serve
-
-# build documenation
-@build-docs:
-    uvx --with mkdocs-material mkdocs build
-
-# publish documentation on github
-@publish-docs: build-docs
-    uvx --with mkdocs-material mkdocs gh-deploy --force
