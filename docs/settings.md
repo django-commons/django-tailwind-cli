@@ -11,7 +11,7 @@ The package can be configured by a few settings, which can be overwritten in the
 your project.
 
 `TAILWIND_CLI_VERSION`
-: **Default**: `"3.4.11"`
+: **Default**: `"3.4.13"`
 
     This defines the version of the CLI and of Tailwind CSS you want to use in your project.
 
