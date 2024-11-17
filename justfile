@@ -6,47 +6,39 @@ VENV_DIRNAME := ".venv"
 @_default:
     just --list
 
+[private]
+@check_uv:
+    if ! command -v uv &> /dev/null; then \
+        echo "uv could not be found. Exiting."; \
+        exit; \
+    fi
+
 # setup development environment
-@bootstrap:
+@bootstrap: check_uv
     if [ -x $VENV_DIRNAME ]; then \
         echo "Already bootstraped. Exiting."; \
         exit; \
     fi
 
-    echo "Creating virtual env in .venv"
-    just create_venv
-
     echo "Installing dependencies"
     just upgrade
 
-# create a virtual environment
-@create_venv:
-    [ -d $VENV_DIRNAME ] || uv venv $VENV_DIRNAME
-
-# build release
-@build:
-    uv build
-
-# publish release
-@publish: build
-    uv publish
-
 # upgrade/install all dependencies defined in pyproject.toml
-@upgrade: create_venv
-    uv sync --all-extras
+@upgrade: check_uv
+    uv sync --all-extras --upgrade
 
 # run pre-commit rules on all files
-@lint: create_venv
+@lint: check_uv
     uvx --with pre-commit-uv pre-commit run --all-files
 
 # run test suite
-@test: create_venv
+@test: check_uv
     uv run pytest --cov --cov-report=html --cov-report=term
 
 # run test suite
-@test-all: create_venv
+@test-all: check_uv
     uvx --with tox-uv tox
 
 # serve docs during development
-@serve-docs:
+@serve-docs: check_uv
     uvx --with mkdocs-material mkdocs serve
