@@ -50,6 +50,8 @@ extra:
   social:
     - icon: fontawesome/brands/mastodon
       link: https://social.tchncs.de/@oliverandrich
+    - icon: fontawesome/brands/bluesky
+      link: https://bsky.app/profile/andrich.me
     - icon: fontawesome/brands/github
       link: https://github.com/oliverandrich
     - icon: fontawesome/brands/linkedin
