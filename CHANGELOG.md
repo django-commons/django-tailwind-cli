@@ -5,6 +5,7 @@
 - Removed django-appconf again.
 - Switched from pyright to mypy for type checking.
 - Fixed broken links in the documentation.
+- Bumped default version of Tailwind CSS to 3.4.13.
 
 ## 2.19.0
 

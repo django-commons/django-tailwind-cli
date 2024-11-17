@@ -1,6 +1,6 @@
 import pytest
 
-from django_tailwind_cli import utils
+from django_tailwind_cli import conf, utils
 
 
 @pytest.fixture(autouse=True)
@@ -93,10 +93,10 @@ def test_get_download_url(mocker, platform, machine, result):
 @pytest.mark.parametrize(
     "platform,machine,result",
     [
-        ("Windows", "x86_64", "tailwindcss-windows-x64-3.4.11.exe"),
-        ("Windows", "amd64", "tailwindcss-windows-x64-3.4.11.exe"),
-        ("Darwin", "aarch64", "tailwindcss-macos-arm64-3.4.11"),
-        ("Darwin", "arm64", "tailwindcss-macos-arm64-3.4.11"),
+        ("Windows", "x86_64", f"tailwindcss-windows-x64-{conf.DEFAULT_VERSION}.exe"),
+        ("Windows", "amd64", f"tailwindcss-windows-x64-{conf.DEFAULT_VERSION}.exe"),
+        ("Darwin", "aarch64", f"tailwindcss-macos-arm64-{conf.DEFAULT_VERSION}"),
+        ("Darwin", "arm64", f"tailwindcss-macos-arm64-{conf.DEFAULT_VERSION}"),
     ],
 )
 def test_get_full_cli_path(mocker, platform, machine, result):

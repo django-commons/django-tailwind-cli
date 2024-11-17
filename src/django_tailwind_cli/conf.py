@@ -1,11 +1,12 @@
 from django.conf import settings
 
+DEFAULT_VERSION = "3.4.13"
 DEFAULT_SRC_REPO = "tailwindlabs/tailwindcss"
 
 
 def get_tailwind_cli_version() -> str:
     """Get the version of the Tailwind CSS CLI."""
-    return getattr(settings, "TAILWIND_CLI_VERSION", "3.4.11")
+    return getattr(settings, "TAILWIND_CLI_VERSION", DEFAULT_VERSION)
 
 
 def get_tailwind_cli_path() -> str:
