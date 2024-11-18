@@ -34,7 +34,7 @@ def get_download_url() -> str:
     system, machine = get_system_and_machine()
     extension = ".exe" if system == "windows" else ""
     return (
-        f"https://github.com/{conf.get_tailwind_cli_src_repo}/releases/download/"
+        f"https://github.com/{conf.get_tailwind_cli_src_repo()}/releases/download/"
         f"v{conf.get_tailwind_cli_version()}/{conf.get_tailwind_cli_asset_name()}-{system}-{machine}{extension}"
     )
 
