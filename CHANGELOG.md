@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.20.2
+
+- Added testpypi release workflow.
+
+## 2.20.1
+
+- Fixed a critical issue of 2.20.0.
+
 ## 2.20.0
 
 - Removed django-appconf again.
