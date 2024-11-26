@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.21.0
+
+-
+- Refactored the process to build the runserver command.
+
 ## 2.20.2
 
 - Added testpypi release workflow.

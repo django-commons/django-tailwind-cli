@@ -24,7 +24,11 @@ classifiers = [
 ]
 dynamic = ["version"]
 requires-python = ">=3.9"
-dependencies = ["django>=4.2", "certifi>=2024.8.30", "django-typer>=2.1.2"]
+dependencies = [
+    "django>=4.2",
+    "django-typer>=2.1.2",
+    "requests>=2.32.3",
+]
 
 [project.optional-dependencies]
 django-extensions = ["django-extensions>=3.2", "werkzeug>=3.0"]
@@ -34,15 +38,16 @@ Home = "https://django-tailwind-cli.rtfd.io/"
 Documentation = "https://django-tailwind-cli.rtfd.io/"
 Repository = "https://github.com/django-commons/django-tailwind-cli"
 
-[tool.uv]
-dev-dependencies = [
+[dependency-groups]
+dev = [
     "pytest-cov>=5.0.0",
     "pytest-django>=4.9.0",
     "pytest-mock>=3.14.0",
     "pytest-randomly>=3.15.0",
-    "pytest-sugar>=1.0.0",
     "pytest>=8.3.3",
     "django-stubs[compatible-mypy]>=5.1.1",
+    "tox>=4.23.2",
+    "tox-uv>=1.16.0",
 ]
 
 [build-system]
@@ -133,6 +138,9 @@ ban-relative-imports = "all"
 DJANGO_SETTINGS_MODULE = "tests.settings"
 pythonpath = [".", "src"]
 testpaths = ["tests"]
+filterwarnings = [
+    "ignore:In Typer, only the parameter 'autocompletion' is supported.:DeprecationWarning",
+]
 
 # Coverage
 [tool.coverage.run]

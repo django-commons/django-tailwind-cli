@@ -33,15 +33,6 @@ repos:
     - id: django-upgrade
       args: [--target-version, "4.2"]
 
-  - repo: local
-    hooks:
-    - id: mypy
-      name: mypy
-      language: system
-      types: [python]
-      entry: uv run mypy
-      require_serial: true
-
   - repo: https://github.com/adamchainz/djade-pre-commit
     rev: "1.3.2"
     hooks:

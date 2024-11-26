@@ -4,7 +4,10 @@ import pytest
 from django.core.management import CommandError, call_command
 
 from django_tailwind_cli import utils
-from django_tailwind_cli.management.commands.tailwind import DEFAULT_TAILWIND_CONFIG
+from django_tailwind_cli.management.commands.tailwind import (
+    DEFAULT_TAILWIND_CONFIG,
+    _get_runserver_options,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -13,8 +16,8 @@ def configure_settings(mocker):
     mocker.patch("multiprocessing.Process.start")
     mocker.patch("multiprocessing.Process.join")
     mocker.patch("subprocess.run")
-    mocker.patch("urllib.request.urlopen")
-    mocker.patch("shutil.copyfileobj")
+    request_get = mocker.patch("requests.get")
+    request_get.return_value.content = b""
 
 
 def test_calling_unknown_subcommand():
@@ -62,11 +65,54 @@ def test_automatic_download_disabled(settings, tmp_path):
     settings.TAILWIND_CLI_PATH = str(tmp_path)
     settings.TAILWIND_CLI_AUTOMATIC_DOWNLOAD = False
     assert not utils.get_full_cli_path().exists()
-    with pytest.raises(CommandError, match="Tailwind CSS CLI not found."):
+    with pytest.raises(
+        CommandError, match="Automatic download of Tailwind CSS CLI is deactivated."
+    ):
         call_command("tailwind", "build")
-    with pytest.raises(CommandError, match="Tailwind CSS CLI not found."):
+    with pytest.raises(
+        CommandError, match="Automatic download of Tailwind CSS CLI is deactivated."
+    ):
         call_command("tailwind", "watch")
     assert not utils.get_full_cli_path().exists()
+
+
+def test_manual_download_and_build(settings, tmp_path):
+    settings.BASE_DIR = tmp_path
+    settings.TAILWIND_CLI_PATH = str(tmp_path)
+    settings.TAILWIND_CLI_AUTOMATIC_DOWNLOAD = False
+    call_command("tailwind", "download_cli")
+    call_command("tailwind", "build")
+
+
+def test_download_from_another_repo(settings, tmp_path, capsys):
+    settings.BASE_DIR = tmp_path
+    settings.TAILWIND_CLI_PATH = str(tmp_path)
+    settings.TAILWIND_CLI_AUTOMATIC_DOWNLOAD = False
+    settings.TAILWIND_CLI_SRC_REPO = "oliverandrich/mytailwind"
+    call_command("tailwind", "download_cli")
+    captured = capsys.readouterr()
+    assert "from 'oliverandrich/mytailwind'" in captured.out
+
+
+def test_remove_cli_with_existing_cli(settings, tmp_path, capsys):
+    settings.BASE_DIR = tmp_path
+    settings.TAILWIND_CLI_PATH = str(tmp_path)
+    settings.TAILWIND_CLI_AUTOMATIC_DOWNLOAD = True
+    call_command("tailwind", "download_cli")
+    assert utils.get_full_cli_path().exists()
+    call_command("tailwind", "remove_cli")
+    assert not utils.get_full_cli_path().exists()
+    captured = capsys.readouterr()
+    assert "Removed Tailwind CSS CLI at " in captured.out
+
+
+def test_remove_cli_without_existing_cli(settings, tmp_path, capsys):
+    settings.BASE_DIR = tmp_path
+    settings.TAILWIND_CLI_PATH = str(tmp_path)
+    settings.TAILWIND_CLI_AUTOMATIC_DOWNLOAD = True
+    call_command("tailwind", "remove_cli")
+    captured = capsys.readouterr()
+    assert "Tailwind CSS CLI not found at " in captured.out
 
 
 def test_create_tailwind_config_if_non_exists(settings, tmp_path):
@@ -111,7 +157,7 @@ def test_build_output_of_second_run(settings, tmp_path, capsys):
     settings.BASE_DIR = tmp_path
     settings.TAILWIND_CLI_PATH = str(tmp_path)
     call_command("tailwind", "build")
-    captured = capsys.readouterr()
+    capsys.readouterr()
     call_command("tailwind", "build")
     captured = capsys.readouterr()
     assert "Tailwind CSS CLI not found." not in captured.out
@@ -174,7 +220,7 @@ def test_watch_output_of_second_run(settings, tmp_path, capsys):
     settings.BASE_DIR = tmp_path
     settings.TAILWIND_CLI_PATH = str(tmp_path)
     call_command("tailwind", "watch")
-    captured = capsys.readouterr()
+    capsys.readouterr()
     call_command("tailwind", "watch")
     captured = capsys.readouterr()
     assert "Tailwind CSS CLI not found." not in captured.out
@@ -226,6 +272,22 @@ def test_runserver_plus_without_django_extensions_installed(mocker):
     mocker.patch.dict(sys.modules, {"django_extensions": None, "werkzeug": None})
     with pytest.raises(CommandError, match="Missing dependencies."):
         call_command("tailwind", "runserver_plus")
+
+
+def test_get_runserver_options():
+    assert _get_runserver_options(use_ipv6=True) == ["--ipv6"]
+    assert _get_runserver_options(no_threading=True) == ["--nothreading"]
+    assert _get_runserver_options(no_static=True) == ["--nostatic"]
+    assert _get_runserver_options(no_reloader=True) == ["--noreload"]
+    assert _get_runserver_options(skip_checks=True) == ["--skip-checks"]
+    assert _get_runserver_options(pdb=True) == ["--pdb"]
+    assert _get_runserver_options(ipdb=True) == ["--ipdb"]
+    assert _get_runserver_options(pm=True) == ["--pm"]
+    assert _get_runserver_options(print_sql=True) == ["--print-sql"]
+    assert _get_runserver_options(print_sql_location=True) == ["--print-sql-location"]
+    assert _get_runserver_options(cert_file="somefile") == ["--cert-file=somefile"]
+    assert _get_runserver_options(key_file="somefile") == ["--key-file=somefile"]
+    assert _get_runserver_options(addrport="0.0.0.0:9000") == ["0.0.0.0:9000"]
 
 
 def test_list_project_templates(capsys):

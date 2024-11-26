@@ -27,6 +27,10 @@ Run `python manage.py tailwind download_cli` to just download the CLI. This comm
 
 Run `python manage.py tailwind list_templates` to find all templates in your django project. This is handy for a setup where you dynamically build the list of files being analyzed by tailwindcss.
 
+### remove_cli
+
+Run `python manage.py tailwind remove_cli` to remove the installed cli.
+
 ### runserver
 
 Run `python manage.py tailwind runserver` to start the classic Django debug server in parallel to a tailwind watcher process.
