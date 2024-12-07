@@ -92,6 +92,28 @@ Options:
 
 Run `python manage.py tailwind watch` to just start a tailwind watcher process if you prefer to start your debug server in a seperate shell or prefer a different solution than runserver or runserver_plus.
 
+## Use with PyCharm
+
+[PyCharm](https://www.jetbrains.com/pycharm/) is a great IDE, but its Tailwind CSS plugin doesn't work well with the standalone CLI this package uses. Luckily, there is a [workaround](https://youtrack.jetbrains.com/issue/WEB-55647/Support-Tailwind-css-autocompletion-using-standalone-tailwind-CLI#focus=Comments-27-10957961.0-0) for this.
+
+### install_pycharm_workaround
+
+Run `python manage.py tailwind install_pycharm_workaround` to install the workaround in your project.
+
+!!! info "Update .gitignore file"
+
+
+    Update your `.gitignore` manually so that it exludes the created `package.json` file and the `node_modules` directory, that is created by this management command.
+
+    ```gitignore
+    package.json
+    node_modules/
+    ```
+
+### remove_pycharm_workaround
+
+Run `python manage.py tailwind install_pycharm_workaround` to remove the workaround from your project.
+
 ## Use with Docker Compose
 
 When used in the `watch` mode, the Tailwind CLI requires a TTY-enabled environment to function correctly. In a Docker Compose setup, ensure that the container executing the Tailwind style rebuild command (either `python manage.py tailwind runserver` or `python manage.py tailwind watch`, as noted above) is configured with the `tty: true` setting in your `docker-compose.yml`.

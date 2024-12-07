@@ -63,13 +63,16 @@ Checkout the detailed [installation guide](https://django-tailwind-cli.rtfd.io/l
 
 - Simplest possible integration.
 - Management commands:
-  - To start the Tailwind CLI in watch mode during development.
-  - To build the production grade CSS file for your project.
-  - To start a debug server along with the Tailwind CLI in watch mode in a single session.
-- Necessary configuration to adapt the library to your project, when the defaults don't fit you.
+
+    * To start the Tailwind CLI in watch mode during development.
+    * To build the production grade CSS file for your project.
+    * To start a debug server along with the Tailwind CLI in watch mode in a single session.
+
+- Configuration options to adapt the library to your project, when the defaults don't fit you.
 - A template tag to include the Tailwind CSS file in your project.
 - A base template for your project.
 - A sane tailwind.config.js that activates all the official plugins and includes a simple HTMX plugin.
+- A management command to install [a workaround to support Tailwind CLI in PyCharm](https://django-tailwind-cli.rtfd.io/usage/#use-with-pycharm).
 
 ## Requirements
 

@@ -78,6 +78,14 @@ hide:
 
 ## Optional steps
 
+### Install PyCharm workaround
+
+In order [to use Tailwind CLI with PyCharm](/usage/#use-with-pycharm) you have to install a workaround.
+
+```shell
+python manage.py tailwind install_pycharm_workaround
+```
+
 ### Install `django-browser-reload`
 
 If you enjoy automatic reloading during development. Install the [django-browser-reload](https://github.com/adamchainz/django-browser-reload) app. The following installation steps are taken from the README of the project.

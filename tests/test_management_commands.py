@@ -314,3 +314,83 @@ def test_list_projecttest_list_project_all_templates_templates(capsys, settings)
     assert "templates/tailwind_cli/tailwind_css.html" in captured.out
     assert "templates/tests/base.html" in captured.out
     assert "templates/admin" in captured.out
+
+
+def test_install_pycharm_workaround(settings, tmp_path, capsys):
+    settings.BASE_DIR = tmp_path
+    settings.TAILWIND_CLI_PATH = str(tmp_path)
+    package_json = settings.BASE_DIR / "package.json"
+    cli_js = settings.BASE_DIR / "node_modules" / "tailwindcss" / "lib" / "cli.js"
+
+    assert not package_json.exists()
+    assert not cli_js.exists()
+
+    call_command("tailwind", "install_pycharm_workaround")
+
+    assert package_json.exists()
+    assert (
+        settings.BASE_DIR / "package.json"
+    ).read_text() == '{"devDependencies": {"tailwindcss": "latest"}}'
+    captured = capsys.readouterr()
+    assert "Created package.json" in captured.out
+
+    assert cli_js.exists()
+    assert cli_js.resolve() == utils.get_full_cli_path()
+    assert "Created link at" in captured.out
+
+    assert (
+        "Assure that you have added package.json and node_modules to your .gitignore file."
+        in captured.out
+    )
+
+
+def test_install_pycharm_workaround_twice(settings, tmp_path, capsys):
+    settings.BASE_DIR = tmp_path
+    settings.TAILWIND_CLI_PATH = str(tmp_path)
+    call_command("tailwind", "install_pycharm_workaround")
+    call_command("tailwind", "install_pycharm_workaround")
+    captured = capsys.readouterr()
+    assert "PyCharm workaround is already installed at" in captured.out
+
+
+def test_install_pycharm_workaround_with_existing(settings, tmp_path, capsys):
+    settings.BASE_DIR = tmp_path
+    settings.TAILWIND_CLI_PATH = str(tmp_path)
+
+    package_json = settings.BASE_DIR / "package.json"
+    package_json.write_text("{}")
+
+    call_command("tailwind", "install_pycharm_workaround")
+    captured = capsys.readouterr()
+    assert "Found an existing package.json at" in captured.out
+    assert "that is not compatible." in captured.out
+
+
+def test_uninstall_pycharm_workaround(settings, tmp_path, capsys):
+    settings.BASE_DIR = tmp_path
+    settings.TAILWIND_CLI_PATH = str(tmp_path)
+    call_command("tailwind", "install_pycharm_workaround")
+    call_command("tailwind", "uninstall_pycharm_workaround")
+    captured = capsys.readouterr()
+    assert "Removed package.json and cli.js." in captured.out
+
+
+def test_uninstall_pycharm_workaround_with_other_package_json(settings, tmp_path, capsys):
+    settings.BASE_DIR = tmp_path
+    settings.TAILWIND_CLI_PATH = str(tmp_path)
+
+    package_json = settings.BASE_DIR / "package.json"
+    package_json.write_text("{}")
+
+    call_command("tailwind", "uninstall_pycharm_workaround")
+    captured = capsys.readouterr()
+    assert "Found an existing package.json at" in captured.out
+    assert "was not installed by us." in captured.out
+
+
+def test_uninstall_pycharm_workaround_without_install(settings, tmp_path, capsys):
+    settings.BASE_DIR = tmp_path
+    settings.TAILWIND_CLI_PATH = str(tmp_path)
+    call_command("tailwind", "uninstall_pycharm_workaround")
+    captured = capsys.readouterr()
+    assert "No package.json or cli.js found." in captured.out

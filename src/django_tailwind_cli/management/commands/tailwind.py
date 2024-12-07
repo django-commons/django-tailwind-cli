@@ -2,6 +2,7 @@
 
 import importlib.util
 import os
+import shutil
 import subprocess
 import sys
 from multiprocessing import Process
@@ -242,7 +243,77 @@ def runserver_plus(
     )
 
 
-# UTILITY FUNCTIONS --------------------------------------------------------------------------------
+@app.command(name="install_pycharm_workaround")
+def install_pycharm_workaround():
+    """
+    Configures the workarounds for PyCharm to get tailwind plugin to work with the tailwind CLI.
+    """
+    _validate_config()
+    _download_cli()
+
+    package_json = settings.BASE_DIR / "package.json"
+    package_json_content = '{"devDependencies": {"tailwindcss": "latest"}}'
+    cli_js = settings.BASE_DIR / "node_modules" / "tailwindcss" / "lib" / "cli.js"
+
+    if package_json.exists():
+        if package_json.read_text() == package_json_content:
+            typer.secho(
+                f"PyCharm workaround is already installed at '{package_json}'.",
+                fg=typer.colors.GREEN,
+            )
+            return
+        else:
+            typer.secho(
+                f"Found an existing package.json at '{package_json}' that is " "not compatible.",
+                fg=typer.colors.YELLOW,
+            )
+            return
+    else:
+        package_json.write_text(package_json_content)
+        typer.secho(
+            f"Created package.json at '{package_json}'",
+            fg=typer.colors.GREEN,
+        )
+
+        cli_js.parent.mkdir(parents=True, exist_ok=True)
+        cli_path = utils.get_full_cli_path()
+        cli_js.symlink_to(cli_path)
+        typer.secho(
+            f"Created link at '{cli_js}' to '{cli_path}'.",
+            fg=typer.colors.GREEN,
+        )
+        typer.secho(
+            "\nAssure that you have added package.json and node_modules to your .gitignore file.",
+            fg=typer.colors.YELLOW,
+        )
+
+
+@app.command(name="uninstall_pycharm_workaround")
+def uninstall_pycharm_workaround():
+    package_json = settings.BASE_DIR / "package.json"
+    package_json_content = '{"devDependencies": {"tailwindcss": "latest"}}'
+    node_modules = settings.BASE_DIR / "node_modules"
+
+    if package_json.exists() and package_json.read_text() == package_json_content:
+        package_json.unlink()
+        shutil.rmtree(node_modules)
+        typer.secho(
+            "Removed package.json and cli.js.",
+            fg=typer.colors.GREEN,
+        )
+    elif package_json.exists() and package_json.read_text() != package_json_content:
+        typer.secho(
+            f"Found an existing package.json at '{package_json}' was not installed by us.",
+            fg=typer.colors.YELLOW,
+        )
+    else:
+        typer.secho(
+            "No package.json or cli.js found.",
+            fg=typer.colors.YELLOW,
+        )
+
+
+# UTILITY FUNCTIONS -------------------------------------------------------------------------------
 
 
 def _validate_config():

@@ -2,6 +2,7 @@
 
 ## 2.21.0
 
+- Added `install_pycharm_workaround` and `remove_pycharm_workaround` management commands. [#142](https://github.com/django-commons/django-tailwind-cli/issues/142)
 - Added `remove_cli` subcommand to remove the CLI. [#132](https://github.com/django-commons/django-tailwind-cli/issues/132)
 - Refactored all the class based management command into simpler function based commands.
 - Refactored the process to build the runserver command.

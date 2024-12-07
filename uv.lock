@@ -291,7 +291,7 @@ wheels = [
 
 [[package]]
 name = "django-tailwind-cli"
-version = "2.20.3.dev9+g753f72a.d20241207"
+version = "2.20.3.dev3+gc98c91f.d20241207"
 source = { editable = "." }
 dependencies = [
     { name = "django" },
