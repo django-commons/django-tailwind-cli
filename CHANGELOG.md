@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.21.1
+
+- Relaxed the minimum Django version to >=4.0.
+
 ## 2.21.0
 
 - Added `install_pycharm_workaround` and `remove_pycharm_workaround` management commands. [#142](https://github.com/django-commons/django-tailwind-cli/issues/142)

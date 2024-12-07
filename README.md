@@ -76,7 +76,7 @@ Checkout the detailed [installation guide](https://django-tailwind-cli.rtfd.io/l
 
 ## Requirements
 
-Python 3.9 or newer with Django >= 4.2.
+Python 3.9 or newer with Django >= 4.0.
 
 ## Documentation
 
