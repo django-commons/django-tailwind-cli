@@ -72,7 +72,7 @@ Checkout the detailed [installation guide](https://django-tailwind-cli.rtfd.io/l
 - A template tag to include the Tailwind CSS file in your project.
 - A base template for your project.
 - A sane tailwind.config.js that activates all the official plugins and includes a simple HTMX plugin.
-- A management command to install [a workaround to support Tailwind CLI in PyCharm](https://django-tailwind-cli.rtfd.io/usage/#use-with-pycharm).
+- A management command to install [a workaround to support Tailwind CLI in PyCharm](https://django-tailwind-cli.rtfd.io/latest/usage/#use-with-pycharm).
 
 ## Requirements
 
