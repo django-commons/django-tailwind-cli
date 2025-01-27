@@ -34,7 +34,7 @@ hide:
    INSTALLED_APPS = [
        # other Django apps
        "django_tailwind_cli",
-       "django_extensions,
+       "django_extensions",
    ]
    ```
 
