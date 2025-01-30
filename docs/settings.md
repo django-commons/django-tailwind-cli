@@ -91,7 +91,7 @@ If you don't create a `tailwind.config.js` file yourself, the management command
 const plugin = require("tailwindcss/plugin");
 
 module.exports = {
-  content: ["./templates/**/*.html", "**/templates/**/*.html"],
+  content: ["./templates/**/*.html", "**/templates/**/*.html", '**/*.py'],
   theme: {
     extend: {},
   },
