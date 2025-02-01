@@ -30,6 +30,7 @@ dependencies = [
     "django>=4.0",
     "django-typer>=2.1.2",
     "requests>=2.32.3",
+    "semver>=3.0.4",
 ]
 
 [project.optional-dependencies]
@@ -59,22 +60,12 @@ build-backend = "hatchling.build"
 [tool.hatch.version]
 source = "vcs"
 
-# Black
-[tool.black]
-target-version = ["py38"]
-line-length = 100
-skip-string-normalization = true
-exclude = '''
-/(
-    \.git
-  | \.tox
-  | \.venv
-  | _build
-  | build
-  | dist
-  | ^.*\b(migrations)\b.*$
-)/
-'''
+# pyright
+[tool.pyright]
+pythonVersion = "3.9"
+typeCheckingMode = "strict"
+venvPath = ".venv"
+venv = "."
 
 # mypy
 [tool.mypy]
@@ -88,7 +79,7 @@ strict_settings = false
 # Ruff
 [tool.ruff]
 target-version = "py38"
-line-length = 100
+line-length = 120
 
 [tool.ruff.format]
 exclude = ["**/migrations/*"]

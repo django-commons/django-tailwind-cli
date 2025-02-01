@@ -10,13 +10,14 @@ hide:
 1. Install the library.
 
    ```shell
-   python -m pip install django-tailwind-cli
+   python -m pip install "django-tailwind-cli"
    ```
 
-   with optional `django-extensions` and `Werkezeug` libraries to use the `runserver_plus` command.
+   Add the optional libraries `django-extensions` and `Werkzeug` to use the extended debug server
+   from `django-extensions`.
 
    ```shell
-   python -m pip install django-tailwind-cli[django-extensions]
+   python -m pip install "django-tailwind-cli[django-extensions]"
    ```
 
 2. Add `django_tailwind_cli` to `INSTALLED_APPS` in `settings.py`.
@@ -28,7 +29,8 @@ hide:
    ]
    ```
 
-   If you plan to use the `runserver_plus` command, the changes to `INSTALLED_APPS` looks like that.
+   If you want to use the extended debug server from `django-extensions`, add the package to the
+   installed apps.
 
    ```python
    INSTALLED_APPS = [
@@ -65,26 +67,12 @@ hide:
    Or
 
    ```shell
-   python manage.py tailwind runserver_plus
-   ```
-
-   Or
-
-   ```shell
    python manage.py tailwind watch
    ```
 
    If you only start the Tailwind CLI in watch mode, you have to start the debug server with the standard command `python manage.py runserver` seperately.
 
 ## Optional steps
-
-### Install PyCharm workaround
-
-In order [to use Tailwind CLI with PyCharm](/usage/#use-with-pycharm) you have to install a workaround.
-
-```shell
-python manage.py tailwind install_pycharm_workaround
-```
 
 ### Install `django-browser-reload`
 

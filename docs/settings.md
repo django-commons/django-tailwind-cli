@@ -11,7 +11,7 @@ The package can be configured by a few settings, which can be overwritten in the
 your project.
 
 `TAILWIND_CLI_VERSION`
-: **Default**: `"3.4.13"`
+: **Default**: `"4.0.0"`
 
     This defines the version of the CLI and of Tailwind CSS you want to use in your project.
 
@@ -64,23 +64,35 @@ your project.
     Enable or disable the automatic downloading of the official CLI to your machine.
 
 `TAILWIND_CLI_SRC_CSS`
-: **Default**: `None`
+: **Default** (for Tailwind 3.x): `None`<br>**Default** (for Tailwind 4.x): `css/source.css`
 
-    The name of the optional input file for the Tailwind CLI, where all the directivces and custom styles are defined. This is where you add your own definitions for the different layers.
+    !!! warning
+        This setting is optional for Tailwind CSS 3.x. For Tailwind CSS 4.x it must not be empty.
 
-    If you don't define this setting, the default of the Tailwind CLI is used.
+    For **Tailwind CSS 3.x** this optional file is used to define addition CSS rules for your project.
+
+    For **Tailwind CSS 4.x** this required file is used to configure Tailwind CSS and also add
+    additional CSS rules for your project. This file is stored relative to the first element of
+    the `STATICFILES_DIRS` array.
 
 `TAILWIND_CLI_DIST_CSS`
 : **Default**: `"css/tailwind.css"`
 
-    The name of the output file. This file is stored relative to the first element of the `STATICFILES_DIRS` array.
+    The name of the output file. This file is stored relative to the first element of the
+    `STATICFILES_DIRS` array.
 
 `TAILWIND_CLI_CONFIG_FILE`
 : **Default**: `"tailwind.config.js"`
 
-    The name of the Tailwind CLI config file. The file is stored relative to the `BASE_DIR` defined in your settings.
+    !!! danger
 
-## `tailwind.config.js`
+        Is only required for Tailwind CSS 3.x. If you use it with Tailwind CSS 4.x, it is ignored
+        and also raises an exception to force you to remove it.
+
+    The name of the Tailwind CLI config file. The file is stored relative to the `BASE_DIR` defined
+    in your settings.
+
+## `tailwind.config.js` (Tailwind CSS 3.x only)
 
 If you don't create a `tailwind.config.js` file yourself, the management commands will create a sane default for you inside the `BASE_DIR` of your project. The default activates all the official plugins for Tailwind CSS and adds a minimal plugin to support some variants for [HTMX](https://htmx.org/).
 
@@ -92,75 +104,6 @@ const plugin = require("tailwindcss/plugin");
 
 module.exports = {
   content: ["./templates/**/*.html", "**/templates/**/*.html", '**/*.py'],
-  theme: {
-    extend: {},
-  },
-  plugins: [
-    require("@tailwindcss/typography"),
-    require("@tailwindcss/forms"),
-    require("@tailwindcss/aspect-ratio"),
-    require("@tailwindcss/container-queries"),
-    plugin(function ({ addVariant }) {
-      addVariant("htmx-settling", ["&.htmx-settling", ".htmx-settling &"]);
-      addVariant("htmx-request", ["&.htmx-request", ".htmx-request &"]);
-      addVariant("htmx-swapping", ["&.htmx-swapping", ".htmx-swapping &"]);
-      addVariant("htmx-added", ["&.htmx-added", ".htmx-added &"]);
-    }),
-  ],
-};
-```
-
-### Fancier version of `tailwind.config.js`
-
-This configuration also embraces the nice trick authored by Carlton Gibson in his post [Using Django’s template loaders to configure Tailwind¶](https://noumenal.es/notes/tailwind/django-integration/). The implementation adopts Carlton's implementation to honor the conventions of this project. If you put your `tailwind.config.js` in a different location than your `BASE_DIR`, you have to change this file too.
-
-This configuration uses the management command `tailwind list_templates`, which list all the templates files inside your project.
-
-!!! warning "Editor Integration besides VS Code"
-
-    The following default configuration tries to be as smart as possible to find all the templates inside your project and installed dependencies. This works like a charm when you run the debug server using `python manage.py tailwind runserver`. It also works if you start VSCode with `code .` from within the active virtual environment.
-
-    But it does not work with Sublime Text and the lsp-tailwindcss package or with the various LSP packages for (neo)vim. The reason is, that these intergrations not honoring the active virtual environment when being started. If you have an idea to solve this, patches are welcome.
-
-    **With editors besides VS Code please use the default config.**
-
-```javascript title="tailwind.config.js"
-/** @type {import('tailwindcss').Config} */
-const plugin = require("tailwindcss/plugin");
-const { spawnSync } = require("child_process");
-
-// Calls Django to fetch template files
-const getTemplateFiles = () => {
-  const command = "python3";
-  const args = ["manage.py", "tailwind", "list_templates"];
-  // Assumes tailwind.config.js is located in the BASE_DIR of your Django project.
-  const options = { cwd: __dirname };
-
-  const result = spawnSync(command, args, options);
-
-  if (result.error) {
-    throw result.error;
-  }
-
-  if (result.status !== 0) {
-    console.log(result.stdout.toString(), result.stderr.toString());
-    throw new Error(
-      `Django management command exited with code ${result.status}`
-    );
-  }
-
-  const templateFiles = result.stdout
-    .toString()
-    .split("\n")
-    .map((file) => file.trim())
-    .filter(function (e) {
-      return e;
-    }); // Remove empty strings, including last empty line.
-  return templateFiles;
-};
-
-module.exports = {
-  content: [].concat(getTemplateFiles()),
   theme: {
     extend: {},
   },

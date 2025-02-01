@@ -1,13 +1,33 @@
 # Changelog
 
+## 4.0.0
+
+- Added support for Tailwind CSS 4.0.0.
+- Default version is Tailwind CSS 4.0.0.
+- The versioning is now aligned with Tailwind CSS. That means the major number of this packages
+  follows the major number of Tailwind CSS to document the most recent support version of it.
+- Removed the management commands `install_pycharm_workaround` and `uninstall_pycharm_workaround`.
+  This feature broke too often.
+- Removed `runserver_plus` subcommand. The management subcommand `runserver` now starts either the
+  debug server from django-extensions if this package is installed. Otherwise it starts the standard
+  debug server.
+- The management subcommand `runserver` has a option `--force-default-runserver` to enforce the
+  usage of the standard debug server from Django.
+- `TAILWIND_CLI_CONFIG_FILE` isn't necessary for Tailwind CSS 4.x only for 3.x.
+  [Read the documentaiton about it.](settings.md)
+- Removed the documentation for the fancier `tailwind.config.js` as it is not recommended to use
+  and Tailwind CSS 4.x has a way better strategy to find the used Tailwind classes.
+
 ## 2.21.1
 
 - Relaxed the minimum Django version to >=4.0.
 
 ## 2.21.0
 
-- Added `install_pycharm_workaround` and `remove_pycharm_workaround` management commands. [#142](https://github.com/django-commons/django-tailwind-cli/issues/142)
-- Added `remove_cli` subcommand to remove the CLI. [#132](https://github.com/django-commons/django-tailwind-cli/issues/132)
+- Added `install_pycharm_workaround` and `remove_pycharm_workaround` management commands.
+  [#142](https://github.com/django-commons/django-tailwind-cli/issues/142)
+- Added `remove_cli` subcommand to remove the CLI.
+  [#132](https://github.com/django-commons/django-tailwind-cli/issues/132)
 - Refactored all the class based management command into simpler function based commands.
 - Refactored the process to build the runserver command.
 
@@ -43,7 +63,8 @@
 
 ## 2.17.0
 
-- Internal refactoring. Config class has been replaced with django-appconfig and some function in the django_tailwind_cli.utils package.
+- Internal refactoring. Config class has been replaced with django-appconfig and some function in
+  the django_tailwind_cli.utils package.
 - uv is used for publishing too.
 - Updated tooling configuration.
 
@@ -56,17 +77,21 @@
 
 ## 2.15.0
 
-- [#130](https://github.com/oliverandrich/django-tailwind-cli/pull/130) by [@Tobi-De](https://github.com/Tobi-De) extended the support for custom tailwind cli builds. See `TAILWIND_CLI_SRC_REPO` and `TAILWIND_CLI_ASSET_NAME` in the documentation.
+- [#130](https://github.com/oliverandrich/django-tailwind-cli/pull/130) by
+  [@Tobi-De](https://github.com/Tobi-De) extended the support for custom tailwind cli builds. See
+  `TAILWIND_CLI_SRC_REPO` and `TAILWIND_CLI_ASSET_NAME` in the documentation.
 
 ## 2.14.0
 
-- [#129](https://github.com/oliverandrich/django-tailwind-cli/pull/129) by [@Tobi-De](https://github.com/Tobi-De) add a setting to allow for custom tailwind source repo
+- [#129](https://github.com/oliverandrich/django-tailwind-cli/pull/129) by
+  [@Tobi-De](https://github.com/Tobi-De) add a setting to allow for custom tailwind source repo
 - Bumped default version of tailwindcss to 3.4.10.
 
 ## 2.13.0
 
-- [#127](https://github.com/oliverandrich/django-tailwind-cli/pull/127)
-  by [@bckohan](https://github.com/bckohan) upgrade django-typer and fixed future incompatibilities with django-typer 3.0.
+- [#127](https://github.com/oliverandrich/django-tailwind-cli/pull/127) by
+  [@bckohan](https://github.com/bckohan) upgrade django-typer and fixed future incompatibilities
+  with django-typer 3.0.
 - moved to tox for testing.
 - Added Python 3.13 to the test matrix.
 - Added Django 5.1a1 to the test matrix.
@@ -93,7 +118,8 @@
 ## 2.9.0
 
 - Bumped default Tailwind CLI version to 3.4.1.
-- Reimplemented the management command using [django_typer](https://django-typer.readthedocs.io/en/stable/)
+- Reimplemented the management command using
+  [django_typer](https://django-typer.readthedocs.io/en/stable/)
 - Removed Python 3.8 from the list of supported versions.
 
 ## 2.8.1

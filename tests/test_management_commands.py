@@ -1,17 +1,23 @@
 import sys
+from pathlib import Path
 
 import pytest
+from django.conf import LazySettings
 from django.core.management import CommandError, call_command
+from pytest import CaptureFixture
+from pytest_mock import MockerFixture
 
-from django_tailwind_cli import utils
-from django_tailwind_cli.management.commands.tailwind import (
-    DEFAULT_TAILWIND_CONFIG,
-    _get_runserver_options,
-)
+from django_tailwind_cli.config import get_config
+from django_tailwind_cli.management.commands.tailwind import DEFAULT_SOURCE_CSS, DEFAULT_TAILWIND_CONFIG
 
 
-@pytest.fixture(autouse=True)
-def configure_settings(mocker):
+@pytest.fixture(autouse=True, params=["4.0.0", "3.4.17"])
+def configure_settings(request: pytest.FixtureRequest, mocker: MockerFixture, settings: LazySettings, tmp_path: Path):
+    settings.BASE_DIR = tmp_path
+    settings.TAILWIND_CLI_PATH = tmp_path
+    settings.TAILWIND_CLI_VERSION = request.param
+    settings.STATICFILES_DIRS = (settings.BASE_DIR / "assets",)
+
     mocker.resetall()
     mocker.patch("multiprocessing.Process.start")
     mocker.patch("multiprocessing.Process.join")
@@ -25,126 +31,125 @@ def test_calling_unknown_subcommand():
         call_command("tailwind", "not_a_valid_command")
 
 
-def test_invalid_configuration(settings):
-    settings.STATICFILES_DIRS = None
-    with pytest.raises(CommandError, match="Configuration error"):
-        call_command("tailwind", "build")
+def test_create_tailwind_config_if_non_exists(settings: LazySettings, tmp_path: Path):
+    if settings.TAILWIND_CLI_VERSION == "4.0.0":
+        pytest.skip("Tailwind CSS CLI 4.0.0 does not use a tailwind.config.js file.")
+    c = get_config()
+    assert c.config_file is not None
+    assert not c.config_file.exists()
+    call_command("tailwind", "build")
+    assert c.config_file.exists()
+    assert DEFAULT_TAILWIND_CONFIG == c.config_file.read_text()
 
-    settings.STATICFILES_DIRS = []
-    with pytest.raises(CommandError, match="Configuration error"):
-        call_command("tailwind", "build")
+
+def test_with_existing_tailwind_config(settings: LazySettings, tmp_path: Path):
+    if settings.TAILWIND_CLI_VERSION == "4.0.0":
+        pytest.skip("Tailwind CSS CLI 4.0.0 does not use a tailwind.config.js file.")
+    c = get_config()
+    assert c.config_file is not None
+    c.config_file.write_text("module.exports = {}")
+    call_command("tailwind", "build")
+    assert c.config_file.exists()
+    assert "module.exports = {}" == c.config_file.read_text()
+    assert DEFAULT_TAILWIND_CONFIG != c.config_file.read_text()
 
 
-def test_download_cli(settings, tmp_path):
-    settings.BASE_DIR = tmp_path
-    settings.TAILWIND_CLI_PATH = str(tmp_path)
-    assert not utils.get_full_cli_path().exists()
+def test_create_src_css_if_non_exists(settings: LazySettings, tmp_path: Path):
+    if settings.TAILWIND_CLI_VERSION == "3.4.17":
+        pytest.skip("With Tailwind CSS CLI 3.4.17 a src css file is optional. But with 4.0.0 it is required.")
+    c = get_config()
+    assert c.src_css is not None
+    assert not c.src_css.exists()
+    call_command("tailwind", "build")
+    assert c.src_css.exists()
+    assert DEFAULT_SOURCE_CSS == c.src_css.read_text()
+
+
+def test_with_existing_src_css(settings: LazySettings, tmp_path: Path):
+    if settings.TAILWIND_CLI_VERSION == "3.4.17":
+        pytest.skip("With Tailwind CSS CLI 3.4.17 a src css file is optional. But with 4.0.0 it is required.")
+    c = get_config()
+    assert c.src_css is not None
+    c.src_css.parent.mkdir(parents=True, exist_ok=True)
+    c.src_css.write_text('@import "tailwindcss";\n@theme {};\n')
+    call_command("tailwind", "build")
+    assert c.src_css.exists()
+    assert '@import "tailwindcss";\n@theme {};\n' == c.src_css.read_text()
+    assert DEFAULT_SOURCE_CSS != c.src_css.read_text()
+
+
+def test_download_cli():
+    c = get_config()
+    assert not c.cli_path.exists()
     call_command("tailwind", "download_cli")
-    assert utils.get_full_cli_path().exists()
+    assert c.cli_path.exists()
 
 
-def test_download_cli_without_tailwind_cli_path(settings, tmp_path):
-    settings.BASE_DIR = tmp_path
+def test_download_cli_without_tailwind_cli_path(settings: LazySettings):
     settings.TAILWIND_CLI_PATH = None
-    assert not utils.get_full_cli_path().exists()
+    c = get_config()
+    assert not c.cli_path.exists()
     call_command("tailwind", "download_cli")
-    assert utils.get_full_cli_path().exists()
+    assert c.cli_path.exists()
 
 
-def test_automatic_download_enabled(settings, tmp_path):
-    settings.BASE_DIR = tmp_path
-    settings.TAILWIND_CLI_PATH = str(tmp_path)
-    settings.TAILWIND_CLI_AUTOMATIC_DOWNLOAD = True
-    assert not utils.get_full_cli_path().exists()
+def test_automatic_download_enabled():
+    c = get_config()
+    assert not c.cli_path.exists()
     call_command("tailwind", "build")
-    assert utils.get_full_cli_path().exists()
+    assert c.cli_path.exists()
 
 
-def test_automatic_download_disabled(settings, tmp_path):
-    settings.BASE_DIR = tmp_path
-    settings.TAILWIND_CLI_PATH = str(tmp_path)
+def test_automatic_download_disabled(settings: LazySettings):
     settings.TAILWIND_CLI_AUTOMATIC_DOWNLOAD = False
-    assert not utils.get_full_cli_path().exists()
-    with pytest.raises(
-        CommandError, match="Automatic download of Tailwind CSS CLI is deactivated."
-    ):
+    c = get_config()
+    assert not c.cli_path.exists()
+    with pytest.raises(CommandError, match="Automatic download of Tailwind CSS CLI is deactivated."):
         call_command("tailwind", "build")
-    with pytest.raises(
-        CommandError, match="Automatic download of Tailwind CSS CLI is deactivated."
-    ):
+    with pytest.raises(CommandError, match="Automatic download of Tailwind CSS CLI is deactivated."):
         call_command("tailwind", "watch")
-    assert not utils.get_full_cli_path().exists()
+    assert not c.cli_path.exists()
 
 
-def test_manual_download_and_build(settings, tmp_path):
-    settings.BASE_DIR = tmp_path
-    settings.TAILWIND_CLI_PATH = str(tmp_path)
+def test_manual_download_and_build(settings: LazySettings):
     settings.TAILWIND_CLI_AUTOMATIC_DOWNLOAD = False
     call_command("tailwind", "download_cli")
     call_command("tailwind", "build")
 
 
-def test_download_from_another_repo(settings, tmp_path, capsys):
-    settings.BASE_DIR = tmp_path
-    settings.TAILWIND_CLI_PATH = str(tmp_path)
+def test_download_from_another_repo(settings: LazySettings, capsys: CaptureFixture[str]):
     settings.TAILWIND_CLI_AUTOMATIC_DOWNLOAD = False
     settings.TAILWIND_CLI_SRC_REPO = "oliverandrich/mytailwind"
     call_command("tailwind", "download_cli")
     captured = capsys.readouterr()
-    assert "from 'oliverandrich/mytailwind'" in captured.out
+    assert "oliverandrich/mytailwind" in captured.out
 
 
-def test_remove_cli_with_existing_cli(settings, tmp_path, capsys):
-    settings.BASE_DIR = tmp_path
-    settings.TAILWIND_CLI_PATH = str(tmp_path)
+def test_remove_cli_with_existing_cli(settings: LazySettings, capsys: CaptureFixture[str]):
     settings.TAILWIND_CLI_AUTOMATIC_DOWNLOAD = True
+    c = get_config()
     call_command("tailwind", "download_cli")
-    assert utils.get_full_cli_path().exists()
+    assert c.cli_path.exists()
     call_command("tailwind", "remove_cli")
-    assert not utils.get_full_cli_path().exists()
+    assert not c.cli_path.exists()
     captured = capsys.readouterr()
     assert "Removed Tailwind CSS CLI at " in captured.out
 
 
-def test_remove_cli_without_existing_cli(settings, tmp_path, capsys):
-    settings.BASE_DIR = tmp_path
-    settings.TAILWIND_CLI_PATH = str(tmp_path)
+def test_remove_cli_without_existing_cli(settings: LazySettings, capsys: CaptureFixture[str]):
     settings.TAILWIND_CLI_AUTOMATIC_DOWNLOAD = True
     call_command("tailwind", "remove_cli")
     captured = capsys.readouterr()
     assert "Tailwind CSS CLI not found at " in captured.out
 
 
-def test_create_tailwind_config_if_non_exists(settings, tmp_path):
-    settings.BASE_DIR = tmp_path
-    settings.TAILWIND_CLI_PATH = str(tmp_path)
-    assert not utils.get_full_config_file_path().exists()
-    call_command("tailwind", "build")
-    assert utils.get_full_cli_path().exists()
-    assert DEFAULT_TAILWIND_CONFIG == utils.get_full_config_file_path().read_text()
-
-
-def test_with_existing_tailwind_config(settings, tmp_path):
-    settings.BASE_DIR = tmp_path
-    settings.TAILWIND_CLI_PATH = str(tmp_path)
-    utils.get_full_config_file_path().write_text("module.exports = {}")
-    call_command("tailwind", "build")
-    assert utils.get_full_config_file_path().exists()
-    assert "module.exports = {}" == utils.get_full_config_file_path().read_text()
-    assert DEFAULT_TAILWIND_CONFIG != utils.get_full_config_file_path().read_text()
-
-
-def test_build_subprocess_run_called(settings, tmp_path, mocker):
-    settings.BASE_DIR = tmp_path
-    settings.TAILWIND_CLI_PATH = str(tmp_path)
+def test_build_subprocess_run_called(mocker: MockerFixture):
     subprocess_run = mocker.patch("subprocess.run")
     call_command("tailwind", "build")
     assert 1 <= subprocess_run.call_count <= 2
 
 
-def test_build_output_of_first_run(settings, tmp_path, capsys):
-    settings.BASE_DIR = tmp_path
-    settings.TAILWIND_CLI_PATH = str(tmp_path)
+def test_build_output_of_first_run(capsys: CaptureFixture[str]):
     call_command("tailwind", "build")
     captured = capsys.readouterr()
     assert "Tailwind CSS CLI not found." in captured.out
@@ -153,9 +158,7 @@ def test_build_output_of_first_run(settings, tmp_path, capsys):
     assert "Built production stylesheet" in captured.out
 
 
-def test_build_output_of_second_run(settings, tmp_path, capsys):
-    settings.BASE_DIR = tmp_path
-    settings.TAILWIND_CLI_PATH = str(tmp_path)
+def test_build_output_of_second_run(capsys: CaptureFixture[str]):
     call_command("tailwind", "build")
     capsys.readouterr()
     call_command("tailwind", "build")
@@ -170,9 +173,7 @@ def test_build_output_of_second_run(settings, tmp_path, capsys):
     sys.version_info < (3, 9),
     reason="The capturing of KeyboardInterupt fails with pytest every other time.",
 )
-def test_build_keyboard_interrupt(settings, tmp_path, mocker, capsys):
-    settings.BASE_DIR = tmp_path
-    settings.TAILWIND_CLI_PATH = str(tmp_path)
+def test_build_keyboard_interrupt(capsys: CaptureFixture[str], mocker: MockerFixture):
     subprocess_run = mocker.patch("subprocess.run")
     subprocess_run.side_effect = KeyboardInterrupt
     call_command("tailwind", "build")
@@ -180,45 +181,37 @@ def test_build_keyboard_interrupt(settings, tmp_path, mocker, capsys):
     assert "Canceled building production stylesheet." in captured.out
 
 
-def test_build_without_input_file(settings, tmp_path, mocker):
-    settings.BASE_DIR = tmp_path
-    settings.TAILWIND_CLI_PATH = str(tmp_path)
+def test_build_without_input_file(mocker: MockerFixture, settings: LazySettings):
+    if settings.TAILWIND_CLI_VERSION == "4.0.0":
+        pytest.skip("Tailwind CSS CLI 4.0.0 does not work without a source file.")
     subprocess_run = mocker.patch("subprocess.run")
     call_command("tailwind", "build")
-    name, args, kwargs = subprocess_run.mock_calls[0]
+    _name, args, _kwargs = subprocess_run.mock_calls[0]
     assert "--input" not in args[0]
 
 
-def test_build_with_input_file(settings, tmp_path, mocker):
-    settings.BASE_DIR = tmp_path
-    settings.TAILWIND_CLI_PATH = str(tmp_path)
+def test_build_with_input_file(settings: LazySettings, tmp_path: Path, mocker: MockerFixture):
     settings.TAILWIND_CLI_SRC_CSS = "css/source.css"
     subprocess_run = mocker.patch("subprocess.run")
     call_command("tailwind", "build")
-    name, args, kwargs = subprocess_run.mock_calls[0]
+    _name, args, _kwargs = subprocess_run.mock_calls[0]
     assert "--input" in args[0]
 
 
-def test_watch_subprocess_run_called(settings, tmp_path, mocker):
-    settings.BASE_DIR = tmp_path
-    settings.TAILWIND_CLI_PATH = str(tmp_path)
+def test_watch_subprocess_run_called(mocker: MockerFixture):
     subprocess_run = mocker.patch("subprocess.run")
     call_command("tailwind", "watch")
     assert 1 <= subprocess_run.call_count <= 2
 
 
-def test_watch_output_of_first_run(settings, tmp_path, capsys):
-    settings.BASE_DIR = tmp_path
-    settings.TAILWIND_CLI_PATH = str(tmp_path)
+def test_watch_output_of_first_run(capsys: CaptureFixture[str]):
     call_command("tailwind", "watch")
     captured = capsys.readouterr()
     assert "Tailwind CSS CLI not found." in captured.out
     assert "Downloading Tailwind CSS CLI from " in captured.out
 
 
-def test_watch_output_of_second_run(settings, tmp_path, capsys):
-    settings.BASE_DIR = tmp_path
-    settings.TAILWIND_CLI_PATH = str(tmp_path)
+def test_watch_output_of_second_run(capsys: CaptureFixture[str]):
     call_command("tailwind", "watch")
     capsys.readouterr()
     call_command("tailwind", "watch")
@@ -231,9 +224,7 @@ def test_watch_output_of_second_run(settings, tmp_path, capsys):
     sys.version_info < (3, 9),
     reason="The capturing of KeyboardInterupt fails with pytest every other time.",
 )
-def test_watch_keyboard_interrupt(settings, tmp_path, mocker, capsys):
-    settings.BASE_DIR = tmp_path
-    settings.TAILWIND_CLI_PATH = str(tmp_path)
+def test_watch_keyboard_interrupt(capsys: CaptureFixture[str], mocker: MockerFixture):
     subprocess_run = mocker.patch("subprocess.run")
     subprocess_run.side_effect = KeyboardInterrupt
     call_command("tailwind", "watch")
@@ -241,56 +232,24 @@ def test_watch_keyboard_interrupt(settings, tmp_path, mocker, capsys):
     assert "Stopped watching for changes." in captured.out
 
 
-def test_watch_without_input_file(settings, tmp_path, mocker):
-    settings.BASE_DIR = tmp_path
-    settings.TAILWIND_CLI_PATH = str(tmp_path)
+def test_watch_without_input_file(settings: LazySettings, mocker: MockerFixture):
+    if settings.TAILWIND_CLI_VERSION == "4.0.0":
+        pytest.skip("Tailwind CSS CLI 4.0.0 does not work without a source file.")
     subprocess_run = mocker.patch("subprocess.run")
     call_command("tailwind", "watch")
-    name, args, kwargs = subprocess_run.mock_calls[0]
+    _name, args, _kwargs = subprocess_run.mock_calls[0]
     assert "--input" not in args[0]
 
 
-def test_watch_with_input_file(settings, tmp_path, mocker):
-    settings.BASE_DIR = tmp_path
-    settings.TAILWIND_CLI_PATH = str(tmp_path)
+def test_watch_with_input_file(settings: LazySettings, mocker: MockerFixture):
     settings.TAILWIND_CLI_SRC_CSS = "css/source.css"
     subprocess_run = mocker.patch("subprocess.run")
     call_command("tailwind", "watch")
-    name, args, kwargs = subprocess_run.mock_calls[0]
+    _name, args, _kwargs = subprocess_run.mock_calls[0]
     assert "--input" in args[0]
 
 
-def test_runserver():
-    call_command("tailwind", "runserver")
-
-
-def test_runserver_plus_with_django_extensions_installed():
-    call_command("tailwind", "runserver_plus")
-
-
-def test_runserver_plus_without_django_extensions_installed(mocker):
-    mocker.patch.dict(sys.modules, {"django_extensions": None, "werkzeug": None})
-    with pytest.raises(CommandError, match="Missing dependencies."):
-        call_command("tailwind", "runserver_plus")
-
-
-def test_get_runserver_options():
-    assert _get_runserver_options(use_ipv6=True) == ["--ipv6"]
-    assert _get_runserver_options(no_threading=True) == ["--nothreading"]
-    assert _get_runserver_options(no_static=True) == ["--nostatic"]
-    assert _get_runserver_options(no_reloader=True) == ["--noreload"]
-    assert _get_runserver_options(skip_checks=True) == ["--skip-checks"]
-    assert _get_runserver_options(pdb=True) == ["--pdb"]
-    assert _get_runserver_options(ipdb=True) == ["--ipdb"]
-    assert _get_runserver_options(pm=True) == ["--pm"]
-    assert _get_runserver_options(print_sql=True) == ["--print-sql"]
-    assert _get_runserver_options(print_sql_location=True) == ["--print-sql-location"]
-    assert _get_runserver_options(cert_file="somefile") == ["--cert-file=somefile"]
-    assert _get_runserver_options(key_file="somefile") == ["--key-file=somefile"]
-    assert _get_runserver_options(addrport="0.0.0.0:9000") == ["0.0.0.0:9000"]
-
-
-def test_list_project_templates(capsys):
+def test_list_project_templates(capsys: CaptureFixture[str]):
     call_command("tailwind", "list_templates")
     captured = capsys.readouterr()
     assert "templates/tailwind_cli/base.html" in captured.out
@@ -299,7 +258,7 @@ def test_list_project_templates(capsys):
     assert "templates/admin" not in captured.out
 
 
-def test_list_projecttest_list_project_all_templates_templates(capsys, settings):
+def test_list_projecttest_list_project_all_templates_templates(capsys: CaptureFixture[str], settings: LazySettings):
     settings.INSTALLED_APPS = [
         "django.contrib.contenttypes",
         "django.contrib.messages",
@@ -316,81 +275,10 @@ def test_list_projecttest_list_project_all_templates_templates(capsys, settings)
     assert "templates/admin" in captured.out
 
 
-def test_install_pycharm_workaround(settings, tmp_path, capsys):
-    settings.BASE_DIR = tmp_path
-    settings.TAILWIND_CLI_PATH = str(tmp_path)
-    package_json = settings.BASE_DIR / "package.json"
-    cli_js = settings.BASE_DIR / "node_modules" / "tailwindcss" / "lib" / "cli.js"
-
-    assert not package_json.exists()
-    assert not cli_js.exists()
-
-    call_command("tailwind", "install_pycharm_workaround")
-
-    assert package_json.exists()
-    assert (
-        settings.BASE_DIR / "package.json"
-    ).read_text() == '{"devDependencies": {"tailwindcss": "latest"}}'
-    captured = capsys.readouterr()
-    assert "Created package.json" in captured.out
-
-    assert cli_js.exists()
-    assert cli_js.resolve() == utils.get_full_cli_path()
-    assert "Created link at" in captured.out
-
-    assert (
-        "Assure that you have added package.json and node_modules to your .gitignore file."
-        in captured.out
-    )
+def test_runserver():
+    call_command("tailwind", "runserver")
 
 
-def test_install_pycharm_workaround_twice(settings, tmp_path, capsys):
-    settings.BASE_DIR = tmp_path
-    settings.TAILWIND_CLI_PATH = str(tmp_path)
-    call_command("tailwind", "install_pycharm_workaround")
-    call_command("tailwind", "install_pycharm_workaround")
-    captured = capsys.readouterr()
-    assert "PyCharm workaround is already installed at" in captured.out
-
-
-def test_install_pycharm_workaround_with_existing(settings, tmp_path, capsys):
-    settings.BASE_DIR = tmp_path
-    settings.TAILWIND_CLI_PATH = str(tmp_path)
-
-    package_json = settings.BASE_DIR / "package.json"
-    package_json.write_text("{}")
-
-    call_command("tailwind", "install_pycharm_workaround")
-    captured = capsys.readouterr()
-    assert "Found an existing package.json at" in captured.out
-    assert "that is not compatible." in captured.out
-
-
-def test_uninstall_pycharm_workaround(settings, tmp_path, capsys):
-    settings.BASE_DIR = tmp_path
-    settings.TAILWIND_CLI_PATH = str(tmp_path)
-    call_command("tailwind", "install_pycharm_workaround")
-    call_command("tailwind", "uninstall_pycharm_workaround")
-    captured = capsys.readouterr()
-    assert "Removed package.json and cli.js." in captured.out
-
-
-def test_uninstall_pycharm_workaround_with_other_package_json(settings, tmp_path, capsys):
-    settings.BASE_DIR = tmp_path
-    settings.TAILWIND_CLI_PATH = str(tmp_path)
-
-    package_json = settings.BASE_DIR / "package.json"
-    package_json.write_text("{}")
-
-    call_command("tailwind", "uninstall_pycharm_workaround")
-    captured = capsys.readouterr()
-    assert "Found an existing package.json at" in captured.out
-    assert "was not installed by us." in captured.out
-
-
-def test_uninstall_pycharm_workaround_without_install(settings, tmp_path, capsys):
-    settings.BASE_DIR = tmp_path
-    settings.TAILWIND_CLI_PATH = str(tmp_path)
-    call_command("tailwind", "uninstall_pycharm_workaround")
-    captured = capsys.readouterr()
-    assert "No package.json or cli.js found." in captured.out
+def test_runserver_plus_without_django_extensions_installed(mocker: MockerFixture):
+    mocker.patch.dict(sys.modules, {"django_extensions": None, "werkzeug": None})
+    call_command("tailwind", "runserver")

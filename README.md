@@ -62,6 +62,7 @@ Checkout the detailed [installation guide](https://django-tailwind-cli.rtfd.io/l
 ## Features
 
 - Simplest possible integration.
+- Support Tailwind CSS 3.x and 4.x.
 - Management commands:
 
     * To start the Tailwind CLI in watch mode during development.
@@ -71,7 +72,7 @@ Checkout the detailed [installation guide](https://django-tailwind-cli.rtfd.io/l
 - Configuration options to adapt the library to your project, when the defaults don't fit you.
 - A template tag to include the Tailwind CSS file in your project.
 - A base template for your project.
-- A sane tailwind.config.js that activates all the official plugins and includes a simple HTMX plugin.
+- Sane default configurations for Tailwind 3.x and Tailwinc 4.x.
 - A management command to install [a workaround to support Tailwind CLI in PyCharm](https://django-tailwind-cli.rtfd.io/latest/usage/#use-with-pycharm).
 
 ## Requirements
