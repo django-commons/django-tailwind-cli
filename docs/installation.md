@@ -128,4 +128,4 @@ steps.
 
 - Remove or change the setting `TAILWIND_CLI_VERSION` if it is set.
 - Remove the setting `TAILWIND_CLI_CONFIG_FILE` if it is set.
-- Remove the `tailwind.config.js` your project.
+- Remove the `tailwind.config.js` from your project.
