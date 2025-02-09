@@ -14,7 +14,7 @@
 - The management subcommand `runserver` has a option `--force-default-runserver` to enforce the
   usage of the standard debug server from Django.
 - `TAILWIND_CLI_CONFIG_FILE` isn't necessary for Tailwind CSS 4.x only for 3.x.
-  [Read the documentaiton about it.](settings.md)
+  [Read the documentaiton about it.](https://django-tailwind-cli.rtfd.io/latest/installation/settings)
 - Removed the documentation for the fancier `tailwind.config.js` as it is not recommended to use
   and Tailwind CSS 4.x has a way better strategy to find the used Tailwind classes.
 

@@ -57,12 +57,14 @@ The goal of this library is to provided the simplest possible Tailwind integrati
 
 Enjoy!
 
-Checkout the detailed [installation guide](https://django-tailwind-cli.rtfd.io/latest/installation/) if you want to activate browser reload or the `runserver_plus` management command known from `django-extensions`.
+Checkout the detailed [installation guide](https://django-tailwind-cli.rtfd.io/latest/installation/)
+if you want to activate browser reload or the `runserver_plus` management command known from
+`django-extensions`.
 
 ## Features
 
 - Simplest possible integration.
-- Support Tailwind CSS 3.x and 4.x.
+- Support Tailwind CSS 3.x and 4.x. Check the [update instructions](https://django-tailwind-cli.rtfd.io/latest/installation/#upgrade-from-tailwind-css-3x-to-4x).
 - Management commands:
 
     * To start the Tailwind CLI in watch mode during development.
@@ -85,7 +87,10 @@ The documentation can be found at [https://django-tailwind-cli.rtfd.io/](https:/
 
 ## Contributing
 
-This package requires [uv](https://docs.astral.sh/uv/) for dependency management and tooling. So you have to [install it](https://docs.astral.sh/uv/getting-started/installation/) first. [just](https://github.com/casey/just) is used as a handy command runner to save some typing on the command line. Do yourself a favor and install it too.
+This package requires [uv](https://docs.astral.sh/uv/) for dependency management and tooling. So you
+have to [install it](https://docs.astral.sh/uv/getting-started/installation/) first.
+[just](https://github.com/casey/just) is used as a handy command runner to save some typing on the
+command line. Do yourself a favor and install it too.
 
 ```shell
 # Setup development environment
