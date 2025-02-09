@@ -5,13 +5,13 @@
 - Added support for Tailwind CSS 4.0.0.
 - Default version is Tailwind CSS 4.0.0.
 - The versioning is now aligned with Tailwind CSS. That means the major number of this packages
-  follows the major number of Tailwind CSS to document the most recent support version of it.
+  follows the major number of Tailwind CSS to document the most recent supported version of Tailwind.
 - Removed the management commands `install_pycharm_workaround` and `uninstall_pycharm_workaround`.
   This feature broke too often.
 - Removed `runserver_plus` subcommand. The management subcommand `runserver` now starts either the
   debug server from django-extensions if this package is installed. Otherwise it starts the standard
   debug server.
-- The management subcommand `runserver` has a option `--force-default-runserver` to enforce the
+- The management subcommand `runserver` got an option `--force-default-runserver` to enforce the
   usage of the standard debug server from Django.
 - `TAILWIND_CLI_CONFIG_FILE` isn't necessary for Tailwind CSS 4.x only for 3.x.
   [Read the documentaiton about it.](https://django-tailwind-cli.rtfd.io/latest/installation/settings)
