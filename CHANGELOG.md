@@ -1,5 +1,10 @@
 # Changelog
 
+## 4.0.1
+
+- Various fixes for the documentation.
+- Added Django 5.2 to the testing matrix.
+
 ## 4.0.0
 
 - Added support for Tailwind CSS 4.0.0.
