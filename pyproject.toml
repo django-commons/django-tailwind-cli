@@ -50,8 +50,6 @@ dev = [
     "pytest-randomly>=3.15.0",
     "pytest>=8.3.3",
     "django-stubs[compatible-mypy]>=5.1.1",
-    "tox>=4.23.2",
-    "tox-uv>=1.16.0",
 ]
 
 [build-system]

@@ -11,9 +11,18 @@ The package can be configured by a few settings, which can be overwritten in the
 your project.
 
 `TAILWIND_CLI_VERSION`
-: **Default**: `"4.0.0"`
+: **Default**: `"latest"`
 
     This defines the version of the CLI and of Tailwind CSS you want to use in your project.
+
+    If it is set to `latest`, the management commands try to determine the most recent version of Tailwind CSS by placing a request to GitHub and parse the location header of the redirect. If this is not possible a fallback version is used. This version is defined in the module `django_tailwind_cli.config`.
+
+    If you want to pinpoint your setup to certain version of Tailwind CSS, then you can set `TAILWIND_CLI_VERSION`to a fixed version number.
+
+    For example:
+    ```python
+    TAILWIND_CLI_VERSION = "3.4.17"
+    ```
 
 `TAILWIND_CLI_PATH`
 : **Default**: `"~/.local/bin/"`

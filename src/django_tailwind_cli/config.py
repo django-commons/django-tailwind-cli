@@ -4,8 +4,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
+import requests
 from django.conf import settings
 from semver import Version
+
+FALLBACK_VERSION = "4.0.6"
 
 
 @dataclass
@@ -49,6 +52,33 @@ class Config:
         return result
 
 
+def get_version() -> tuple[str, Version]:
+    """
+    Retrieves the version of Tailwind CSS specified in the Django settings or fetches the latest
+    version from the Tailwind CSS GitHub repository.
+
+    Returns:
+        tuple[str, Version]: A tuple containing the version string and the parsed Version object.
+
+    Raises:
+        ValueError: If the TAILWIND_CLI_SRC_REPO setting is None when the version is set to
+        "latest".
+    """
+    version_str = getattr(settings, "TAILWIND_CLI_VERSION", "latest")
+
+    if version_str == "latest":
+        repo_url = getattr(settings, "TAILWIND_CLI_SRC_REPO", "tailwindlabs/tailwindcss")
+        if not repo_url:
+            raise ValueError("TAILWIND_CLI_SRC_REPO must not be None.")
+        r = requests.get(f"https://github.com/{repo_url}/releases/latest/", timeout=2)
+        if r.ok and "location" in r.headers:
+            version_str = r.headers["location"].rstrip("/").split("/")[-1].replace("v", "")
+        else:
+            version_str = FALLBACK_VERSION
+
+    return version_str, Version.parse(version_str)
+
+
 def get_config() -> Config:
     if settings.STATICFILES_DIRS is None or len(settings.STATICFILES_DIRS) == 0:
         raise ValueError("STATICFILES_DIRS is empty. Please add a path to your static files.")
@@ -67,8 +97,7 @@ def get_config() -> Config:
     extension = ".exe" if system == "windows" else ""
 
     # Read version from settings
-    version_str = getattr(settings, "TAILWIND_CLI_VERSION", "4.0.0")
-    version = Version.parse(version_str)
+    version_str, version = get_version()
 
     # Determine the full path to the CLI
     cli_path = Path(getattr(settings, "TAILWIND_CLI_PATH", "~/.local/bin/") or settings.BASE_DIR)

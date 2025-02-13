@@ -2,15 +2,67 @@ from pathlib import Path
 
 import pytest
 from django.conf import LazySettings
+from pytest_django.fixtures import SettingsWrapper
 from pytest_mock import MockerFixture
 
-from django_tailwind_cli.config import get_config
+from django_tailwind_cli.config import get_config, get_version
 
 
 @pytest.fixture(autouse=True)
-def configure_settings(settings: LazySettings):
+def configure_settings(
+    settings: LazySettings,
+    mocker: MockerFixture,
+):
     settings.BASE_DIR = Path("/home/user/project")
     settings.STATICFILES_DIRS = (settings.BASE_DIR / "assets",)
+    request_get = mocker.patch("requests.get")
+    request_get.return_value.headers = {"location": "https://github.com/tailwindlabs/tailwindcss/releases/tag/v4.0.10"}
+
+
+@pytest.mark.parametrize(
+    "version_str, version",
+    [
+        ("4.0.0", (4, 0, 0)),
+        ("3.4.17", (3, 4, 17)),
+    ],
+)
+def test_get_version(settings: SettingsWrapper, version_str: str, version: tuple[int, int, int]):
+    settings.TAILWIND_CLI_VERSION = version_str
+    r_version_str, r_version = get_version()
+    assert r_version_str == version_str
+    assert r_version.major == version[0]
+    assert r_version.minor == version[1]
+    assert r_version.patch == version[2]
+
+
+def test_get_version_latest(settings: SettingsWrapper):
+    r_version_str, r_version = get_version()
+    assert r_version_str == "4.0.10"
+    assert r_version.major == 4
+    assert r_version.minor == 0
+    assert r_version.patch == 10
+
+
+def test_get_version_latest_without_proper_http_response(mocker: MockerFixture):
+    request_get = mocker.patch("requests.get")
+    request_get.return_value.ok = False
+
+    r_version_str, r_version = get_version()
+    assert r_version_str == "4.0.6"
+    assert r_version.major == 4
+    assert r_version.minor == 0
+    assert r_version.patch == 6
+
+
+def test_get_version_latest_without_redirect(mocker: MockerFixture):
+    request_get = mocker.patch("requests.get")
+    request_get.return_value.headers = {}
+
+    r_version_str, r_version = get_version()
+    assert r_version_str == "4.0.6"
+    assert r_version.major == 4
+    assert r_version.minor == 0
+    assert r_version.patch == 6
 
 
 def test_default_config():

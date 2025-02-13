@@ -1,5 +1,11 @@
 # Changelog
 
+## 4.1.0
+
+- TAILWIND_CLI_VERSION defaults to "latest" now. In case it is set to this value,
+  django-tailwind-cli tries to determine which version is the latest version of Tailwind CSS. If it is not able to access the internet, it uses a fallback version defined in django_tailwind_cli.config.FALLBACK_VERSION. Currently,
+  it is set to 4.0.6.
+
 ## 4.0.1
 
 - Various fixes for the documentation.
