@@ -38,3 +38,8 @@ repos:
     hooks:
     -   id: djade
         args: [--target-version, "4.2"]
+
+  - repo: https://github.com/owenlamont/uv-secure
+    rev: 0.8.1
+    hooks:
+      - id: uv-secure
