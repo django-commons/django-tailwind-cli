@@ -279,6 +279,3 @@ def test_runserver():
     call_command("tailwind", "runserver")
 
 
-def test_runserver_plus_without_django_extensions_installed(mocker: MockerFixture):
-    mocker.patch.dict(sys.modules, {"django_extensions": None, "werkzeug": None})
-    call_command("tailwind", "runserver")

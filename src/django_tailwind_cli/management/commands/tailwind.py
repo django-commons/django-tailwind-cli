@@ -7,6 +7,7 @@ import sys
 from multiprocessing import Process
 from pathlib import Path
 from typing import Optional, Union
+from warnings import warn
 
 import requests
 import typer
@@ -184,37 +185,16 @@ def runserver(
     If django-extensions is installed along with this library, this command runs the runserver_plus
     command from django-extensions. Otherwise it runs the default runserver command.
     """
-    if (
-        importlib.util.find_spec("django_extensions")
-        and importlib.util.find_spec("werkzeug")
-        and not force_default_runserver
-    ):
-        server_command = "runserver_plus"
-        runserver_options = get_runserver_options(
-            addrport=addrport,
-            use_ipv6=use_ipv6,
-            no_threading=no_threading,
-            no_static=no_static,
-            no_reloader=no_reloader,
-            skip_checks=skip_checks,
-            pdb=pdb,
-            ipdb=ipdb,
-            pm=pm,
-            print_sql=print_sql,
-            print_sql_location=print_sql_location,
-            cert_file=cert_file,
-            key_file=key_file,
-        )
-    else:
-        server_command = "runserver"
-        runserver_options = get_runserver_options(
-            addrport=addrport,
-            use_ipv6=use_ipv6,
-            no_threading=no_threading,
-            no_static=no_static,
-            no_reloader=no_reloader,
-            skip_checks=skip_checks,
-        )
+    
+    
+    runserver_options = get_runserver_options(
+        addrport=addrport,
+        use_ipv6=use_ipv6,
+        no_threading=no_threading,
+        no_static=no_static,
+        no_reloader=no_reloader,
+        skip_checks=skip_checks,
+    )
 
     watch_cmd = [sys.executable, "manage.py", "tailwind", "watch"]
     watch_process = Process(
@@ -229,7 +209,7 @@ def runserver(
     debug_server_cmd = [
         sys.executable,
         "manage.py",
-        server_command,
+        "runserver",
     ] + runserver_options
 
     debugserver_process = Process(
@@ -361,20 +341,6 @@ def get_runserver_options(
         options.append("--noreload")
     if skip_checks:
         options.append("--skip-checks")
-    if pdb:
-        options.append("--pdb")
-    if ipdb:
-        options.append("--ipdb")
-    if pm:
-        options.append("--pm")
-    if print_sql:
-        options.append("--print-sql")
-    if print_sql_location:
-        options.append("--print-sql-location")
-    if cert_file:
-        options.append(f"--cert-file={cert_file}")
-    if key_file:
-        options.append(f"--key-file={key_file}")
     if addrport:
         options.append(addrport)
 
