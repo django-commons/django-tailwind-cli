@@ -45,9 +45,6 @@ Usage: manage.py tailwind runserver
 
   Run the development server with Tailwind CSS CLI in watch mode.
 
-  If django-extensions is installed along with this library, this command runs
-  the runserver_plus command from django-extensions. Otherwise it runs the
-  default runserver command.
 
 Arguments:
   [ADDRPORT]  Optional port number, or ipaddr:port
@@ -89,7 +86,7 @@ Options:
 
 ### watch
 
-Run `python manage.py tailwind watch` to just start a tailwind watcher process if you prefer to start your debug server in a seperate shell or prefer a different solution than runserver or runserver_plus.
+Run `python manage.py tailwind watch` to just start a tailwind watcher process if you prefer to start your debug server in a seperate shell or prefer a different solution than runserver.
 
 ## Use with Docker Compose
 

@@ -58,8 +58,7 @@ The goal of this library is to provided the simplest possible Tailwind integrati
 Enjoy!
 
 Checkout the detailed [installation guide](https://django-tailwind-cli.rtfd.io/latest/installation/)
-if you want to activate browser reload or the `runserver_plus` management command known from
-`django-extensions`.
+if you want to activate browser reload.
 
 ## Features
 
