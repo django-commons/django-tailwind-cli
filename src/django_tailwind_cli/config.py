@@ -41,6 +41,8 @@ class Config:
     def build_cmd(self) -> list[str]:
         result = [
             str(self.cli_path),
+            "--config",
+            str(self.config_file),
             "--output",
             str(self.dist_css),
             "--minify",
