@@ -41,13 +41,14 @@ class Config:
     def build_cmd(self) -> list[str]:
         result = [
             str(self.cli_path),
-            "--config",
-            str(self.config_file),
             "--output",
             str(self.dist_css),
             "--minify",
         ]
 
+        if self.config_file:
+            result.extend(["--config", str(self.config_file)])
+        
         if self.src_css:
             result.extend(["--input", str(self.src_css)])
 
