@@ -23,24 +23,26 @@ app = Typer(name="tailwind", help="Create and manage a Tailwind CSS theme.")  # 
 @app.command()
 def build() -> None:
     """Build a minified production ready CSS file."""
-    c = get_config()
+    config = get_config()
     _download_cli()
     _create_standard_config()
 
     try:
-        subprocess.run(c.build_cmd, cwd=settings.BASE_DIR, check=True, capture_output=True)
+        subprocess.run(config.build_cmd, cwd=settings.BASE_DIR, check=True, capture_output=True, text=True)
     except KeyboardInterrupt:
         typer.secho("Canceled building production stylesheet.", fg=typer.colors.RED)
+        return
     except subprocess.CalledProcessError as e:  # pragma: no cover
         typer.secho(
-            f"Failed to build production stylesheet: {e.stderr.decode()}",
+            f"Failed to build production stylesheet: {e.stderr}",
             fg=typer.colors.RED,
         )
-    else:
-        typer.secho(
-            f"Built production stylesheet '{c.dist_css}'.",
-            fg=typer.colors.GREEN,
-        )
+        sys.exit(1)
+
+    typer.secho(
+        f"Built production stylesheet '{config.dist_css}'.",
+        fg=typer.colors.GREEN,
+    )
 
 
 @app.command()
