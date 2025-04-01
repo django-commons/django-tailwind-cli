@@ -258,6 +258,8 @@ def test_build_cmd_for_tailwind_css_3_x(settings: LazySettings):
         "--output",
         str(c.dist_css),
         "--minify",
+        "--config",
+        str(c.config_file),
     ]
 
 
