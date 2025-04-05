@@ -8,7 +8,7 @@ import requests
 from django.conf import settings
 from semver import Version
 
-FALLBACK_VERSION = "4.0.6"
+FALLBACK_VERSION = "4.1.3"
 
 
 @dataclass
@@ -20,7 +20,6 @@ class Config:
     dist_css: Path
     dist_css_base: str
     src_css: Optional[Path]
-    config_file: Optional[Path]
     automatic_download: bool = True
 
     @property
@@ -46,9 +45,6 @@ class Config:
             "--minify",
         ]
 
-        if self.config_file:
-            result.extend(["--config", str(self.config_file)])
-        
         if self.src_css:
             result.extend(["--input", str(self.src_css)])
 
@@ -68,18 +64,27 @@ def get_version() -> tuple[str, Version]:
         "latest".
     """
     version_str = getattr(settings, "TAILWIND_CLI_VERSION", "latest")
+    repo_url = getattr(settings, "TAILWIND_CLI_SRC_REPO", "tailwindlabs/tailwindcss")
+    if not repo_url:
+        raise ValueError("TAILWIND_CLI_SRC_REPO must not be None.")
 
     if version_str == "latest":
-        repo_url = getattr(settings, "TAILWIND_CLI_SRC_REPO", "tailwindlabs/tailwindcss")
-        if not repo_url:
-            raise ValueError("TAILWIND_CLI_SRC_REPO must not be None.")
         r = requests.get(f"https://github.com/{repo_url}/releases/latest/", timeout=2)
+        print(r.headers)
         if r.ok and "location" in r.headers:
             version_str = r.headers["location"].rstrip("/").split("/")[-1].replace("v", "")
+            return version_str, Version.parse(version_str)
         else:
-            version_str = FALLBACK_VERSION
-
-    return version_str, Version.parse(version_str)
+            return FALLBACK_VERSION, Version.parse(FALLBACK_VERSION)
+    elif repo_url == "tailwindlabs/tailwindcss":
+        version = Version.parse(version_str)
+        if version.major < 4:
+            raise ValueError(
+                "Tailwind CSS 3.x is not supported by this version. Use version 2.21.1 if you want to use Tailwind 3."
+            )
+        return version_str, version
+    else:
+        return version_str, Version.parse(version_str)
 
 
 def get_config() -> Config:
@@ -124,27 +129,9 @@ def get_config() -> Config:
     dist_css = Path(settings.STATICFILES_DIRS[0]) / dist_css_base
 
     # Determine the full path to the source css file.
-    # It is optional for Tailwind CSS < 4.0.0, but required for >= 4.0.0.
-    if version >= Version.parse("4.0.0"):
-        if not (src_css := getattr(settings, "TAILWIND_CLI_SRC_CSS", "css/source.css")):
-            raise ValueError("TAILWIND_CLI_SRC_CSS must not be None.")
-        src_css = Path(settings.STATICFILES_DIRS[0]) / src_css
-    else:
-        if not (src_css := getattr(settings, "TAILWIND_CLI_SRC_CSS", None)):
-            src_css = None
-        else:
-            src_css = Path(settings.STATICFILES_DIRS[0]) / src_css
-
-    # Determine the full path to the config file.
-    # It is optional for Tailwind CSS >= 4.0.0, but required for < 4.0.0.
-    if version < Version.parse("4.0.0"):
-        if not (config_file := getattr(settings, "TAILWIND_CLI_CONFIG_FILE", "tailwind.config.js")):
-            raise ValueError("TAILWIND_CLI_CONFIG_FILE must not be None.")
-        config_file = Path(settings.BASE_DIR) / config_file
-    else:
-        if config_file := getattr(settings, "TAILWIND_CLI_CONFIG_FILE", None):
-            raise ValueError("TAILWIND_CLI_CONFIG_FILE is not used by this library with Tailwind CSS >= 4.x.")
-        config_file = None
+    if not (src_css := getattr(settings, "TAILWIND_CLI_SRC_CSS", "css/source.css")):
+        raise ValueError("TAILWIND_CLI_SRC_CSS must not be None.")
+    src_css = Path(settings.STATICFILES_DIRS[0]) / src_css
 
     # Determine if the CLI should be downloaded automatically
     automatic_download = getattr(settings, "TAILWIND_CLI_AUTOMATIC_DOWNLOAD", True)
@@ -158,6 +145,5 @@ def get_config() -> Config:
         dist_css=dist_css,
         dist_css_base=dist_css_base,
         src_css=src_css,
-        config_file=config_file,
         automatic_download=automatic_download,
     )

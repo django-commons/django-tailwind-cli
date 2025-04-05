@@ -29,20 +29,13 @@ def build() -> None:
 
     try:
         subprocess.run(config.build_cmd, cwd=settings.BASE_DIR, check=True, capture_output=True, text=True)
+        typer.secho(f"Built production stylesheet '{config.dist_css}'.", fg=typer.colors.GREEN)
     except KeyboardInterrupt:
         typer.secho("Canceled building production stylesheet.", fg=typer.colors.RED)
-        return
-    except subprocess.CalledProcessError as e:  # pragma: no cover
-        typer.secho(
-            f"Failed to build production stylesheet: {e.stderr}",
-            fg=typer.colors.RED,
-        )
+    except subprocess.CalledProcessError as e:
+        error_message = e.stderr if e.stderr else "An unknown error occurred."
+        typer.secho(f"Failed to build production stylesheet: {error_message}", fg=typer.colors.RED)
         sys.exit(1)
-
-    typer.secho(
-        f"Built production stylesheet '{config.dist_css}'.",
-        fg=typer.colors.GREEN,
-    )
 
 
 @app.command()
@@ -57,10 +50,8 @@ def watch():
     except KeyboardInterrupt:
         typer.secho("Stopped watching for changes.", fg=typer.colors.RED)
     except subprocess.CalledProcessError as e:  # pragma: no cover
-        typer.secho(
-            f"Failed to start in watch mode: {e.stderr.decode()}",
-            fg=typer.colors.RED,
-        )
+        typer.secho(f"Failed to start in watch mode: {e.stderr.decode()}", fg=typer.colors.RED)
+        sys.exit(1)
 
 
 @app.command(name="list_templates")
@@ -287,29 +278,6 @@ def _download_cli(*, force_download: bool = False) -> None:
     typer.secho(f"Downloaded Tailwind CSS CLI to '{c.cli_path}'.", fg=typer.colors.GREEN)
 
 
-DEFAULT_TAILWIND_CONFIG = """/** @type {import('tailwindcss').Config} */
-const plugin = require("tailwindcss/plugin");
-
-module.exports = {
-  content: ["./templates/**/*.html", "**/templates/**/*.html",'**/*.py'],
-  theme: {
-    extend: {},
-  },
-  plugins: [
-    require("@tailwindcss/typography"),
-    require("@tailwindcss/forms"),
-    require("@tailwindcss/aspect-ratio"),
-    require("@tailwindcss/container-queries"),
-    plugin(function ({ addVariant }) {
-      addVariant("htmx-settling", ["&.htmx-settling", ".htmx-settling &"]);
-      addVariant("htmx-request", ["&.htmx-request", ".htmx-request &"]);
-      addVariant("htmx-swapping", ["&.htmx-swapping", ".htmx-swapping &"]);
-      addVariant("htmx-added", ["&.htmx-added", ".htmx-added &"]);
-    }),
-  ],
-};
-"""
-
 DEFAULT_SOURCE_CSS = '@import "tailwindcss";\n'
 
 
@@ -317,22 +285,13 @@ def _create_standard_config() -> None:
     """Create a standard Tailwind CSS config file."""
     c = get_config()
 
-    if c.version.major >= 4:
-        if c.src_css and not c.src_css.exists():
-            c.src_css.parent.mkdir(parents=True, exist_ok=True)
-            c.src_css.write_text(DEFAULT_SOURCE_CSS)
-            typer.secho(
-                f"Created Tailwind Source CSS at '{c.src_css}'",
-                fg=typer.colors.GREEN,
-            )
-    else:
-        if c.config_file and not c.config_file.exists():
-            c.config_file.parent.mkdir(parents=True, exist_ok=True)
-            c.config_file.write_text(DEFAULT_TAILWIND_CONFIG)
-            typer.secho(
-                f"Created Tailwind CSS config at '{c.config_file}'",
-                fg=typer.colors.GREEN,
-            )
+    if c.src_css and not c.src_css.exists():
+        c.src_css.parent.mkdir(parents=True, exist_ok=True)
+        c.src_css.write_text(DEFAULT_SOURCE_CSS)
+        typer.secho(
+            f"Created Tailwind Source CSS at '{c.src_css}'",
+            fg=typer.colors.GREEN,
+        )
 
 
 def get_runserver_options(

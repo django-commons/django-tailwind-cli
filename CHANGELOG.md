@@ -1,5 +1,15 @@
 # Changelog
 
+## 4.2.0
+
+> [!WARNING]
+> Version 4.2.x and onward only support Tailwind CSS 4.x. If you are using Tailwind CSS 3.x,
+> please use version 2.21.1 of this library. Version 4.0.x or 4.1.x still support Tailwind CSS 3.x, but
+> it is not recommended to use it for new projects.
+
+- Default fallback version is now 4.1.3.
+- Removed support for Tailwind CSS 3.x. The main reason is that this makes the library easier to maintain and also add better support for custom CLI builds which support DaisyUI and other plugins.
+
 ## 4.1.0
 
 - TAILWIND_CLI_VERSION defaults to "latest" now. In case it is set to this value,

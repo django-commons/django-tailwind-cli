@@ -9,10 +9,6 @@ hide:
 
     **No.** The management commands of this library handle the download and installation of the Tailwind CLI. You don't have to deal with this. But you can configure the installation location and the version of the CLI you want to use. Take a look at the [settings](settings.md) section.
 
-!!! question "Do I have to create my own `tailwind.config.js` for Tailwind 3.x?"
-
-    **No.** The management commands also take care of this step. If no `tailwind.config.js` is present in your project, a new one with sane defaults will be created. Afterwards this file will be used and be customized by you. The default location for the file is the `BASE_DIR` of your project, but you can change this. Take a look at the [settings](settings.md) section.
-
 !!! question "Do I have to create my own `css/source.css` for Tailwind 4.x?"
 
     **No.** The management commands also take care of this step. If no `css/source.css` is present in your project, a new one with sane defaults will be created. Afterwards this file will be used and be customized by you. The default location for the file is first folder from the `STATICFILES_DIRS` of your project, but you can change this. Take a look at the [settings](settings.md) section.

@@ -42,6 +42,7 @@ markdown_extensions:
   - footnotes
   - tables
   - sane_lists
+  - github-callouts
   - pymdownx.snippets:
       check_paths: true
 extra:

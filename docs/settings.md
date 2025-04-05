@@ -21,7 +21,7 @@ your project.
 
     For example:
     ```python
-    TAILWIND_CLI_VERSION = "3.4.17"
+    TAILWIND_CLI_VERSION = "4.1.3"
     ```
 
 `TAILWIND_CLI_PATH`
@@ -73,12 +73,7 @@ your project.
     Enable or disable the automatic downloading of the official CLI to your machine.
 
 `TAILWIND_CLI_SRC_CSS`
-: **Default** (for Tailwind 3.x): `None`<br>**Default** (for Tailwind 4.x): `css/source.css`
-
-    !!! warning
-        This setting is optional for Tailwind CSS 3.x. For Tailwind CSS 4.x it must not be empty.
-
-    For **Tailwind CSS 3.x** this optional file is used to define addition CSS rules for your project.
+**Default** (for Tailwind 4.x): `css/source.css`
 
     For **Tailwind CSS 4.x** this required file is used to configure Tailwind CSS and also add
     additional CSS rules for your project. This file is stored relative to the first element of
@@ -89,44 +84,3 @@ your project.
 
     The name of the output file. This file is stored relative to the first element of the
     `STATICFILES_DIRS` array.
-
-`TAILWIND_CLI_CONFIG_FILE`
-: **Default**: `"tailwind.config.js"`
-
-    !!! danger
-
-        Is only required for Tailwind CSS 3.x. If you use it with Tailwind CSS 4.x, it is ignored
-        and also raises an exception to force you to remove it.
-
-    The name of the Tailwind CLI config file. The file is stored relative to the `BASE_DIR` defined
-    in your settings.
-
-## `tailwind.config.js` (Tailwind CSS 3.x only)
-
-If you don't create a `tailwind.config.js` file yourself, the management commands will create a sane default for you inside the `BASE_DIR` of your project. The default activates all the official plugins for Tailwind CSS and adds a minimal plugin to support some variants for [HTMX](https://htmx.org/).
-
-### Default version
-
-```javascript title="tailwind.config.js"
-/** @type {import('tailwindcss').Config} */
-const plugin = require("tailwindcss/plugin");
-
-module.exports = {
-  content: ["./templates/**/*.html", "**/templates/**/*.html", '**/*.py'],
-  theme: {
-    extend: {},
-  },
-  plugins: [
-    require("@tailwindcss/typography"),
-    require("@tailwindcss/forms"),
-    require("@tailwindcss/aspect-ratio"),
-    require("@tailwindcss/container-queries"),
-    plugin(function ({ addVariant }) {
-      addVariant("htmx-settling", ["&.htmx-settling", ".htmx-settling &"]);
-      addVariant("htmx-request", ["&.htmx-request", ".htmx-request &"]);
-      addVariant("htmx-swapping", ["&.htmx-swapping", ".htmx-swapping &"]);
-      addVariant("htmx-added", ["&.htmx-added", ".htmx-added &"]);
-    }),
-  ],
-};
-```

@@ -8,10 +8,10 @@ from pytest import CaptureFixture
 from pytest_mock import MockerFixture
 
 from django_tailwind_cli.config import get_config
-from django_tailwind_cli.management.commands.tailwind import DEFAULT_SOURCE_CSS, DEFAULT_TAILWIND_CONFIG
+from django_tailwind_cli.management.commands.tailwind import DEFAULT_SOURCE_CSS
 
 
-@pytest.fixture(autouse=True, params=["4.0.0", "3.4.17"])
+@pytest.fixture(autouse=True, params=["4.0.0"])
 def configure_settings(request: pytest.FixtureRequest, mocker: MockerFixture, settings: LazySettings, tmp_path: Path):
     settings.BASE_DIR = tmp_path
     settings.TAILWIND_CLI_PATH = tmp_path
@@ -29,29 +29,6 @@ def configure_settings(request: pytest.FixtureRequest, mocker: MockerFixture, se
 def test_calling_unknown_subcommand():
     with pytest.raises(CommandError, match="No such command 'not_a_valid_command'"):
         call_command("tailwind", "not_a_valid_command")
-
-
-def test_create_tailwind_config_if_non_exists(settings: LazySettings, tmp_path: Path):
-    if settings.TAILWIND_CLI_VERSION == "4.0.0":
-        pytest.skip("Tailwind CSS CLI 4.0.0 does not use a tailwind.config.js file.")
-    c = get_config()
-    assert c.config_file is not None
-    assert not c.config_file.exists()
-    call_command("tailwind", "build")
-    assert c.config_file.exists()
-    assert DEFAULT_TAILWIND_CONFIG == c.config_file.read_text()
-
-
-def test_with_existing_tailwind_config(settings: LazySettings, tmp_path: Path):
-    if settings.TAILWIND_CLI_VERSION == "4.0.0":
-        pytest.skip("Tailwind CSS CLI 4.0.0 does not use a tailwind.config.js file.")
-    c = get_config()
-    assert c.config_file is not None
-    c.config_file.write_text("module.exports = {}")
-    call_command("tailwind", "build")
-    assert c.config_file.exists()
-    assert "module.exports = {}" == c.config_file.read_text()
-    assert DEFAULT_TAILWIND_CONFIG != c.config_file.read_text()
 
 
 def test_create_src_css_if_non_exists(settings: LazySettings, tmp_path: Path):

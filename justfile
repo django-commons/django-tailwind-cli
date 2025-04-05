@@ -41,4 +41,4 @@ VENV_DIRNAME := ".venv"
 
 # serve docs during development
 @serve-docs: check_uv
-    uvx --with mkdocs-material mkdocs serve
+    uvx  --with markdown-callouts --with mkdocs-material mkdocs serve

@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import pytest
-from django.conf import LazySettings
 from pytest_django.fixtures import SettingsWrapper
 from pytest_mock import MockerFixture
 
@@ -10,37 +9,31 @@ from django_tailwind_cli.config import get_config, get_version
 
 @pytest.fixture(autouse=True)
 def configure_settings(
-    settings: LazySettings,
+    settings: SettingsWrapper,
     mocker: MockerFixture,
 ):
     settings.BASE_DIR = Path("/home/user/project")
     settings.STATICFILES_DIRS = (settings.BASE_DIR / "assets",)
     request_get = mocker.patch("requests.get")
-    request_get.return_value.headers = {"location": "https://github.com/tailwindlabs/tailwindcss/releases/tag/v4.0.10"}
+    request_get.return_value.headers = {"location": "https://github.com/tailwindlabs/tailwindcss/releases/tag/v4.1.3"}
 
 
 @pytest.mark.parametrize(
-    "version_str, version",
+    "version_str, expected_version_str, version",
     [
-        ("4.0.0", (4, 0, 0)),
-        ("3.4.17", (3, 4, 17)),
+        ("4.0.0", "4.0.0", (4, 0, 0)),
+        ("latest", "4.1.3", (4, 1, 3)),
     ],
 )
-def test_get_version(settings: SettingsWrapper, version_str: str, version: tuple[int, int, int]):
+def test_get_version(
+    settings: SettingsWrapper, version_str: str, expected_version_str: str, version: tuple[int, int, int]
+):
     settings.TAILWIND_CLI_VERSION = version_str
     r_version_str, r_version = get_version()
-    assert r_version_str == version_str
+    assert r_version_str == expected_version_str
     assert r_version.major == version[0]
     assert r_version.minor == version[1]
     assert r_version.patch == version[2]
-
-
-def test_get_version_latest(settings: SettingsWrapper):
-    r_version_str, r_version = get_version()
-    assert r_version_str == "4.0.10"
-    assert r_version.major == 4
-    assert r_version.minor == 0
-    assert r_version.patch == 10
 
 
 def test_get_version_latest_without_proper_http_response(mocker: MockerFixture):
@@ -48,10 +41,10 @@ def test_get_version_latest_without_proper_http_response(mocker: MockerFixture):
     request_get.return_value.ok = False
 
     r_version_str, r_version = get_version()
-    assert r_version_str == "4.0.6"
+    assert r_version_str == "4.1.3"
     assert r_version.major == 4
-    assert r_version.minor == 0
-    assert r_version.patch == 6
+    assert r_version.minor == 1
+    assert r_version.patch == 3
 
 
 def test_get_version_latest_without_redirect(mocker: MockerFixture):
@@ -59,10 +52,27 @@ def test_get_version_latest_without_redirect(mocker: MockerFixture):
     request_get.return_value.headers = {}
 
     r_version_str, r_version = get_version()
-    assert r_version_str == "4.0.6"
+    assert r_version_str == "4.1.3"
     assert r_version.major == 4
-    assert r_version.minor == 0
-    assert r_version.patch == 6
+    assert r_version.minor == 1
+    assert r_version.patch == 3
+
+
+def test_get_version_with_official_repo_and_version_3(settings: SettingsWrapper):
+    settings.TAILWIND_CLI_VERSION = "3.4.13"
+    with pytest.raises(ValueError, match="Tailwind CSS 3.x is not supported by this version."):
+        get_version()
+
+
+def test_get_version_with_unofficial_repo_and_version_3(settings: SettingsWrapper):
+    settings.TAILWIND_CLI_VERSION = "3.4.13"
+    settings.TAILWIND_CLI_SRC_REPO = "oliverandrich/my-tailwindcss-cli"
+
+    r_version_str, r_version = get_version()
+    assert r_version_str == "3.4.13"
+    assert r_version.major == 3
+    assert r_version.minor == 4
+    assert r_version.patch == 13
 
 
 def test_default_config():
@@ -76,32 +86,9 @@ def test_default_config():
     assert str(c.dist_css) == "/home/user/project/assets/css/tailwind.css"
     assert c.src_css is not None
     assert str(c.src_css) == "/home/user/project/assets/css/source.css"
-    assert c.config_file is None
 
 
-def test_default_config_for_tailwind_css_3_x(settings: LazySettings):
-    settings.TAILWIND_CLI_VERSION = "3.4.13"
-    c = get_config()
-    assert c.version.major == 3
-    assert ".local/bin/tailwindcss" in str(c.cli_path)
-    assert c.version_str in str(c.cli_path)
-    assert c.download_url.startswith(
-        f"https://github.com/tailwindlabs/tailwindcss/releases/download/v{c.version_str}/tailwindcss-"
-    )
-    assert str(c.dist_css) == "/home/user/project/assets/css/tailwind.css"
-    assert c.src_css is None
-    assert c.config_file is not None
-    assert str(c.config_file) == "/home/user/project/tailwind.config.js"
-
-
-def test_set_tailwind_cli_src_css_for_tailwind_css_3_x(settings: LazySettings):
-    settings.TAILWIND_CLI_VERSION = "3.4.13"
-    settings.TAILWIND_CLI_SRC_CSS = "assets/css/source.css"
-    c = get_config()
-    assert c.src_css is not None
-
-
-def test_invalid_settings_for_staticfiles_dirs(settings: LazySettings):
+def test_invalid_settings_for_staticfiles_dirs(settings: SettingsWrapper):
     settings.STATICFILES_DIRS = []
     with pytest.raises(ValueError, match="STATICFILES_DIRS is empty. Please add a path to your static files."):
         get_config()
@@ -111,41 +98,27 @@ def test_invalid_settings_for_staticfiles_dirs(settings: LazySettings):
         get_config()
 
 
-def test_invalid_settings_for_tailwind_cli_dist_css(settings: LazySettings):
+def test_invalid_settings_for_tailwind_cli_dist_css(settings: SettingsWrapper):
     settings.TAILWIND_CLI_DIST_CSS = None
     with pytest.raises(ValueError, match="TAILWIND_CLI_DIST_CSS must not be None."):
         get_config()
 
 
-def test_invalid_settings_for_tailwind_cli_assert_name(settings: LazySettings):
+def test_invalid_settings_for_tailwind_cli_assert_name(settings: SettingsWrapper):
     settings.TAILWIND_CLI_ASSET_NAME = None
     with pytest.raises(ValueError, match="TAILWIND_CLI_ASSET_NAME must not be None."):
         get_config()
 
 
-def test_invalid_settings_for_tailwind_cli_src_repo(settings: LazySettings):
+def test_invalid_settings_for_tailwind_cli_src_repo(settings: SettingsWrapper):
     settings.TAILWIND_CLI_SRC_REPO = None
     with pytest.raises(ValueError, match="TAILWIND_CLI_SRC_REPO must not be None."):
         get_config()
 
 
-def test_invalid_settings_for_tailwind_cli_src_css(settings: LazySettings):
+def test_invalid_settings_for_tailwind_cli_src_css(settings: SettingsWrapper):
     settings.TAILWIND_CLI_SRC_CSS = None
     with pytest.raises(ValueError, match="TAILWIND_CLI_SRC_CSS must not be None."):
-        get_config()
-
-
-def test_invalid_settings_for_tailwind_cli_config_file(settings: LazySettings):
-    settings.TAILWIND_CLI_VERSION = "3.4.17"
-    settings.TAILWIND_CLI_CONFIG_FILE = None
-    with pytest.raises(ValueError, match="TAILWIND_CLI_CONFIG_FILE must not be None."):
-        get_config()
-
-    settings.TAILWIND_CLI_VERSION = "4.0.0"
-    settings.TAILWIND_CLI_CONFIG_FILE = "tailwind.config.js"
-    with pytest.raises(
-        ValueError, match="TAILWIND_CLI_CONFIG_FILE is not used by this library with Tailwind CSS >= 4.x."
-    ):
         get_config()
 
 
@@ -178,7 +151,7 @@ def test_download_url(mocker: MockerFixture, platform: str, machine: str, result
         ("Darwin", "arm64", "tailwindcss-macos-arm64-4.0.0"),
     ],
 )
-def test_get_cli_path(settings: LazySettings, mocker: MockerFixture, platform: str, machine: str, result: str):
+def test_get_cli_path(settings: SettingsWrapper, mocker: MockerFixture, platform: str, machine: str, result: str):
     settings.TAILWIND_CLI_VERSION = "4.0.0"
 
     platform_system = mocker.patch("platform.system")
@@ -191,14 +164,14 @@ def test_get_cli_path(settings: LazySettings, mocker: MockerFixture, platform: s
     assert str(c.cli_path).endswith(result)
 
 
-def test_cli_path_to_existing_file(settings: LazySettings, tmp_path: Path):
+def test_cli_path_to_existing_file(settings: SettingsWrapper, tmp_path: Path):
     settings.TAILWIND_CLI_PATH = tmp_path / "tailwindcss"
     settings.TAILWIND_CLI_PATH.touch(mode=0o755, exist_ok=True)
     c = get_config()
     assert str(c.cli_path) == str(tmp_path / "tailwindcss")
 
 
-def test_cli_path_to_existing_directory(settings: LazySettings):
+def test_cli_path_to_existing_directory(settings: SettingsWrapper):
     settings.TAILWIND_CLI_PATH = "/opt/bin"
     c = get_config()
     assert "/opt/bin/tailwindcss-" in str(c.cli_path)
@@ -250,19 +223,6 @@ def test_build_cmd():
     ]
 
 
-def test_build_cmd_for_tailwind_css_3_x(settings: LazySettings):
-    settings.TAILWIND_CLI_VERSION = "3.4.13"
-    c = get_config()
-    assert c.build_cmd == [
-        str(c.cli_path),
-        "--output",
-        str(c.dist_css),
-        "--minify",
-        "--config",
-        str(c.config_file),
-    ]
-
-
 def test_watch_cmd():
     c = get_config()
     assert c.watch_cmd == [
@@ -272,15 +232,4 @@ def test_watch_cmd():
         "--watch",
         "--input",
         str(c.src_css),
-    ]
-
-
-def test_watch_cmd_for_tailwind_css_3_x(settings: LazySettings):
-    settings.TAILWIND_CLI_VERSION = "3.4.13"
-    c = get_config()
-    assert c.watch_cmd == [
-        str(c.cli_path),
-        "--output",
-        str(c.dist_css),
-        "--watch",
     ]

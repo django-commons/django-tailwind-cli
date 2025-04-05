@@ -10,6 +10,11 @@
 [![Downloads](https://static.pepy.tech/badge/django-tailwind-cli)](https://pepy.tech/project/django-tailwind-cli)
 [![Downloads / Month](https://pepy.tech/badge/django-tailwind-cli/month)](<https://pepy.tech/project/django-tailwind-cli>)
 
+> [!WARNING]
+> Version 4.2.x and onward only support Tailwind CSS 4.x. If you are using Tailwind CSS 3.x,
+> please use version 2.21.1 of this library. Version 4.0.x or 4.1.x still supported Tailwind CSS 3.x, but
+> it is not recommended to use it for new projects.
+
 This library provides an integration of [Tailwind CSS](https://tailwindcss.com) for Django that is using on the precompiled versions of the [Tailwind CSS CLI](https://tailwindcss.com/blog/standalone-cli).
 
 The goal of this library is to provided the simplest possible Tailwind integration for your Django project. It took its inspiration from the [Tailwind integration for Phoenix](https://github.com/phoenixframework/tailwind) which completely skips the neccesity of a node installation.
