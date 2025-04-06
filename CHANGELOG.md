@@ -1,6 +1,6 @@
 # Changelog
 
-## 4.2.0
+## 4.2.0 (Unreleased)
 
 > [!CAUTION]
 > Version 4.2.x and onward only support Tailwind CSS 4.x. If you are using Tailwind CSS 3.x,
