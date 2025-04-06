@@ -2,7 +2,6 @@ import os
 import platform
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 import platformdirs
 import requests
@@ -20,7 +19,8 @@ class Config:
     download_url: str
     dist_css: Path
     dist_css_base: str
-    src_css: Optional[Path]
+    src_css: Path
+    overwrite_default_config: bool = True
     automatic_download: bool = True
     use_daisy_ui: bool = False
 
@@ -152,10 +152,12 @@ def get_config() -> Config:
     if not src_css:
         user_cache_dir = platformdirs.user_cache_dir("django-tailwind-cli", "django-commons")
         src_css = Path(user_cache_dir) / "source.css"
+        overwrite_default_config = True
     else:
         src_css = Path(src_css)
         if not src_css.is_absolute():
             src_css = Path(settings.BASE_DIR) / src_css
+        overwrite_default_config = False
 
     # Determine if the CLI should be downloaded automatically
     automatic_download = getattr(settings, "TAILWIND_CLI_AUTOMATIC_DOWNLOAD", True)
@@ -169,6 +171,7 @@ def get_config() -> Config:
         dist_css=dist_css,
         dist_css_base=dist_css_base,
         src_css=src_css,
+        overwrite_default_config=overwrite_default_config,
         automatic_download=automatic_download,
         use_daisy_ui=use_daisy_ui,
     )

@@ -286,7 +286,7 @@ def _create_standard_config() -> None:
     """Create a standard Tailwind CSS config file."""
     c = get_config()
 
-    if c.src_css and not c.src_css.exists():
+    if c.src_css and (c.overwrite_default_config or not c.src_css.exists()):
         c.src_css.parent.mkdir(parents=True, exist_ok=True)
         if c.use_daisy_ui:
             c.src_css.write_text(DAISY_UI_SOURCE_CSS)

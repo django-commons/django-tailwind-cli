@@ -1,5 +1,9 @@
 # Changelog
 
+## 4.2.2
+
+- Default configuration stored in the user cache directory is overwritten on every start of the debug server or other management command.
+
 ## 4.2.1
 
 - Bugfix for determining the latest release of the used version of Tailwind CSS.

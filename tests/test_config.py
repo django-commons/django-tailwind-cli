@@ -86,6 +86,18 @@ def test_default_config():
     assert str(c.dist_css) == "/home/user/project/assets/css/tailwind.css"
     assert c.src_css is not None
     assert str(c.src_css).endswith("django-tailwind-cli/source.css")
+    assert c.overwrite_default_config
+
+
+@pytest.mark.parametrize(
+    "src_path",
+    ["relative/source.css", "/absolute/src.css"],
+)
+def test_overwrite_src_css(settings: SettingsWrapper, src_path: str):
+    settings.TAILWIND_CLI_SRC_CSS = src_path
+    c = get_config()
+    assert not c.overwrite_default_config
+    assert str(c.src_css).endswith(src_path)
 
 
 def test_invalid_settings_for_staticfiles_dirs(settings: SettingsWrapper):
