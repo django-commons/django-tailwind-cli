@@ -70,7 +70,7 @@ if you want to activate browser reload or the `runserver_plus` management comman
 
 - Simplest possible integration.
 - Support Tailwind CSS 4.x.
-- Proper support for DaisyUI via [tailwindcss-cli-extra](https://github.com/dobicinaitis/tailwind-cli-extra).
+- Proper support for DaisyUI via [tailwindcss-cli-extra](https://github.com/dobicinaitis/tailwind-cli-extra). Settings are described in the [usage guide](https://django-tailwind-cli.readthedocs.io/latest/usage/#use-with-daisyui).
 - Or bring your own version of Tailwind CSS CLI.
 - Management commands:
 

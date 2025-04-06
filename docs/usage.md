@@ -102,3 +102,14 @@ tailwind-sidecar:
   command: python manage.py tailwind watch
   tty: true
 ```
+
+## Use with daisyUI
+
+If you plan to use the [daisyUI](https://daisyui.com) components in your project, I highly recommend the custom CLI build [tailwind-cli-extra](https://github.com/dobicinaitis/tailwind-cli-extra) by [Andris Dobičinaitis](https://github.com/dobicinaitis).
+
+Just add the following settings to your `settings.py`file.
+
+```python
+TAILWIND_CLI_SRC_REPO = "dobicinaitis/tailwind-cli-extra"
+TAILWIND_CLI_ASSET_NAME = "tailwindcss-extra"
+```
