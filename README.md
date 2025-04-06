@@ -69,7 +69,9 @@ if you want to activate browser reload or the `runserver_plus` management comman
 ## Features
 
 - Simplest possible integration.
-- Support Tailwind CSS 3.x and 4.x. Check the [update instructions](https://django-tailwind-cli.rtfd.io/latest/installation/#upgrade-from-tailwind-css-3x-to-4x).
+- Support Tailwind CSS 4.x.
+- Proper support for DaisyUI via [tailwindcss-cli-extra](https://github.com/dobicinaitis/tailwind-cli-extra).
+- Or bring your own version of Tailwind CSS CLI.
 - Management commands:
 
     * To start the Tailwind CLI in watch mode during development.
@@ -79,7 +81,7 @@ if you want to activate browser reload or the `runserver_plus` management comman
 - Configuration options to adapt the library to your project, when the defaults don't fit you.
 - A template tag to include the Tailwind CSS file in your project.
 - A base template for your project.
-- Sane default configurations for Tailwind 3.x and Tailwinc 4.x.
+- Sane default configurations for Tailwinc 4.x.
 
 ## Requirements
 
