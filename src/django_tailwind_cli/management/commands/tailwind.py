@@ -279,6 +279,7 @@ def _download_cli(*, force_download: bool = False) -> None:
 
 
 DEFAULT_SOURCE_CSS = '@import "tailwindcss";\n'
+DAISY_UI_SOURCE_CSS = '@import "tailwindcss";\n@plugin "daisyui";\n'
 
 
 def _create_standard_config() -> None:
@@ -287,7 +288,10 @@ def _create_standard_config() -> None:
 
     if c.src_css and not c.src_css.exists():
         c.src_css.parent.mkdir(parents=True, exist_ok=True)
-        c.src_css.write_text(DEFAULT_SOURCE_CSS)
+        if c.use_daisy_ui:
+            c.src_css.write_text(DAISY_UI_SOURCE_CSS)
+        else:
+            c.src_css.write_text(DEFAULT_SOURCE_CSS)
         typer.secho(
             f"Created Tailwind Source CSS at '{c.src_css}'",
             fg=typer.colors.GREEN,

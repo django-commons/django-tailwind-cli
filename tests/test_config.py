@@ -227,3 +227,26 @@ def test_watch_cmd():
         str(c.dist_css),
         "--watch",
     ]
+
+
+def test_daisy_ui_support(
+    settings: SettingsWrapper,
+    mocker: MockerFixture,
+):
+    settings.TAILWIND_CLI_USE_DAISY_UI = True
+    request_get = mocker.patch("requests.get")
+    request_get.return_value.headers = {
+        "location": "https://github.com/dobicinaitis/tailwind-cli-extra/releases/tag/v2.1.4"
+    }
+
+    c = get_config()
+
+    assert c.use_daisy_ui
+    assert "tailwindcss-extra" in str(c.cli_path)
+    assert "dobicinaitis/tailwind-cli-extra" in c.download_url
+
+    r_version_str, r_version = get_version()
+    assert r_version_str == "2.1.4"
+    assert r_version.major == 2
+    assert r_version.minor == 1
+    assert r_version.patch == 4

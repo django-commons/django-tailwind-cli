@@ -27,6 +27,8 @@
     * If it is a relative path, this path is considered relative to `settings.BASE_DIR`.
     * The last option is an absolute path.
 
+- Proper daisyUI support using [tailwind-cli-extra](https://github.com/dobicinaitis/tailwind-cli-extra).
+
 ## 4.1.0
 
 - TAILWIND_CLI_VERSION defaults to "latest" now. In case it is set to this value,

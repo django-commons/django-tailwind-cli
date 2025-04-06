@@ -8,7 +8,7 @@ from pytest import CaptureFixture
 from pytest_mock import MockerFixture
 
 from django_tailwind_cli.config import get_config
-from django_tailwind_cli.management.commands.tailwind import DEFAULT_SOURCE_CSS
+from django_tailwind_cli.management.commands.tailwind import DAISY_UI_SOURCE_CSS, DEFAULT_SOURCE_CSS
 
 
 @pytest.fixture(autouse=True, params=["4.0.0"])
@@ -32,13 +32,21 @@ def test_calling_unknown_subcommand():
         call_command("tailwind", "not_a_valid_command")
 
 
-def test_create_src_css_if_non_exists(settings: LazySettings, tmp_path: Path):
+@pytest.mark.parametrize(
+    "use_daisy_ui",
+    [True, False],
+)
+def test_create_src_css_if_non_exists(settings: LazySettings, tmp_path: Path, use_daisy_ui: bool):
+    settings.TAILWIND_CLI_USE_DAISY_UI = use_daisy_ui
     c = get_config()
     assert c.src_css is not None
     assert not c.src_css.exists()
     call_command("tailwind", "build")
     assert c.src_css.exists()
-    assert DEFAULT_SOURCE_CSS == c.src_css.read_text()
+    if use_daisy_ui:
+        assert DAISY_UI_SOURCE_CSS == c.src_css.read_text()
+    else:
+        assert DEFAULT_SOURCE_CSS == c.src_css.read_text()
 
 
 def test_with_existing_src_css(settings: LazySettings, tmp_path: Path):

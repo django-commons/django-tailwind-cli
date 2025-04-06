@@ -65,7 +65,6 @@ your project.
     >    TAILWIND_CLI_ASSET_NAME = "tailwindcss-extra"
     >    ```
 
-
 `TAILWIND_CLI_SRC_CSS`
 **Default**: `None`
 
@@ -82,3 +81,21 @@ your project.
 
     The name of the output file. This file is stored relative to the first element of the
     `STATICFILES_DIRS` array.
+
+`TAILWIND_CLI_USE_DAISY_UI`:
+: **Default**: `False`
+
+    This switch determines what content is written to `TAILWIND_CLI_SRC_CSS` if it is automatically created by the library.
+
+    The default is:
+    ```css
+    @import "tailwindcss";
+    ```
+
+    If `TAILWIND_CLI_USE_DAISY_UI = True` is put into the `settings.py` of your project, this is the output:
+    ```css
+    @import "tailwindcss";
+    @plugin "daisyui";
+    ```
+
+    This switch can also be used as a shortcut to activate daisyUI and change `TAILWIND_CLI_SRC_REPO` and `TAILWIND_CLI_ASSET_NAME` as described above to fetch [tailwind-cli-extra](https://github.com/dobicinaitis/tailwind-cli-extra/releases/latest/).

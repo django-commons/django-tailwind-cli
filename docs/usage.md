@@ -105,11 +105,32 @@ tailwind-sidecar:
 
 ## Use with daisyUI
 
-If you plan to use the [daisyUI](https://daisyui.com) components in your project, I highly recommend the custom CLI build [tailwind-cli-extra](https://github.com/dobicinaitis/tailwind-cli-extra) by [Andris Dobičinaitis](https://github.com/dobicinaitis).
+If you plan to use [daisyUI](https://daisyui.com), there is an easy way to solve this with this library.
 
-Just add the following settings to your `settings.py`file.
+```python
+TAILWIND_CLI_USE_DAISY_UI = True
+```
+
+Setting this, the library switches from using the default TailwindCSS CLI to the one provided by [Andris Dobičinaitis](https://github.com/dobicinaitis) and his [tailwind-cli-extra](https://github.com/dobicinaitis/tailwind-cli-extra) project. It also causes the library to create a proper default config that activates the daisyUI plugin.
+
+But of course you can do it manually, too. Just configure a repository where the library should pull the CLI from and activate the daisyUI support.
 
 ```python
 TAILWIND_CLI_SRC_REPO = "dobicinaitis/tailwind-cli-extra"
 TAILWIND_CLI_ASSET_NAME = "tailwindcss-extra"
+TAILWIND_CLI_USE_DAISY_UI = True
 ```
+
+Or provide your custom configuration, too.
+
+```python
+TAILWIND_CLI_SRC_REPO = "dobicinaitis/tailwind-cli-extra"
+TAILWIND_CLI_ASSET_NAME = "tailwindcss-extra"
+TAILWIND_CLI_SRC_CSS = "etc/source.css"
+```
+
+## Use with WhiteNoise
+
+If you are using [WhiteNoise](https://whitenoise.readthedocs.io/en/latest/) to serve your static assets, you must not put your custom Tailwind configuration file inside any of the directories for static files. WhiteNoise stumbles across the `@import "tailwindcss";` statement, because it can't resolve it.
+
+If you want to use a custom configuration for Tailwind CSS, put it somewhere else in the project.

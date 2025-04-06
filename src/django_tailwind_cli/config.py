@@ -22,6 +22,7 @@ class Config:
     dist_css_base: str
     src_css: Optional[Path]
     automatic_download: bool = True
+    use_daisy_ui: bool = False
 
     @property
     def watch_cmd(self) -> list[str]:
@@ -62,14 +63,18 @@ def get_version() -> tuple[str, Version]:
         ValueError: If the TAILWIND_CLI_SRC_REPO setting is None when the version is set to
         "latest".
     """
+    use_daisy_ui = getattr(settings, "TAILWIND_CLI_USE_DAISY_UI", False)
     version_str = getattr(settings, "TAILWIND_CLI_VERSION", "latest")
-    repo_url = getattr(settings, "TAILWIND_CLI_SRC_REPO", "tailwindlabs/tailwindcss")
+    repo_url = getattr(
+        settings,
+        "TAILWIND_CLI_SRC_REPO",
+        "tailwindlabs/tailwindcss" if not use_daisy_ui else "dobicinaitis/tailwind-cli-extra",
+    )
     if not repo_url:
         raise ValueError("TAILWIND_CLI_SRC_REPO must not be None.")
 
     if version_str == "latest":
         r = requests.get(f"https://github.com/{repo_url}/releases/latest/", timeout=2)
-        print(r.headers)
         if r.ok and "location" in r.headers:
             version_str = r.headers["location"].rstrip("/").split("/")[-1].replace("v", "")
             return version_str, Version.parse(version_str)
@@ -90,6 +95,9 @@ def get_config() -> Config:
     if settings.STATICFILES_DIRS is None or len(settings.STATICFILES_DIRS) == 0:
         raise ValueError("STATICFILES_DIRS is empty. Please add a path to your static files.")
 
+    # daisyUI support
+    use_daisy_ui = getattr(settings, "TAILWIND_CLI_USE_DAISY_UI", False)
+
     # Determine the system and machine we are running on
     system = platform.system().lower()
     system = "macos" if system == "darwin" else system
@@ -107,7 +115,11 @@ def get_config() -> Config:
     version_str, version = get_version()
 
     # Determine the asset name
-    if not (asset_name := getattr(settings, "TAILWIND_CLI_ASSET_NAME", "tailwindcss")):
+    if not (
+        asset_name := getattr(
+            settings, "TAILWIND_CLI_ASSET_NAME", "tailwindcss" if not use_daisy_ui else "tailwindcss-extra"
+        )
+    ):
         raise ValueError("TAILWIND_CLI_ASSET_NAME must not be None.")
 
     # Determine the full path to the CLI
@@ -121,7 +133,11 @@ def get_config() -> Config:
         cli_path = cli_path.expanduser() / f"{asset_name}-{system}-{machine}-{version_str}{extension}"
 
     # Determine the download url for the cli
-    repo_url = getattr(settings, "TAILWIND_CLI_SRC_REPO", "tailwindlabs/tailwindcss")
+    repo_url = getattr(
+        settings,
+        "TAILWIND_CLI_SRC_REPO",
+        "tailwindlabs/tailwindcss" if not use_daisy_ui else "dobicinaitis/tailwind-cli-extra",
+    )
     download_url = (
         f"https://github.com/{repo_url}/releases/download/v{version_str}/{asset_name}-{system}-{machine}{extension}"
     )
@@ -154,4 +170,5 @@ def get_config() -> Config:
         dist_css_base=dist_css_base,
         src_css=src_css,
         automatic_download=automatic_download,
+        use_daisy_ui=use_daisy_ui,
     )
