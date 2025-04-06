@@ -74,7 +74,7 @@ def get_version() -> tuple[str, Version]:
         raise ValueError("TAILWIND_CLI_SRC_REPO must not be None.")
 
     if version_str == "latest":
-        r = requests.get(f"https://github.com/{repo_url}/releases/latest/", timeout=2)
+        r = requests.get(f"https://github.com/{repo_url}/releases/latest/", timeout=2, allow_redirects=False)
         if r.ok and "location" in r.headers:
             version_str = r.headers["location"].rstrip("/").split("/")[-1].replace("v", "")
             return version_str, Version.parse(version_str)
