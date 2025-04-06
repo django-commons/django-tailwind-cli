@@ -21,27 +21,28 @@ your project.
 
     For example:
     ```python
-    TAILWIND_CLI_VERSION = "4.1.3"
+    TAILWIND_CLI_VERSION = "4.1.0"
     ```
 
 `TAILWIND_CLI_PATH`
-: **Default**: `"~/.local/bin/"`
+: **Default**: `None`
 
-    The path where to store CLI binary on your machine or the path to an manually installed binary.
+    This allows you to override the default of the library where to store the CLI binary.
 
-    The default behaviour is, that `TAILWIND_CLI_PATH` should point to a directory, where
-    `django-tailwind-cli` is allowed to download the official CLI to. Normally, this library tries
-    to manage the tailwind CLI by itself and don't rely on externally installed versions of it.
+    The default behaviour is to store the CLI binary in directory return by this call `platformdirs.user_data_dir("django-tailwind-cli", "django-commons")`. Checkout [platformdirs](https://pypi.org/project/platformdirs/) for details.
 
-    Starting with version **2.7.0** TAILWIND_CLI_PATH can also point to an existing binary, in case
-    you want to install it using some package manager or if you have installed `tailwindcss`
-    globally with `npm` along with some plugins you want to use.
+    But if you want to store it elsewhere or plan to use a custom build binary stored locally, change this setting either to a path to a directory or the full path to the binary. If it points to a directory, this is the download destination otherwise it directly tries to use the referenced binary.
 
     !!! warning
 
         If you use the new option from **2.7.0** but haven't installed a binary before running any of the management commands, these commands will treat the configured path as a directory and create it, if it is missing. Afterwards the official CLI will be downloaded to this path.
 
         In case you want to use the new behaviour, it is highly recommended to also set the new setting `TAILWIND_CLI_AUTOMATIC_DOWNLOAD` to `False`.
+
+`TAILWIND_CLI_AUTOMATIC_DOWNLOAD`
+: **Default**: `True`
+
+    Enable or disable the automatic downloading of the official CLI to your machine.
 
 `TAILWIND_CLI_SRC_REPO`
 : **Default**: `"tailwindlabs/tailwindcss"`
@@ -66,11 +67,6 @@ your project.
         TAILWIND_CLI_ASSET_NAME = "tailwindcss-extra"
         TAILWIND_CLI_VERSION = "1.7.12"
         ```
-
-`TAILWIND_CLI_AUTOMATIC_DOWNLOAD`
-: **Default**: `True`
-
-    Enable or disable the automatic downloading of the official CLI to your machine.
 
 `TAILWIND_CLI_SRC_CSS`
 **Default** (for Tailwind 4.x): `css/source.css`

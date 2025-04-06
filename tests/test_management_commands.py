@@ -68,6 +68,8 @@ def test_download_cli_without_tailwind_cli_path(settings: LazySettings):
     assert not c.cli_path.exists()
     call_command("tailwind", "download_cli")
     assert c.cli_path.exists()
+    # cleanup
+    c.cli_path.unlink()
 
 
 def test_automatic_download_enabled():

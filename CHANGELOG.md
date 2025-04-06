@@ -9,6 +9,11 @@
 
 - Default fallback version is now 4.1.3.
 - Removed support for Tailwind CSS 3.x. The main reason is that this makes the library easier to maintain and also add better support for custom CLI builds which support DaisyUI and other plugins.
+- django-tailwind-cli now uses proper platform directories to store the CLI binary.
+  - The proper directories are powered by [platformdirs](https://pypi.org/project/platformdirs/).
+  - TAILWIND_CLI_PATH is now optional by default.
+  - If TAILWIND_CLI_PATH is None, the binary is stored in `user_data_dir("django-tailwind-cli", "django-commons")`.
+  - The library doesn't rely anylonger on a properly set `settings.BASE_DIR`.
 
 ## 4.1.0
 

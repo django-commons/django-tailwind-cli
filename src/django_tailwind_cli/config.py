@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
+import platformdirs
 import requests
 from django.conf import settings
 from semver import Version
@@ -108,7 +109,10 @@ def get_config() -> Config:
     version_str, version = get_version()
 
     # Determine the full path to the CLI
-    cli_path = Path(getattr(settings, "TAILWIND_CLI_PATH", "~/.local/bin/") or settings.BASE_DIR)
+    cli_path = Path(
+        getattr(settings, "TAILWIND_CLI_PATH", None)
+        or platformdirs.user_data_dir("django-tailwind-cli", "django-commons")
+    )
     if cli_path.exists() and cli_path.is_file() and os.access(cli_path, os.X_OK):
         cli_path = cli_path.expanduser().resolve()
     else:

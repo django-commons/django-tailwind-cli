@@ -78,7 +78,7 @@ def test_get_version_with_unofficial_repo_and_version_3(settings: SettingsWrappe
 def test_default_config():
     c = get_config()
     assert c.version.major >= 4
-    assert ".local/bin/tailwindcss" in str(c.cli_path)
+    assert "django-tailwind-cli/tailwindcss" in str(c.cli_path)
     assert c.version_str in str(c.cli_path)
     assert c.download_url.startswith(
         f"https://github.com/tailwindlabs/tailwindcss/releases/download/v{c.version_str}/tailwindcss-"
