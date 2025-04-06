@@ -12,8 +12,8 @@
 
 > [!WARNING]
 > Version 4.2.x and onward only support Tailwind CSS 4.x. If you are using Tailwind CSS 3.x,
-> please use version 2.21.1 of this library. Version 4.0.x or 4.1.x still supported Tailwind CSS 3.x, but
-> it is not recommended to use it for new projects.
+> please use version 2.21.1 of this library. Version 4.0.x or 4.1.x still support Tailwind CSS 3.x, but
+> these versions are not recommended to use for new projects.
 
 This library provides an integration of [Tailwind CSS](https://tailwindcss.com) for Django that is using on the precompiled versions of the [Tailwind CSS CLI](https://tailwindcss.com/blog/standalone-cli).
 
