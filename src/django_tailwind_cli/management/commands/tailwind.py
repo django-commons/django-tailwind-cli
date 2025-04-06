@@ -32,7 +32,7 @@ def build() -> None:
         typer.secho(f"Built production stylesheet '{config.dist_css}'.", fg=typer.colors.GREEN)
     except KeyboardInterrupt:
         typer.secho("Canceled building production stylesheet.", fg=typer.colors.RED)
-    except subprocess.CalledProcessError as e:
+    except subprocess.CalledProcessError as e:  # pragma: no cover
         error_message = e.stderr if e.stderr else "An unknown error occurred."
         typer.secho(f"Failed to build production stylesheet: {error_message}", fg=typer.colors.RED)
         sys.exit(1)

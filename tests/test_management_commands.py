@@ -16,6 +16,7 @@ def configure_settings(request: pytest.FixtureRequest, mocker: MockerFixture, se
     settings.BASE_DIR = tmp_path
     settings.TAILWIND_CLI_PATH = tmp_path
     settings.TAILWIND_CLI_VERSION = request.param
+    settings.TAILWIND_CLI_SRC_CSS = tmp_path / "source.css"
     settings.STATICFILES_DIRS = (settings.BASE_DIR / "assets",)
 
     mocker.resetall()
@@ -32,8 +33,6 @@ def test_calling_unknown_subcommand():
 
 
 def test_create_src_css_if_non_exists(settings: LazySettings, tmp_path: Path):
-    if settings.TAILWIND_CLI_VERSION == "3.4.17":
-        pytest.skip("With Tailwind CSS CLI 3.4.17 a src css file is optional. But with 4.0.0 it is required.")
     c = get_config()
     assert c.src_css is not None
     assert not c.src_css.exists()
@@ -43,8 +42,6 @@ def test_create_src_css_if_non_exists(settings: LazySettings, tmp_path: Path):
 
 
 def test_with_existing_src_css(settings: LazySettings, tmp_path: Path):
-    if settings.TAILWIND_CLI_VERSION == "3.4.17":
-        pytest.skip("With Tailwind CSS CLI 3.4.17 a src css file is optional. But with 4.0.0 it is required.")
     c = get_config()
     assert c.src_css is not None
     c.src_css.parent.mkdir(parents=True, exist_ok=True)

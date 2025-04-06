@@ -27,13 +27,12 @@ class Config:
     def watch_cmd(self) -> list[str]:
         result = [
             str(self.cli_path),
+            "--input",
+            str(self.src_css),
             "--output",
             str(self.dist_css),
             "--watch",
         ]
-
-        if self.src_css:
-            result.extend(["--input", str(self.src_css)])
 
         return result
 
@@ -41,13 +40,12 @@ class Config:
     def build_cmd(self) -> list[str]:
         result = [
             str(self.cli_path),
+            "--input",
+            str(self.src_css),
             "--output",
             str(self.dist_css),
             "--minify",
         ]
-
-        if self.src_css:
-            result.extend(["--input", str(self.src_css)])
 
         return result
 
@@ -123,8 +121,7 @@ def get_config() -> Config:
         cli_path = cli_path.expanduser() / f"{asset_name}-{system}-{machine}-{version_str}{extension}"
 
     # Determine the download url for the cli
-    if not (repo_url := getattr(settings, "TAILWIND_CLI_SRC_REPO", "tailwindlabs/tailwindcss")):
-        raise ValueError("TAILWIND_CLI_SRC_REPO must not be None.")
+    repo_url = getattr(settings, "TAILWIND_CLI_SRC_REPO", "tailwindlabs/tailwindcss")
     download_url = (
         f"https://github.com/{repo_url}/releases/download/v{version_str}/{asset_name}-{system}-{machine}{extension}"
     )
@@ -135,9 +132,14 @@ def get_config() -> Config:
     dist_css = Path(settings.STATICFILES_DIRS[0]) / dist_css_base
 
     # Determine the full path to the source css file.
-    if not (src_css := getattr(settings, "TAILWIND_CLI_SRC_CSS", "css/source.css")):
-        raise ValueError("TAILWIND_CLI_SRC_CSS must not be None.")
-    src_css = Path(settings.STATICFILES_DIRS[0]) / src_css
+    src_css = getattr(settings, "TAILWIND_CLI_SRC_CSS", None)
+    if not src_css:
+        user_cache_dir = platformdirs.user_cache_dir("django-tailwind-cli", "django-commons")
+        src_css = Path(user_cache_dir) / "source.css"
+    else:
+        src_css = Path(src_css)
+        if not src_css.is_absolute():
+            src_css = Path(settings.BASE_DIR) / src_css
 
     # Determine if the CLI should be downloaded automatically
     automatic_download = getattr(settings, "TAILWIND_CLI_AUTOMATIC_DOWNLOAD", True)

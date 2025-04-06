@@ -29,15 +29,14 @@ your project.
 
     This allows you to override the default of the library where to store the CLI binary.
 
-    The default behaviour is to store the CLI binary in directory return by this call `platformdirs.user_data_dir("django-tailwind-cli", "django-commons")`. Checkout [platformdirs](https://pypi.org/project/platformdirs/) for details.
+    The default behaviour is to store the CLI binary in the directory returned by this call `platformdirs.user_data_dir("django-tailwind-cli", "django-commons")`. Checkout [platformdirs](https://pypi.org/project/platformdirs/) for details.
 
     But if you want to store it elsewhere or plan to use a custom build binary stored locally, change this setting either to a path to a directory or the full path to the binary. If it points to a directory, this is the download destination otherwise it directly tries to use the referenced binary.
 
-    !!! warning
-
-        If you use the new option from **2.7.0** but haven't installed a binary before running any of the management commands, these commands will treat the configured path as a directory and create it, if it is missing. Afterwards the official CLI will be downloaded to this path.
-
-        In case you want to use the new behaviour, it is highly recommended to also set the new setting `TAILWIND_CLI_AUTOMATIC_DOWNLOAD` to `False`.
+    > [!Warning]
+    > If you use the new option from **2.7.0** but haven't installed a binary before running any of the management commands, these commands will treat the configured path as a directory and create it, if it is missing. Afterwards the official CLI will be downloaded to this path.
+    >
+    > In case you want to use the new behaviour, it is highly recommended to also set the new setting `TAILWIND_CLI_AUTOMATIC_DOWNLOAD` to `False`.
 
 `TAILWIND_CLI_AUTOMATIC_DOWNLOAD`
 : **Default**: `True`
@@ -49,9 +48,8 @@ your project.
 
     Specifies the repository from which the CLI is downloaded. This is useful if you are using a customized version of the CLI, such as [tailwind-cli-extra](https://github.com/dobicinaitis/tailwind-cli-extra).
 
-    !!! warning
-
-        If you use this option, ensure that you update the `TAILWIND_CLI_VERSION` to match the version of the customized CLI you are using. Additionally, you may need to update the `TAILWIND_CLI_ASSET_NAME` if the asset name is different. See the example below.
+    > [!Warning]
+    > If you use this option, ensure that you update the `TAILWIND_CLI_VERSION` to match the version of the customized CLI you are using. Additionally, you may need to update the `TAILWIND_CLI_ASSET_NAME` if the asset name is different. See the example below.
 
 `TAILWIND_CLI_ASSET_NAME`:
 : **Default**: `"tailwindcss"`
@@ -60,22 +58,24 @@ your project.
 
     This option is particularly useful if the customized repository you are using has a different name for the Tailwind CLI asset. For example, the asset name for [tailwind-cli-extra](https://github.com/dobicinaitis/tailwind-cli-extra/releases/latest/) is `tailwindcss-extra`.
 
-    !!! Note
+    > [!Note]
+    > Here is a full example of using a custom repository and asset name:
+    >    ```python
+    >    TAILWIND_CLI_SRC_REPO = "dobicinaitis/tailwind-cli-extra"
+    >    TAILWIND_CLI_ASSET_NAME = "tailwindcss-extra"
+    >    ```
 
-        Here is a full example of using a custom repository and asset name:
-
-        ```python
-        TAILWIND_CLI_SRC_REPO = "dobicinaitis/tailwind-cli-extra"
-        TAILWIND_CLI_ASSET_NAME = "tailwindcss-extra"
-        TAILWIND_CLI_VERSION = "2.1.4"
-        ```
 
 `TAILWIND_CLI_SRC_CSS`
-**Default** (for Tailwind 4.x): `css/source.css`
+**Default**: `None`
 
-    For **Tailwind CSS 4.x** this required file is used to configure Tailwind CSS and also add
-    additional CSS rules for your project. This file is stored relative to the first element of
-    the `STATICFILES_DIRS` array.
+    This variable can be set to `None`, a relative path and an absolute path.
+
+    If it is set to `None`, the library creates file with the name `source.css` in the directory returned by this call `platformdirs.user_cache_dir("django-tailwind-cli", "django-commons")`. Checkout [platformdirs](https://pypi.org/project/platformdirs/) for details.
+
+    If it is a relative path it is assumed to be relative to `settings.BASE_DIR`. If `settings.BASE_DIR` is not defined or the file doesn't exist a `ValueError` is raised.
+
+    If it is an absolute path, this path is used as the input file for Tailwind CSS CLI. If the path doesn't exist, a `ValueError`is raised.
 
 `TAILWIND_CLI_DIST_CSS`
 : **Default**: `"css/tailwind.css"`

@@ -85,7 +85,7 @@ def test_default_config():
     )
     assert str(c.dist_css) == "/home/user/project/assets/css/tailwind.css"
     assert c.src_css is not None
-    assert str(c.src_css) == "/home/user/project/assets/css/source.css"
+    assert str(c.src_css).endswith("django-tailwind-cli/source.css")
 
 
 def test_invalid_settings_for_staticfiles_dirs(settings: SettingsWrapper):
@@ -113,12 +113,6 @@ def test_invalid_settings_for_tailwind_cli_assert_name(settings: SettingsWrapper
 def test_invalid_settings_for_tailwind_cli_src_repo(settings: SettingsWrapper):
     settings.TAILWIND_CLI_SRC_REPO = None
     with pytest.raises(ValueError, match="TAILWIND_CLI_SRC_REPO must not be None."):
-        get_config()
-
-
-def test_invalid_settings_for_tailwind_cli_src_css(settings: SettingsWrapper):
-    settings.TAILWIND_CLI_SRC_CSS = None
-    with pytest.raises(ValueError, match="TAILWIND_CLI_SRC_CSS must not be None."):
         get_config()
 
 
@@ -215,11 +209,11 @@ def test_build_cmd():
     c = get_config()
     assert c.build_cmd == [
         str(c.cli_path),
+        "--input",
+        str(c.src_css),
         "--output",
         str(c.dist_css),
         "--minify",
-        "--input",
-        str(c.src_css),
     ]
 
 
@@ -227,9 +221,9 @@ def test_watch_cmd():
     c = get_config()
     assert c.watch_cmd == [
         str(c.cli_path),
+        "--input",
+        str(c.src_css),
         "--output",
         str(c.dist_css),
         "--watch",
-        "--input",
-        str(c.src_css),
     ]

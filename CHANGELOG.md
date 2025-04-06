@@ -2,19 +2,30 @@
 
 ## 4.2.0
 
-> [!WARNING]
+> [!CAUTION]
 > Version 4.2.x and onward only support Tailwind CSS 4.x. If you are using Tailwind CSS 3.x,
 > please use version 2.21.1 of this library. Version 4.0.x or 4.1.x still support Tailwind CSS 3.x, but
 > these versions are not recommended to use for new projects.
 
+> [!CAUTION]
+> This version includes changes to the handling of `TAILWIND_CLI_PATH` and `TAILWIND_CLI_SRC_CSS`.
+
 - Default fallback version is now 4.1.3.
 - Removed support for Tailwind CSS 3.x. The main reason is that this makes the library easier to maintain and also add better support for custom CLI builds which support DaisyUI and other plugins.
 - django-tailwind-cli now uses proper platform directories to store the CLI binary.
-  - The proper directories are powered by [platformdirs](https://pypi.org/project/platformdirs/).
-  - TAILWIND_CLI_PATH is now optional by default.
-  - If TAILWIND_CLI_PATH is None, the binary is stored in `user_data_dir("django-tailwind-cli", "django-commons")`.
-  - The library doesn't rely anylonger on a properly set `settings.BASE_DIR`.
-- TAILWIND_CLI_ASSET_NAME is also used for the downloaded CLI to distinguish between `tailwindcss` and `tailwindcss-extra`.
+
+    * The proper directories are powered by [platformdirs](https://pypi.org/project/platformdirs/).
+    * `TAILWIND_CLI_PATH` is now optional by default.
+    * If `TAILWIND_CLI_PATH` is None, the binary is stored in `user_data_dir("django-tailwind-cli", "django-commons")`.
+    * The library doesn't rely anylonger on a properly set `settings.BASE_DIR`.
+
+- `TAILWIND_CLI_ASSET_NAME` is also used for the downloaded CLI to distinguish between `tailwindcss` and `tailwindcss-extra`.
+- The behaviour of `TAILWIND_CLI_SRC_CSS` has been changed. The reasoning behind this change was, less default code inside the project and whitenoise had issues with a CSS file inside an asset folder referencing non-existing imports.
+
+    * It defaults to `None`.
+    * If it is `None` the default input file is created in the user cache directory.
+    * If it is a relative path, this path is considered relative to `settings.BASE_DIR`.
+    * The last option is an absolute path.
 
 ## 4.1.0
 
