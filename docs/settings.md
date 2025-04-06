@@ -56,7 +56,9 @@ your project.
 `TAILWIND_CLI_ASSET_NAME`:
 : **Default**: `"tailwindcss"`
 
-    Specifies the name of the asset to download from the repository. This option is particularly useful if the customized repository you are using has a different name for the Tailwind CLI asset. For example, the asset name for [tailwind-cli-extra](https://github.com/dobicinaitis/tailwind-cli-extra/releases/latest/) is `tailwindcss-extra`.
+    Specifies the name of the asset to download from the repository.
+
+    This option is particularly useful if the customized repository you are using has a different name for the Tailwind CLI asset. For example, the asset name for [tailwind-cli-extra](https://github.com/dobicinaitis/tailwind-cli-extra/releases/latest/) is `tailwindcss-extra`.
 
     !!! Note
 
@@ -65,7 +67,7 @@ your project.
         ```python
         TAILWIND_CLI_SRC_REPO = "dobicinaitis/tailwind-cli-extra"
         TAILWIND_CLI_ASSET_NAME = "tailwindcss-extra"
-        TAILWIND_CLI_VERSION = "1.7.12"
+        TAILWIND_CLI_VERSION = "2.1.4"
         ```
 
 `TAILWIND_CLI_SRC_CSS`

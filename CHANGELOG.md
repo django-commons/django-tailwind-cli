@@ -14,6 +14,7 @@
   - TAILWIND_CLI_PATH is now optional by default.
   - If TAILWIND_CLI_PATH is None, the binary is stored in `user_data_dir("django-tailwind-cli", "django-commons")`.
   - The library doesn't rely anylonger on a properly set `settings.BASE_DIR`.
+- TAILWIND_CLI_ASSET_NAME is also used for the downloaded CLI to distinguish between `tailwindcss` and `tailwindcss-extra`.
 
 ## 4.1.0
 

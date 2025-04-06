@@ -120,12 +120,3 @@ If you enjoy automatic reloading during development. Install the [django-browser
    The middleware should be listed after any that encodes the response, such as Django’s GZipMiddleware.
 
    The middleware automatically inserts the required script tag on HTML responses before </body> when DEBUG is True. It does so to every HTML response, meaning it will be included on Django’s debug pages, admin pages, etc. If you want more control, you can instead insert the script tag in your templates—see below.
-
-## Upgrade from Tailwind CSS 3.x to 4.x
-
-In order to upgrade this package from using Tailwind CSS 3.x to 4.x, you have to follow some simple
-steps.
-
-- Remove or change the setting `TAILWIND_CLI_VERSION` if it is set.
-- Remove the setting `TAILWIND_CLI_CONFIG_FILE` if it is set.
-- Remove the `tailwind.config.js` from your project.

@@ -108,6 +108,10 @@ def get_config() -> Config:
     # Read version from settings
     version_str, version = get_version()
 
+    # Determine the asset name
+    if not (asset_name := getattr(settings, "TAILWIND_CLI_ASSET_NAME", "tailwindcss")):
+        raise ValueError("TAILWIND_CLI_ASSET_NAME must not be None.")
+
     # Determine the full path to the CLI
     cli_path = Path(
         getattr(settings, "TAILWIND_CLI_PATH", None)
@@ -116,11 +120,9 @@ def get_config() -> Config:
     if cli_path.exists() and cli_path.is_file() and os.access(cli_path, os.X_OK):
         cli_path = cli_path.expanduser().resolve()
     else:
-        cli_path = cli_path.expanduser() / f"tailwindcss-{system}-{machine}-{version_str}{extension}"
+        cli_path = cli_path.expanduser() / f"{asset_name}-{system}-{machine}-{version_str}{extension}"
 
     # Determine the download url for the cli
-    if not (asset_name := getattr(settings, "TAILWIND_CLI_ASSET_NAME", "tailwindcss")):
-        raise ValueError("TAILWIND_CLI_ASSET_NAME must not be None.")
     if not (repo_url := getattr(settings, "TAILWIND_CLI_SRC_REPO", "tailwindlabs/tailwindcss")):
         raise ValueError("TAILWIND_CLI_SRC_REPO must not be None.")
     download_url = (
