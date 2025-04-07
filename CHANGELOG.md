@@ -1,5 +1,13 @@
 # Changelog
 
+## 4.2.3
+
+- Reverted the decision to store the CLI and the default config file in proper platform dirs.
+
+  * Windows has issues with the paths or sometimes it is not possible to create them.
+  * VSCode Tailwind Plugin relies on the the existance of the config within the current project.
+  * Decision: Create a folder named `.django_tailwind_cli` within the project and store the files there.
+
 ## 4.2.2
 
 - Default configuration stored in the user cache directory is overwritten on every start of the debug server or other management command.

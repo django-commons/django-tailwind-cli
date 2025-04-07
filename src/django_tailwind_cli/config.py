@@ -3,7 +3,6 @@ import platform
 from dataclasses import dataclass
 from pathlib import Path
 
-import platformdirs
 import requests
 from django.conf import settings
 from semver import Version
@@ -123,10 +122,14 @@ def get_config() -> Config:
         raise ValueError("TAILWIND_CLI_ASSET_NAME must not be None.")
 
     # Determine the full path to the CLI
-    cli_path = Path(
-        getattr(settings, "TAILWIND_CLI_PATH", None)
-        or platformdirs.user_data_dir("django-tailwind-cli", "django-commons")
-    )
+    cli_path = getattr(settings, "TAILWIND_CLI_PATH", None)
+    if not cli_path:
+        cli_path = ".django_tailwind_cli"
+
+    cli_path = Path(cli_path)
+    if not cli_path.is_absolute():
+        cli_path = Path(settings.BASE_DIR) / cli_path
+
     if cli_path.exists() and cli_path.is_file() and os.access(cli_path, os.X_OK):
         cli_path = cli_path.expanduser().resolve()
     else:
@@ -150,14 +153,14 @@ def get_config() -> Config:
     # Determine the full path to the source css file.
     src_css = getattr(settings, "TAILWIND_CLI_SRC_CSS", None)
     if not src_css:
-        user_cache_dir = platformdirs.user_cache_dir("django-tailwind-cli", "django-commons")
-        src_css = Path(user_cache_dir) / "source.css"
+        src_css = ".django_tailwind_cli/source.css"
         overwrite_default_config = True
     else:
-        src_css = Path(src_css)
-        if not src_css.is_absolute():
-            src_css = Path(settings.BASE_DIR) / src_css
         overwrite_default_config = False
+
+    src_css = Path(src_css)
+    if not src_css.is_absolute():
+        src_css = Path(settings.BASE_DIR) / src_css
 
     # Determine if the CLI should be downloaded automatically
     automatic_download = getattr(settings, "TAILWIND_CLI_AUTOMATIC_DOWNLOAD", True)

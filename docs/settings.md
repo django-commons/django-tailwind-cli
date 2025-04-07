@@ -25,11 +25,11 @@ your project.
     ```
 
 `TAILWIND_CLI_PATH`
-: **Default**: `None`
+: **Default**: `.django_tailwind_cli`
 
     This allows you to override the default of the library where to store the CLI binary.
 
-    The default behaviour is to store the CLI binary in the directory returned by this call `platformdirs.user_data_dir("django-tailwind-cli", "django-commons")`. Checkout [platformdirs](https://pypi.org/project/platformdirs/) for details.
+    The default behaviour is to store the CLI binary in the hidden directory `.django_tailwind_cli` within the project.
 
     But if you want to store it elsewhere or plan to use a custom build binary stored locally, change this setting either to a path to a directory or the full path to the binary. If it points to a directory, this is the download destination otherwise it directly tries to use the referenced binary.
 
@@ -66,11 +66,9 @@ your project.
     >    ```
 
 `TAILWIND_CLI_SRC_CSS`
-**Default**: `None`
+**Default**: `.django_tailwind_cli/source.css`
 
-    This variable can be set to `None`, a relative path and an absolute path.
-
-    If it is set to `None`, the library creates file with the name `source.css` in the directory returned by this call `platformdirs.user_cache_dir("django-tailwind-cli", "django-commons")`. Checkout [platformdirs](https://pypi.org/project/platformdirs/) for details.
+    This variable can be set to a relative path and an absolute path.
 
     If it is a relative path it is assumed to be relative to `settings.BASE_DIR`. If `settings.BASE_DIR` is not defined or the file doesn't exist a `ValueError` is raised.
 
