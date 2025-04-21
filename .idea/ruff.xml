@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<project version="4">
-  <component name="RuffConfigService">
-    <option name="globalRuffExecutablePath" value="/opt/homebrew/bin/ruff" />
-    <option name="runRuffOnSave" value="true" />
-    <option name="useRuffFormat" value="true" />
-    <option name="useRuffServer" value="true" />
-  </component>
-</project>
