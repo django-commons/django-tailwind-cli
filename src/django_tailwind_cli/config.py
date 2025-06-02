@@ -148,7 +148,12 @@ def get_config() -> Config:
     # Determine the full path to the dist css file
     if not (dist_css_base := getattr(settings, "TAILWIND_CLI_DIST_CSS", "css/tailwind.css")):
         raise ValueError("TAILWIND_CLI_DIST_CSS must not be None.")
-    dist_css = Path(settings.STATICFILES_DIRS[0]) / dist_css_base
+
+    first_staticfile_dir = settings.STATICFILES_DIRS[0]
+    if isinstance(first_staticfile_dir, tuple):
+        # Handle prefixed staticfile dir.
+        first_staticfile_dir = first_staticfile_dir[1]
+    dist_css = Path(first_staticfile_dir) / dist_css_base
 
     # Determine the full path to the source css file.
     src_css = getattr(settings, "TAILWIND_CLI_SRC_CSS", None)
