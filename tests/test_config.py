@@ -110,6 +110,24 @@ def test_invalid_settings_for_staticfiles_dirs(settings: SettingsWrapper):
         get_config()
 
 
+def test_string_setting_for_staticfiles_dirs(settings: SettingsWrapper):
+    settings.STATICFILES_DIRS = ["path"]
+    c = get_config()
+    assert c.dist_css == Path("path/css/tailwind.css")
+
+
+def test_path_setting_for_staticfiles_dirs(settings: SettingsWrapper):
+    settings.STATICFILES_DIRS = [Path("path")]
+    c = get_config()
+    assert c.dist_css == Path("path/css/tailwind.css")
+
+
+def test_prefixed_setting_for_staticfiles_dirs(settings: SettingsWrapper):
+    settings.STATICFILES_DIRS = (("prefix", "path"),)
+    c = get_config()
+    assert c.dist_css == Path("path/css/tailwind.css")
+
+
 def test_invalid_settings_for_tailwind_cli_dist_css(settings: SettingsWrapper):
     settings.TAILWIND_CLI_DIST_CSS = None
     with pytest.raises(ValueError, match="TAILWIND_CLI_DIST_CSS must not be None."):
