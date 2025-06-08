@@ -1,5 +1,9 @@
 # Changelog
 
+## 4.2.4
+
+- Merged pull request [#161](https://github.com/django-commons/django-tailwind-cli/pull/161) by [@adamghill](https://github.com/adamghill) which fixed the [prefix handling for staticfiles diretories](https://docs.djangoproject.com/en/5.2/ref/settings/#prefixes-optional).
+
 ## 4.2.3
 
 - Reverted the decision to store the CLI and the default config file in proper platform dirs.
