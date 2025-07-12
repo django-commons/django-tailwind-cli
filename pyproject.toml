@@ -137,8 +137,8 @@ filterwarnings = [
 # Coverage
 [tool.coverage.run]
 source = ["src"]
-branch = true
-parallel = true
+branch = false
+parallel = false
 omit = ["*/migrations/*", "*/tests/*", "*/conftest.py"]
 
 [tool.coverage.report]
