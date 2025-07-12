@@ -39,6 +39,7 @@ Examples:
   python manage.py tailwind list_templates # List all Django templates
   python manage.py tailwind config         # Show current configuration
   python manage.py tailwind troubleshoot   # Troubleshooting guide
+  python manage.py tailwind optimize       # Performance optimization tips
 
 \b
 For more information about a specific command, use:
@@ -896,6 +897,108 @@ def troubleshoot():
     typer.secho("   • Command help: python manage.py tailwind COMMAND --help", fg=typer.colors.BLUE)
     
     typer.secho("\n✨ Pro tip: Run 'python manage.py tailwind setup' for guided configuration!", fg=typer.colors.YELLOW)
+
+
+@handle_command_errors
+@app.command(name="optimize")
+def show_performance_tips():
+    """Performance optimization tips and best practices.
+
+    This command provides detailed guidance on optimizing your Tailwind CSS
+    build performance and development workflow for the best possible experience.
+
+    \b
+    Areas covered:
+    - Build performance optimization
+    - File watching efficiency
+    - Template scanning optimization
+    - Production deployment best practices
+    - Development workflow improvements
+    - Common performance pitfalls
+
+    \b
+    Examples:
+        # Show performance optimization tips
+        python manage.py tailwind optimize
+
+    \b
+    Use this to:
+        - Speed up development builds
+        - Optimize production deployments
+        - Reduce file watching overhead
+        - Improve overall workflow efficiency
+    """
+    typer.secho("\n⚡ Django Tailwind CLI Performance Optimization", fg=typer.colors.CYAN, bold=True)
+    typer.secho("=" * 55, fg=typer.colors.CYAN)
+    
+    # Build Performance
+    typer.secho("\n🏗️ Build Performance", fg=typer.colors.YELLOW, bold=True)
+    typer.secho("   Optimize your CSS build times:", fg=typer.colors.BLUE)
+    typer.secho("   • Use file modification checks (automatic)", fg=typer.colors.GREEN)
+    typer.secho("   • Only force rebuild when necessary: --force", fg=typer.colors.GREEN)
+    typer.secho("   • Pin Tailwind version in production: TAILWIND_CLI_VERSION", fg=typer.colors.GREEN)
+    typer.secho("   • Disable automatic downloads in CI: TAILWIND_CLI_AUTOMATIC_DOWNLOAD=False", fg=typer.colors.GREEN)
+    
+    # File Watching
+    typer.secho("\n👀 File Watching Efficiency", fg=typer.colors.YELLOW, bold=True)
+    typer.secho("   Optimize development file watching:", fg=typer.colors.BLUE)
+    typer.secho("   • Use 'tailwind runserver' for integrated development", fg=typer.colors.GREEN)
+    typer.secho("   • Exclude unnecessary directories from template scanning", fg=typer.colors.GREEN)
+    typer.secho("   • Keep templates organized in standard Django locations", fg=typer.colors.GREEN)
+    typer.secho("   • Use .gitignore patterns for large file trees", fg=typer.colors.GREEN)
+    
+    # Template Optimization
+    typer.secho("\n📄 Template Scanning", fg=typer.colors.YELLOW, bold=True)
+    typer.secho("   Optimize template discovery:", fg=typer.colors.BLUE)
+    typer.secho("   • Check scanned templates: python manage.py tailwind list_templates", fg=typer.colors.GREEN)
+    typer.secho("   • Organize templates in app-specific directories", fg=typer.colors.GREEN)
+    typer.secho("   • Avoid deeply nested template hierarchies", fg=typer.colors.GREEN)
+    typer.secho("   • Use standard Django template patterns", fg=typer.colors.GREEN)
+    
+    # Production Optimization
+    typer.secho("\n🚀 Production Deployment", fg=typer.colors.YELLOW, bold=True)
+    typer.secho("   Best practices for production:", fg=typer.colors.BLUE)
+    typer.secho("   • Pre-install CLI binary in Docker images", fg=typer.colors.GREEN)
+    typer.secho("   • Use specific version: TAILWIND_CLI_VERSION='4.1.3'", fg=typer.colors.GREEN)
+    typer.secho("   • Build CSS during container build, not runtime", fg=typer.colors.GREEN)
+    typer.secho("   • Serve CSS with proper cache headers", fg=typer.colors.GREEN)
+    
+    # Development Workflow
+    typer.secho("\n🛠️ Development Workflow", fg=typer.colors.YELLOW, bold=True)
+    typer.secho("   Streamline your development process:", fg=typer.colors.BLUE)
+    typer.secho("   • Use verbose mode for troubleshooting: --verbose", fg=typer.colors.GREEN)
+    typer.secho("   • Monitor build times with verbose output", fg=typer.colors.GREEN)
+    typer.secho("   • Configure IDE for Tailwind CSS IntelliSense", fg=typer.colors.GREEN)
+    typer.secho("   • Set up proper static file serving", fg=typer.colors.GREEN)
+    
+    # Common Pitfalls
+    typer.secho("\n⚠️ Common Performance Pitfalls", fg=typer.colors.YELLOW, bold=True)
+    typer.secho("   Avoid these common issues:", fg=typer.colors.BLUE)
+    typer.secho("   ❌ Running builds on every request", fg=typer.colors.RED)
+    typer.secho("   ❌ Not using file watching in development", fg=typer.colors.RED)
+    typer.secho("   ❌ Scanning unnecessary file types", fg=typer.colors.RED)
+    typer.secho("   ❌ Using --force without need", fg=typer.colors.RED)
+    typer.secho("   ❌ Not pinning versions in production", fg=typer.colors.RED)
+    
+    # Configuration Examples
+    typer.secho("\n⚙️ Performance Configuration Examples", fg=typer.colors.YELLOW, bold=True)
+    typer.secho("   Development settings:", fg=typer.colors.BLUE)
+    typer.secho("   TAILWIND_CLI_VERSION = 'latest'  # Auto-update", fg=typer.colors.GREEN)
+    typer.secho("   TAILWIND_CLI_AUTOMATIC_DOWNLOAD = True", fg=typer.colors.GREEN)
+    typer.secho("\n   Production settings:", fg=typer.colors.BLUE)
+    typer.secho("   TAILWIND_CLI_VERSION = '4.1.3'  # Pin version", fg=typer.colors.GREEN)
+    typer.secho("   TAILWIND_CLI_AUTOMATIC_DOWNLOAD = False", fg=typer.colors.GREEN)
+    typer.secho("   TAILWIND_CLI_PATH = '/usr/local/bin/tailwindcss'", fg=typer.colors.GREEN)
+    
+    # Monitoring
+    typer.secho("\n📊 Performance Monitoring", fg=typer.colors.YELLOW, bold=True)
+    typer.secho("   Monitor and measure performance:", fg=typer.colors.BLUE)
+    typer.secho("   • Build times: python manage.py tailwind build --verbose", fg=typer.colors.GREEN)
+    typer.secho("   • Template scanning: python manage.py tailwind list_templates --verbose", fg=typer.colors.GREEN)
+    typer.secho("   • Configuration check: python manage.py tailwind config", fg=typer.colors.GREEN)
+    typer.secho("   • File watching logs: python manage.py tailwind watch --verbose", fg=typer.colors.GREEN)
+    
+    typer.secho("\n✨ Pro tip: Start with 'python manage.py tailwind runserver' for the best development experience!", fg=typer.colors.CYAN)
 
 
 @handle_command_errors

@@ -10,120 +10,308 @@
 [![Downloads](https://static.pepy.tech/badge/django-tailwind-cli)](https://pepy.tech/project/django-tailwind-cli)
 [![Downloads / Month](https://pepy.tech/badge/django-tailwind-cli/month)](<https://pepy.tech/project/django-tailwind-cli>)
 
+**The simplest way to integrate Tailwind CSS with Django** ⚡
+
+No Node.js required! This library provides seamless [Tailwind CSS](https://tailwindcss.com) integration for Django using the standalone [Tailwind CSS CLI](https://tailwindcss.com/blog/standalone-cli). Inspired by the [Tailwind integration for Phoenix](https://github.com/phoenixframework/tailwind), it eliminates the need for Node.js in your Django development workflow.
+
 > [!WARNING]
-> Version 4.2.x and onward only support Tailwind CSS 4.x. If you are using Tailwind CSS 3.x,
-> please use version 2.21.1 of this library. Version 4.0.x or 4.1.x still support Tailwind CSS 3.x, but
-> these versions are not recommended to use for new projects.
+> **Version Compatibility:** 4.2.x+ supports Tailwind CSS 4.x only. For Tailwind CSS 3.x, use version 2.21.1.
 
-This library provides an integration of [Tailwind CSS](https://tailwindcss.com) for Django that is using on the precompiled versions of the [Tailwind CSS CLI](https://tailwindcss.com/blog/standalone-cli).
+## ✨ Why django-tailwind-cli?
 
-The goal of this library is to provided the simplest possible Tailwind integration for your Django project. It took its inspiration from the [Tailwind integration for Phoenix](https://github.com/phoenixframework/tailwind) which completely skips the neccesity of a node installation.
+- **🚀 Zero Node.js dependency** - No npm, webpack, or build tools required
+- **⚡ Instant setup** - Get Tailwind running in under 5 minutes
+- **🔄 Hot reload** - Watch mode with automatic CSS rebuilding
+- **📦 Production ready** - Optimized builds with automatic purging
+- **🎨 DaisyUI support** - Built-in component library integration
+- **🛠️ Developer friendly** - Rich CLI with helpful error messages and debugging tools
 
-## Installation
+## 🚀 Quick Start
 
-1. Install the library.
-
-   ```shell
-   python -m pip install django-tailwind-cli
-   ```
-
-2. Add `django_tailwind_cli` to `INSTALLED_APPS` in `settings.py`.
-
-   ```python
-   INSTALLED_APPS = [
-       # other Django apps
-       "django_tailwind_cli",
-   ]
-   ```
-
-3. Configure the `STATICFILES_DIRS` parameter in your `settings.py` if not already configured.
-
-   ```python
-   STATICFILES_DIRS = [BASE_DIR / "assets"]
-   ```
-
-4. Add template code.
-
-   ```htmldjango
-   {% load tailwind_cli %}
-   ...
-   <head>
-     ...
-     {% tailwind_css %}
-     ...
-   </head>
-   ```
-
-5. Start the debug server.
-
-   ```shell
-   python manage.py tailwind runserver
-   ```
-
-Enjoy!
-
-Checkout the detailed [installation guide](https://django-tailwind-cli.rtfd.io/latest/installation/)
-if you want to activate browser reload or the `runserver_plus` management command known from
-`django-extensions`.
-
-## Features
-
-- Simplest possible integration.
-- Support Tailwind CSS 4.x.
-- Proper support for DaisyUI via [tailwindcss-cli-extra](https://github.com/dobicinaitis/tailwind-cli-extra). Settings are described in the [usage guide](https://django-tailwind-cli.readthedocs.io/latest/usage/#use-with-daisyui).
-- Or bring your own version of Tailwind CSS CLI.
-- Management commands:
-
-    * To start the Tailwind CLI in watch mode during development.
-    * To build the production grade CSS file for your project.
-    * To start a debug server along with the Tailwind CLI in watch mode in a single session.
-
-- Configuration options to adapt the library to your project, when the defaults don't fit you.
-- A template tag to include the Tailwind CSS file in your project.
-- A base template for your project.
-- Sane default configurations for Tailwinc 4.x.
-
-## Requirements
-
-Python 3.10 or newer with Django >= 4.0.
-
-## Documentation
-
-The documentation can be found at [https://django-tailwind-cli.rtfd.io/](https://django-tailwind-cli.rtfd.io/)
-
-## Contributing
-
-This package requires [uv](https://docs.astral.sh/uv/) for dependency management and tooling. So you
-have to [install it](https://docs.astral.sh/uv/getting-started/installation/) first.
-[just](https://github.com/casey/just) is used as a handy command runner to save some typing on the
-command line. Do yourself a favor and install it too.
-
-```shell
-# Setup development environment
-just bootstrap
-
-# Upgrade/install all dependencies defined in pyproject.toml
-just upgrade
-
-# Run pre-commit rules on all files
-just lint
-
-# Run test suite
-just test
-```
-
-### Without just, but using uv
+### 1. Install the package
 
 ```bash
-# Create venv
-uv venv
+# Using pip
+pip install django-tailwind-cli
 
-# Install dependencies
-uv sync --all-extras
+# Using uv (recommended)
+uv add django-tailwind-cli
 
-# Run tox testrunner
-uvx --with tox-uv tox
+# Using poetry
+poetry add django-tailwind-cli
 ```
+
+### 2. Configure Django settings
+
+Add to your `settings.py`:
+
+```python
+INSTALLED_APPS = [
+    # ... your other apps
+    "django_tailwind_cli",
+]
+
+# Configure static files directory
+STATICFILES_DIRS = [BASE_DIR / "assets"]
+```
+
+### 3. Set up your base template
+
+Create or update your base template (e.g., `templates/base.html`):
+
+```html
+<!DOCTYPE html>
+{% load tailwind_cli %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Django App</title>
+    {% tailwind_css %}
+</head>
+<body class="bg-gray-50">
+    <div class="container mx-auto px-4">
+        {% block content %}{% endblock %}
+    </div>
+</body>
+</html>
+```
+
+### 4. Interactive setup (recommended for first-time users)
+
+```bash
+python manage.py tailwind setup
+```
+
+This will guide you through the complete setup process!
+
+### 5. Start developing
+
+```bash
+# Start development server with hot reload
+python manage.py tailwind runserver
+
+# Or run build and watch separately
+python manage.py tailwind watch  # In one terminal
+python manage.py runserver       # In another terminal
+```
+
+### 🎉 You're ready to go!
+
+Start adding Tailwind classes to your templates:
+
+```html
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto py-12">
+    <h1 class="text-4xl font-bold text-gray-900 mb-8">
+        Welcome to Django + Tailwind!
+    </h1>
+    <p class="text-lg text-gray-600">
+        This text is styled with Tailwind CSS.
+    </p>
+    <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mt-4">
+        Click me!
+    </button>
+</div>
+{% endblock %}
+```
+
+📚 **Next Steps:** Check out the [full documentation](https://django-tailwind-cli.rtfd.io/) for advanced configuration and usage patterns.
+
+## 🎯 Core Features
+
+### 🏗️ Build System
+- **Automatic CLI download** - No manual setup required
+- **Smart caching** - Faster rebuilds with file change detection  
+- **Production optimization** - Automatic CSS purging and minification
+- **Force rebuild** - `--force` flag for clean builds
+
+### 🔧 Development Tools
+- **Interactive setup** - `python manage.py tailwind setup`
+- **Configuration viewer** - `python manage.py tailwind config`
+- **Template scanner** - `python manage.py tailwind list_templates`
+- **Troubleshooting guide** - `python manage.py tailwind troubleshoot`
+
+### 🎨 Styling Features
+- **Tailwind CSS 4.x** - Latest features and performance improvements
+- **DaisyUI integration** - Pre-built components via [tailwindcss-cli-extra](https://github.com/dobicinaitis/tailwind-cli-extra)
+- **Custom CSS support** - Bring your own styles and configurations
+- **Template tag** - Simple `{% tailwind_css %}` inclusion
+
+### ⚡ Performance
+- **File change detection** - Only rebuild when necessary
+- **Concurrent processing** - Parallel build and server processes
+- **Progress indicators** - Visual feedback during downloads and builds
+- **Verbose logging** - Detailed diagnostics with `--verbose`
+
+### 🛠️ Management Commands
+
+| Command | Purpose | Example |
+|---------|---------|---------|
+| `setup` | Interactive setup guide | `python manage.py tailwind setup` |
+| `build` | Production CSS build | `python manage.py tailwind build` |
+| `watch` | Development file watcher | `python manage.py tailwind watch` |
+| `runserver` | Combined server + watcher | `python manage.py tailwind runserver` |
+| `config` | Show current configuration | `python manage.py tailwind config` |
+| `troubleshoot` | Debug common issues | `python manage.py tailwind troubleshoot` |
+
+## 📋 Requirements
+
+- **Python:** 3.10+
+- **Django:** 4.0+
+- **Platform:** Windows, macOS, Linux (automatic platform detection)
+
+## ⚙️ Configuration Examples
+
+### Basic Configuration
+```python
+# settings.py
+STATICFILES_DIRS = [BASE_DIR / "assets"]
+```
+
+### Advanced Configuration
+```python
+# Pin specific Tailwind version
+TAILWIND_CLI_VERSION = "4.1.3"
+
+# Custom CSS paths
+TAILWIND_CLI_SRC_CSS = "src/styles/main.css"
+TAILWIND_CLI_DIST_CSS = "css/app.css"
+
+# Enable DaisyUI
+TAILWIND_CLI_USE_DAISY_UI = True
+
+# Custom CLI path (for CI/CD)
+TAILWIND_CLI_PATH = "/usr/local/bin/tailwindcss"
+TAILWIND_CLI_AUTOMATIC_DOWNLOAD = False
+```
+
+### Production Settings
+```python
+# Optimized for production
+TAILWIND_CLI_VERSION = "4.1.3"  # Pin version
+TAILWIND_CLI_AUTOMATIC_DOWNLOAD = False  # Use pre-installed CLI
+TAILWIND_CLI_DIST_CSS = "css/tailwind.min.css"
+```
+
+## 🔍 Troubleshooting
+
+### Common Issues
+
+**CSS not updating?**
+```bash
+python manage.py tailwind build --force
+python manage.py tailwind troubleshoot
+```
+
+**Configuration problems?**
+```bash
+python manage.py tailwind config
+python manage.py tailwind setup
+```
+
+**Missing templates?**
+```bash
+python manage.py tailwind list_templates --verbose
+```
+
+### Performance Tips
+
+1. **Use file watching:** `python manage.py tailwind runserver` for automatic rebuilds
+2. **Check template scanning:** Ensure all template directories are included
+3. **Optimize builds:** Use `--force` only when necessary
+4. **Monitor file changes:** Use `--verbose` for detailed logging
+
+## 🎨 DaisyUI Integration
+
+Enable beautiful pre-built components:
+
+```python
+# settings.py
+TAILWIND_CLI_USE_DAISY_UI = True
+```
+
+```html
+<!-- Use DaisyUI components -->
+<button class="btn btn-primary">Primary Button</button>
+<div class="card bg-base-100 shadow-xl">
+    <div class="card-body">
+        <h2 class="card-title">Card Title</h2>
+        <p>Card content goes here.</p>
+    </div>
+</div>
+```
+
+## 📚 Documentation & Resources
+
+- **📖 Full Documentation:** [django-tailwind-cli.rtfd.io](https://django-tailwind-cli.rtfd.io/)
+- **🎯 Tailwind CSS Docs:** [tailwindcss.com](https://tailwindcss.com)
+- **🧩 DaisyUI Components:** [daisyui.com](https://daisyui.com)
+- **💬 Django Commons:** [github.com/django-commons](https://github.com/django-commons)
+
+## 🔗 Related Projects
+
+- **tailwindcss-cli-extra:** [DaisyUI-enabled CLI](https://github.com/dobicinaitis/tailwind-cli-extra)
+- **Django Extensions:** [Extended runserver features](https://django-extensions.readthedocs.io/)
+- **Tailwind CSS IntelliSense:** [VS Code extension](https://marketplace.visualstudio.com/items?itemName=bradlc.vscode-tailwindcss)
+
+## 🤝 Contributing
+
+We welcome contributions! This project uses modern Python tooling for development.
+
+### Prerequisites
+
+- **[uv](https://docs.astral.sh/uv/)** - Fast Python package manager
+- **[just](https://github.com/casey/just)** - Command runner (optional but recommended)
+
+### Quick Development Setup
+
+```bash
+# Clone the repository
+git clone https://github.com/django-commons/django-tailwind-cli.git
+cd django-tailwind-cli
+
+# Setup development environment (with just)
+just bootstrap
+
+# Or setup manually with uv
+uv venv
+uv sync --all-extras
+```
+
+### Development Commands
+
+```bash
+# With just (recommended)
+just upgrade          # Update dependencies
+just lint             # Run linting and formatting
+just test             # Run test suite
+just test-all         # Run tests across Python/Django versions
+
+# Without just
+uv sync --all-extras  # Update dependencies  
+uvx pre-commit run --all-files  # Run linting
+uv run pytest        # Run tests
+uvx --with tox-uv tox # Run full test matrix
+```
+
+### Contribution Guidelines
+
+1. **🍴 Fork** the repository
+2. **🌿 Create** a feature branch (`git checkout -b feature/amazing-feature`)
+3. **✅ Test** your changes (`just test`)
+4. **📝 Commit** with conventional commits (`feat:`, `fix:`, `docs:`, etc.)
+5. **📤 Push** to your branch (`git push origin feature/amazing-feature`)
+6. **🔄 Create** a Pull Request
+
+### Code Quality
+
+- **Type hints** for all new code
+- **Tests** for new features and bug fixes
+- **Documentation** updates for user-facing changes
+- **Conventional commits** for clear history
 
 ## License
 
