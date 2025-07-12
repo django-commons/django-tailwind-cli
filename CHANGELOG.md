@@ -18,6 +18,12 @@
   - Added process monitoring with automatic cleanup and error recovery
   - Enhanced CLI download with streaming progress indication
   - Improved error handling with better exception chaining and timeouts
+- Reduced code duplication in management commands for better maintainability.
+  - Extracted common setup logic into `_setup_tailwind_environment()` function
+  - Created centralized `_execute_tailwind_command()` for consistent subprocess handling
+  - Added `@handle_command_errors` decorator for uniform error handling across commands
+  - Refactored `build()` and `watch()` commands to use shared utilities
+  - Maintained backward compatibility with all existing test expectations
 
 ## 4.2.4
 

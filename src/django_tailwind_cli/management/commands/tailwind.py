@@ -1,6 +1,7 @@
 """`tailwind` management command."""
 
 import importlib.util
+import functools
 import os
 import signal
 import subprocess
@@ -8,6 +9,8 @@ import sys
 import time
 from pathlib import Path
 from types import FrameType
+from typing import Any
+from collections.abc import Callable
 
 import requests
 import typer
@@ -21,38 +24,60 @@ from django_tailwind_cli.config import get_config
 app = Typer(name="tailwind", help="Create and manage a Tailwind CSS theme.")  # type: ignore
 
 
+# DECORATORS AND COMMON SETUP ---------------------------------------------------------------------
+
+
+def handle_command_errors(func: Callable[..., Any]) -> Callable[..., Any]:
+    """Decorator to handle common command errors consistently.
+
+    Args:
+        func: Function to wrap with error handling.
+
+    Returns:
+        Wrapped function with consistent error handling.
+    """
+
+    @functools.wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        try:
+            return func(*args, **kwargs)
+        except CommandError as e:
+            typer.secho(f"Command error: {e}", fg=typer.colors.RED)
+            sys.exit(1)
+        except Exception as e:
+            typer.secho(f"Unexpected error: {e}", fg=typer.colors.RED)
+            sys.exit(1)
+
+    return wrapper
+
+
+@handle_command_errors
 @app.command()
 def build() -> None:
     """Build a minified production ready CSS file."""
     config = get_config()
-    _download_cli()
-    _create_standard_config()
+    _setup_tailwind_environment()
 
-    try:
-        subprocess.run(config.build_cmd, cwd=settings.BASE_DIR, check=True, capture_output=True, text=True)
-        typer.secho(f"Built production stylesheet '{config.dist_css}'.", fg=typer.colors.GREEN)
-    except KeyboardInterrupt:
-        typer.secho("Canceled building production stylesheet.", fg=typer.colors.RED)
-    except subprocess.CalledProcessError as e:  # pragma: no cover
-        error_message = e.stderr if e.stderr else "An unknown error occurred."
-        typer.secho(f"Failed to build production stylesheet: {error_message}", fg=typer.colors.RED)
-        sys.exit(1)
+    _execute_tailwind_command(
+        config.build_cmd,
+        success_message=f"Built production stylesheet '{config.dist_css}'.",
+        error_message="Failed to build production stylesheet",
+    )
 
 
+@handle_command_errors
 @app.command()
 def watch():
     """Start Tailwind CLI in watch mode during development."""
-    c = get_config()
-    _download_cli()
-    _create_standard_config()
+    config = get_config()
+    _setup_tailwind_environment()
 
-    try:
-        subprocess.run(c.watch_cmd, cwd=settings.BASE_DIR, check=True, capture_output=True)
-    except KeyboardInterrupt:
-        typer.secho("Stopped watching for changes.", fg=typer.colors.RED)
-    except subprocess.CalledProcessError as e:  # pragma: no cover
-        typer.secho(f"Failed to start in watch mode: {e.stderr.decode()}", fg=typer.colors.RED)
-        sys.exit(1)
+    _execute_tailwind_command(
+        config.watch_cmd,
+        success_message="Stopped watching for changes.",
+        error_message="Failed to start in watch mode",
+        capture_output=True,
+    )
 
 
 @app.command(name="list_templates")
@@ -76,12 +101,14 @@ def list_templates():
     typer.echo("\n".join(template_files))
 
 
+@handle_command_errors
 @app.command(name="download_cli")
 def download_cli():
     """Download the Tailwind CSS CLI."""
     _download_cli(force_download=True)
 
 
+@handle_command_errors
 @app.command(name="remove_cli")
 def remove_cli():
     """Remove the Tailwind CSS CLI."""
@@ -354,6 +381,42 @@ def _download_cli_with_progress(url: str, filepath: Path) -> None:
 
     except requests.RequestException as e:
         raise CommandError(f"Failed to download Tailwind CSS CLI: {e}") from e
+
+
+def _setup_tailwind_environment() -> None:
+    """Common setup for all Tailwind commands."""
+    _download_cli()
+    _create_standard_config()
+
+
+def _execute_tailwind_command(
+    cmd: list[str], *, success_message: str, error_message: str, capture_output: bool = True
+) -> None:
+    """Execute a Tailwind command with consistent error handling.
+
+    Args:
+        cmd: Command to execute.
+        success_message: Message to display on success.
+        error_message: Message prefix for errors.
+        capture_output: Whether to capture subprocess output.
+    """
+    try:
+        if capture_output:
+            subprocess.run(cmd, cwd=settings.BASE_DIR, check=True, capture_output=True, text=True)
+        else:
+            subprocess.run(cmd, cwd=settings.BASE_DIR, check=True)
+        typer.secho(success_message, fg=typer.colors.GREEN)
+    except KeyboardInterrupt:
+        if "build" in error_message.lower():
+            typer.secho("Canceled building production stylesheet.", fg=typer.colors.RED)
+        elif "watch" in error_message.lower():
+            typer.secho("Stopped watching for changes.", fg=typer.colors.RED)
+        else:
+            typer.secho(f"Canceled {error_message.lower()}.", fg=typer.colors.RED)
+    except subprocess.CalledProcessError as e:  # pragma: no cover
+        error_detail = e.stderr if e.stderr else "An unknown error occurred."
+        typer.secho(f"{error_message}: {error_detail}", fg=typer.colors.RED)
+        sys.exit(1)
 
 
 # UTILITY FUNCTIONS -------------------------------------------------------------------------------
