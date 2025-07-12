@@ -24,6 +24,13 @@
   - Added `@handle_command_errors` decorator for uniform error handling across commands
   - Refactored `build()` and `watch()` commands to use shared utilities
   - Maintained backward compatibility with all existing test expectations
+- Optimized file operations for improved performance and reduced I/O overhead.
+  - Added file modification time checks to prevent unnecessary CSS rebuilds
+  - Implemented smart content comparison to avoid rewriting unchanged files
+  - Added `--force` flag to `tailwind build` command for explicit rebuild control
+  - Introduced file existence caching with 5-second duration for hot paths
+  - Enhanced CLI binary validation to skip redundant downloads
+  - Preserved existing custom CSS content while optimizing default file creation
 
 ## 4.2.4
 

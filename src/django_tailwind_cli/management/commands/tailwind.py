@@ -53,10 +53,25 @@ def handle_command_errors(func: Callable[..., Any]) -> Callable[..., Any]:
 
 @handle_command_errors
 @app.command()
-def build() -> None:
+def build(
+    *,
+    force: bool = typer.Option(
+        False,
+        "--force",
+        help="Force rebuild even if output is up to date.",
+    ),
+) -> None:
     """Build a minified production ready CSS file."""
     config = get_config()
     _setup_tailwind_environment()
+
+    # Check if rebuild is necessary (unless forced)
+    if not force and not _should_rebuild_css(config.src_css, config.dist_css):
+        typer.secho(
+            f"Production stylesheet '{config.dist_css}' is up to date. Use --force to rebuild.",
+            fg=typer.colors.CYAN,
+        )
+        return
 
     _execute_tailwind_command(
         config.build_cmd,
@@ -389,6 +404,31 @@ def _setup_tailwind_environment() -> None:
     _create_standard_config()
 
 
+def _should_rebuild_css(src_css: Path, dist_css: Path) -> bool:
+    """Check if CSS should be rebuilt based on file modification times.
+
+    Args:
+        src_css: Source CSS file path.
+        dist_css: Distribution CSS file path.
+
+    Returns:
+        True if CSS should be rebuilt.
+    """
+    if not dist_css.exists():
+        return True
+
+    if not src_css.exists():
+        return True
+
+    try:
+        src_mtime = src_css.stat().st_mtime
+        dist_mtime = dist_css.stat().st_mtime
+        return src_mtime > dist_mtime
+    except OSError:
+        # If we can't get modification times, rebuild to be safe
+        return True
+
+
 def _execute_tailwind_command(
     cmd: list[str], *, success_message: str, error_message: str, capture_output: bool = True
 ) -> None:
@@ -419,6 +459,85 @@ def _execute_tailwind_command(
         sys.exit(1)
 
 
+# FILE OPERATION OPTIMIZATIONS --------------------------------------------------------------------
+
+
+def _should_recreate_file(file_path: Path, content: str) -> bool:
+    """Check if a file needs to be recreated based on content and modification time.
+
+    Args:
+        file_path: Path to the file to check.
+        content: New content that would be written.
+
+    Returns:
+        True if file should be recreated, False if it's up to date.
+    """
+    if not file_path.exists():
+        return True
+
+    try:
+        current_content = file_path.read_text()
+        if current_content != content:
+            return True
+    except (OSError, UnicodeDecodeError):
+        # If we can't read the file, recreate it
+        return True
+
+    return False
+
+
+def _is_cli_up_to_date(cli_path: Path, _expected_version: str) -> bool:
+    """Check if CLI binary is up to date and functional.
+
+    Args:
+        cli_path: Path to the CLI binary.
+        _expected_version: Expected version string (currently unused but kept for future enhancement).
+
+    Returns:
+        True if CLI is up to date and functional.
+    """
+    if not cli_path.exists():
+        return False
+
+    # Check if CLI is executable
+    if not os.access(cli_path, os.X_OK):
+        return False
+
+    # For now, we assume existing CLI is functional
+    # Could be enhanced to check version via subprocess call using _expected_version
+    return True
+
+
+# Global cache for file existence checks
+_FILE_CACHE: dict[str, tuple[float, bool]] = {}
+
+
+def _check_file_exists_cached(file_path: Path, cache_duration: float = 5.0) -> bool:
+    """Check file existence with caching to avoid repeated filesystem calls.
+
+    Args:
+        file_path: Path to check.
+        cache_duration: Cache duration in seconds.
+
+    Returns:
+        True if file exists (from cache or filesystem).
+    """
+    global _FILE_CACHE
+    cache_key = str(file_path)
+    current_time = time.time()
+
+    # Check cache
+    if cache_key in _FILE_CACHE:
+        last_check, existed = _FILE_CACHE[cache_key]
+        if current_time - last_check < cache_duration:
+            return existed
+
+    # Check filesystem and update cache
+    exists = file_path.exists()
+    _FILE_CACHE[cache_key] = (current_time, exists)
+    return exists
+
+
 # UTILITY FUNCTIONS -------------------------------------------------------------------------------
 
 
@@ -427,13 +546,14 @@ def _download_cli(*, force_download: bool = False) -> None:
     c = get_config()
 
     if not force_download and not c.automatic_download:
-        if not c.cli_path.exists():
+        if not _check_file_exists_cached(c.cli_path):
             raise CommandError(
                 "Automatic download of Tailwind CSS CLI is deactivated. Please download the Tailwind CSS CLI manually."
             )
         return
 
-    if c.cli_path.exists():
+    # Use optimized CLI check for existing installations
+    if not force_download and _is_cli_up_to_date(c.cli_path, c.version_str):
         typer.secho(
             f"Tailwind CSS CLI already exists at '{c.cli_path}'.",
             fg=typer.colors.GREEN,
@@ -456,15 +576,29 @@ DAISY_UI_SOURCE_CSS = '@import "tailwindcss";\n@plugin "daisyui";\n'
 
 
 def _create_standard_config() -> None:
-    """Create a standard Tailwind CSS config file."""
+    """Create a standard Tailwind CSS config file with optimization."""
     c = get_config()
 
-    if c.src_css and (c.overwrite_default_config or not c.src_css.exists()):
+    if not c.src_css:
+        return
+
+    # Determine the content based on DaisyUI setting
+    content = DAISY_UI_SOURCE_CSS if c.use_daisy_ui else DEFAULT_SOURCE_CSS
+
+    # Only create/update if:
+    # 1. overwrite_default_config is True (meaning we're using default path) AND file doesn't exist
+    # 2. OR overwrite_default_config is True AND the content should be recreated
+    should_create = False
+    if c.overwrite_default_config:
+        # For default config, only create if file doesn't exist or content differs
+        should_create = _should_recreate_file(c.src_css, content)
+    else:
+        # For custom config path, only create if file doesn't exist
+        should_create = not c.src_css.exists()
+
+    if should_create:
         c.src_css.parent.mkdir(parents=True, exist_ok=True)
-        if c.use_daisy_ui:
-            c.src_css.write_text(DAISY_UI_SOURCE_CSS)
-        else:
-            c.src_css.write_text(DEFAULT_SOURCE_CSS)
+        c.src_css.write_text(content)
         typer.secho(
             f"Created Tailwind Source CSS at '{c.src_css}'",
             fg=typer.colors.GREEN,
