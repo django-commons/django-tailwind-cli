@@ -87,23 +87,23 @@ def handle_command_errors(func: Callable[..., Any]) -> Callable[..., Any]:
 def _suggest_command_error_solutions(error_msg: str) -> None:
     """Provide actionable suggestions for command errors."""
     error_msg_lower = error_msg.lower()
-    
+
     if "staticfiles_dirs" in error_msg_lower:
         typer.secho("\n💡 Solution:", fg=typer.colors.YELLOW)
         typer.secho("   Add STATICFILES_DIRS to your Django settings.py:", fg=typer.colors.BLUE)
         typer.secho("   STATICFILES_DIRS = [BASE_DIR / 'assets']", fg=typer.colors.GREEN)
-        
+
     elif "base_dir" in error_msg_lower:
         typer.secho("\n💡 Solution:", fg=typer.colors.YELLOW)
         typer.secho("   Ensure BASE_DIR is properly set in your Django settings.py:", fg=typer.colors.BLUE)
         typer.secho("   BASE_DIR = Path(__file__).resolve().parent.parent", fg=typer.colors.GREEN)
-        
+
     elif "tailwind css 3.x" in error_msg_lower:
         typer.secho("\n💡 Solution:", fg=typer.colors.YELLOW)
         typer.secho("   Use django-tailwind-cli v2.21.1 for Tailwind CSS 3.x:", fg=typer.colors.BLUE)
         typer.secho("   pip install 'django-tailwind-cli==2.21.1'", fg=typer.colors.GREEN)
         typer.secho("   Or upgrade to Tailwind CSS 4.x (recommended)", fg=typer.colors.GREEN)
-        
+
     elif "version" in error_msg_lower:
         typer.secho("\n💡 Solution:", fg=typer.colors.YELLOW)
         typer.secho("   Check your TAILWIND_CLI_VERSION setting:", fg=typer.colors.BLUE)
@@ -113,17 +113,17 @@ def _suggest_command_error_solutions(error_msg: str) -> None:
 def _suggest_file_error_solutions(error_msg: str) -> None:
     """Provide actionable suggestions for file not found errors."""
     typer.secho("\n💡 Suggestions:", fg=typer.colors.YELLOW)
-    
+
     if "tailwindcss" in error_msg.lower():
         typer.secho("   • Download the Tailwind CLI binary:", fg=typer.colors.BLUE)
         typer.secho("     python manage.py tailwind download_cli", fg=typer.colors.GREEN)
         typer.secho("   • Check your TAILWIND_CLI_PATH setting", fg=typer.colors.BLUE)
-        
+
     elif ".css" in error_msg.lower():
         typer.secho("   • Ensure your CSS input file exists", fg=typer.colors.BLUE)
         typer.secho("   • Check TAILWIND_CLI_SRC_CSS setting", fg=typer.colors.BLUE)
         typer.secho("   • Run: python manage.py tailwind build", fg=typer.colors.GREEN)
-        
+
     else:
         typer.secho("   • Check the file path is correct", fg=typer.colors.BLUE)
         typer.secho("   • Ensure the directory exists", fg=typer.colors.BLUE)
@@ -143,20 +143,20 @@ def _suggest_permission_error_solutions(error_msg: str) -> None:
 def _suggest_general_error_solutions(error_msg: str) -> None:
     """Provide general troubleshooting suggestions."""
     error_msg_lower = error_msg.lower()
-    
+
     typer.secho("\n💡 Troubleshooting steps:", fg=typer.colors.YELLOW)
-    
+
     if "network" in error_msg_lower or "connection" in error_msg_lower:
         typer.secho("   • Check your internet connection", fg=typer.colors.BLUE)
         typer.secho("   • Try again (temporary network issues)", fg=typer.colors.BLUE)
         typer.secho("   • Set a specific version instead of 'latest':", fg=typer.colors.BLUE)
         typer.secho("     TAILWIND_CLI_VERSION = '4.1.3'", fg=typer.colors.GREEN)
-        
+
     elif "import" in error_msg_lower or "module" in error_msg_lower:
         typer.secho("   • Ensure django-tailwind-cli is installed:", fg=typer.colors.BLUE)
         typer.secho("     pip install django-tailwind-cli", fg=typer.colors.GREEN)
         typer.secho("   • Add 'django_tailwind_cli' to INSTALLED_APPS", fg=typer.colors.BLUE)
-        
+
     else:
         typer.secho("   • Check your Django settings configuration", fg=typer.colors.BLUE)
         typer.secho("   • Verify STATICFILES_DIRS is set correctly", fg=typer.colors.BLUE)
@@ -534,62 +534,63 @@ def show_config():
         - Understand your current setup
     """
     from django.core.management.color import color_style
-    
+
     style = color_style()
     config = get_config()
-    
+
     typer.secho("\n🔧 Django Tailwind CLI Configuration", fg=typer.colors.CYAN, bold=True)
     typer.secho("=" * 50, fg=typer.colors.CYAN)
-    
+
     # Version information
     typer.secho("\n📦 Version Information:", fg=typer.colors.YELLOW, bold=True)
     typer.secho(f"   Tailwind CSS Version: {config.version_str}", fg=typer.colors.GREEN)
     typer.secho(f"   DaisyUI Enabled: {'Yes' if config.use_daisy_ui else 'No'}", fg=typer.colors.GREEN)
     typer.secho(f"   Auto Download: {'Yes' if config.automatic_download else 'No'}", fg=typer.colors.GREEN)
-    
+
     # Path information
     typer.secho("\n📁 File Paths:", fg=typer.colors.YELLOW, bold=True)
     cli_exists = "✅" if config.cli_path.exists() else "❌"
     typer.secho(f"   CLI Binary: {config.cli_path} {cli_exists}", fg=typer.colors.GREEN)
-    
+
     src_exists = "✅" if config.src_css.exists() else "❌"
     typer.secho(f"   Source CSS: {config.src_css} {src_exists}", fg=typer.colors.GREEN)
-    
+
     dist_exists = "✅" if config.dist_css.exists() else "❌"
     typer.secho(f"   Output CSS: {config.dist_css} {dist_exists}", fg=typer.colors.GREEN)
-    
+
     # Django Settings
     typer.secho("\n⚙️ Django Settings:", fg=typer.colors.YELLOW, bold=True)
-    staticfiles_dirs = getattr(settings, 'STATICFILES_DIRS', None)
+    staticfiles_dirs = getattr(settings, "STATICFILES_DIRS", None)
     typer.secho(f"   STATICFILES_DIRS: {staticfiles_dirs}", fg=typer.colors.GREEN)
-    
-    version_setting = getattr(settings, 'TAILWIND_CLI_VERSION', 'latest')
+
+    version_setting = getattr(settings, "TAILWIND_CLI_VERSION", "latest")
     typer.secho(f"   TAILWIND_CLI_VERSION: {version_setting}", fg=typer.colors.GREEN)
-    
-    cli_path_setting = getattr(settings, 'TAILWIND_CLI_PATH', None)
+
+    cli_path_setting = getattr(settings, "TAILWIND_CLI_PATH", None)
     if cli_path_setting:
         typer.secho(f"   TAILWIND_CLI_PATH: {cli_path_setting}", fg=typer.colors.GREEN)
-    
-    src_css_setting = getattr(settings, 'TAILWIND_CLI_SRC_CSS', None)
+
+    src_css_setting = getattr(settings, "TAILWIND_CLI_SRC_CSS", None)
     if src_css_setting:
         typer.secho(f"   TAILWIND_CLI_SRC_CSS: {src_css_setting}", fg=typer.colors.GREEN)
-    
-    dist_css_setting = getattr(settings, 'TAILWIND_CLI_DIST_CSS', None)
+
+    dist_css_setting = getattr(settings, "TAILWIND_CLI_DIST_CSS", None)
     if dist_css_setting:
         typer.secho(f"   TAILWIND_CLI_DIST_CSS: {dist_css_setting}", fg=typer.colors.GREEN)
-    
+
     # Platform information
     from django_tailwind_cli.config import _get_platform_info
+
     platform_info = _get_platform_info()
     typer.secho("\n💻 Platform Information:", fg=typer.colors.YELLOW, bold=True)
     typer.secho(f"   Operating System: {platform_info.system}", fg=typer.colors.GREEN)
     typer.secho(f"   Architecture: {platform_info.machine}", fg=typer.colors.GREEN)
     typer.secho(f"   Binary Extension: {platform_info.extension or 'none'}", fg=typer.colors.GREEN)
-    
+
     # Commands
     typer.secho("\n🔗 Command URLs:", fg=typer.colors.YELLOW, bold=True)
     typer.secho(f"   Download URL: {config.download_url}", fg=typer.colors.BLUE)
-    
+
     # Status summary
     typer.secho("\n📊 Status Summary:", fg=typer.colors.YELLOW, bold=True)
     all_files_exist = config.cli_path.exists() and config.src_css.exists()
@@ -634,23 +635,24 @@ def setup_guide():
     """
     typer.secho("\n🚀 Django Tailwind CLI Setup Guide", fg=typer.colors.CYAN, bold=True)
     typer.secho("=" * 50, fg=typer.colors.CYAN)
-    
+
     # Step 1: Check installation
     typer.secho("\n📦 Step 1: Installation Check", fg=typer.colors.YELLOW, bold=True)
     try:
         from django_tailwind_cli import __version__
+
         typer.secho(f"   ✅ django-tailwind-cli is installed (version: {__version__})", fg=typer.colors.GREEN)
     except ImportError:
         typer.secho(f"   ❌ django-tailwind-cli not found", fg=typer.colors.RED)
         typer.secho("   Run: pip install django-tailwind-cli", fg=typer.colors.BLUE)
         return
-    
+
     # Step 2: Check Django settings
     typer.secho("\n⚙️ Step 2: Django Settings Check", fg=typer.colors.YELLOW, bold=True)
-    
+
     # Check INSTALLED_APPS
-    installed_apps = getattr(settings, 'INSTALLED_APPS', [])
-    if 'django_tailwind_cli' in installed_apps:
+    installed_apps = getattr(settings, "INSTALLED_APPS", [])
+    if "django_tailwind_cli" in installed_apps:
         typer.secho("   ✅ 'django_tailwind_cli' in INSTALLED_APPS", fg=typer.colors.GREEN)
     else:
         typer.secho("   ❌ 'django_tailwind_cli' not in INSTALLED_APPS", fg=typer.colors.RED)
@@ -659,9 +661,9 @@ def setup_guide():
         typer.secho("       ...", fg=typer.colors.GREEN)
         typer.secho("       'django_tailwind_cli',", fg=typer.colors.GREEN)
         typer.secho("   ]", fg=typer.colors.GREEN)
-    
+
     # Check STATICFILES_DIRS
-    staticfiles_dirs = getattr(settings, 'STATICFILES_DIRS', None)
+    staticfiles_dirs = getattr(settings, "STATICFILES_DIRS", None)
     if staticfiles_dirs and len(staticfiles_dirs) > 0:
         typer.secho(f"   ✅ STATICFILES_DIRS configured: {staticfiles_dirs[0]}", fg=typer.colors.GREEN)
     else:
@@ -670,7 +672,7 @@ def setup_guide():
         typer.secho("   STATICFILES_DIRS = [BASE_DIR / 'assets']", fg=typer.colors.GREEN)
         typer.secho("   (or any directory name you prefer)", fg=typer.colors.BLUE)
         return
-    
+
     # Step 3: Configuration check
     typer.secho("\n🔧 Step 3: Configuration Status", fg=typer.colors.YELLOW, bold=True)
     try:
@@ -682,7 +684,7 @@ def setup_guide():
     except Exception as e:
         typer.secho(f"   ❌ Configuration error: {e}", fg=typer.colors.RED)
         return
-    
+
     # Step 4: CLI Binary check
     typer.secho("\n💾 Step 4: Tailwind CLI Binary", fg=typer.colors.YELLOW, bold=True)
     if config.cli_path.exists():
@@ -695,7 +697,7 @@ def setup_guide():
         except Exception as e:
             typer.secho(f"   ❌ Download failed: {e}", fg=typer.colors.RED)
             return
-    
+
     # Step 5: CSS files check
     typer.secho("\n🎨 Step 5: CSS Files Setup", fg=typer.colors.YELLOW, bold=True)
     if not config.src_css.exists():
@@ -703,15 +705,17 @@ def setup_guide():
         config.src_css.parent.mkdir(parents=True, exist_ok=True)
         if config.use_daisy_ui:
             from django_tailwind_cli.management.commands.tailwind import DAISY_UI_SOURCE_CSS
+
             config.src_css.write_text(DAISY_UI_SOURCE_CSS)
             typer.secho("   ✅ DaisyUI source CSS created", fg=typer.colors.GREEN)
         else:
             from django_tailwind_cli.management.commands.tailwind import DEFAULT_SOURCE_CSS
+
             config.src_css.write_text(DEFAULT_SOURCE_CSS)
             typer.secho("   ✅ Default source CSS created", fg=typer.colors.GREEN)
     else:
         typer.secho("   ✅ Source CSS file exists", fg=typer.colors.GREEN)
-    
+
     # Step 6: First build
     typer.secho("\n🏗️ Step 6: First Build", fg=typer.colors.YELLOW, bold=True)
     if not config.dist_css.exists():
@@ -729,7 +733,7 @@ def setup_guide():
             return
     else:
         typer.secho("   ✅ CSS output file exists", fg=typer.colors.GREEN)
-    
+
     # Step 7: Template integration guide
     typer.secho("\n📄 Step 7: Template Integration", fg=typer.colors.YELLOW, bold=True)
     typer.secho("   Add this to your base template:", fg=typer.colors.BLUE)
@@ -741,11 +745,11 @@ def setup_guide():
     typer.secho("       <title>My Site</title>", fg=typer.colors.GREEN)
     typer.secho("       {% tailwind_css %}", fg=typer.colors.GREEN)
     typer.secho("   </head>", fg=typer.colors.GREEN)
-    typer.secho("   <body class=\"bg-gray-100\">", fg=typer.colors.GREEN)
-    typer.secho("       <h1 class=\"text-3xl font-bold text-blue-600\">Hello Tailwind!</h1>", fg=typer.colors.GREEN)
+    typer.secho('   <body class="bg-gray-100">', fg=typer.colors.GREEN)
+    typer.secho('       <h1 class="text-3xl font-bold text-blue-600">Hello Tailwind!</h1>', fg=typer.colors.GREEN)
     typer.secho("   </body>", fg=typer.colors.GREEN)
     typer.secho("   </html>", fg=typer.colors.GREEN)
-    
+
     # Step 8: Development workflow
     typer.secho("\n🔄 Step 8: Development Workflow", fg=typer.colors.YELLOW, bold=True)
     typer.secho("   For development, use one of these workflows:", fg=typer.colors.BLUE)
@@ -759,7 +763,7 @@ def setup_guide():
     typer.secho("", fg=typer.colors.BLUE)
     typer.secho("   For production builds:", fg=typer.colors.CYAN)
     typer.secho("   python manage.py tailwind build", fg=typer.colors.GREEN)
-    
+
     # Success message
     typer.secho("\n🎉 Setup Complete!", fg=typer.colors.GREEN, bold=True)
     typer.secho("   Your Django project is now ready to use Tailwind CSS!", fg=typer.colors.GREEN)
@@ -797,7 +801,7 @@ def troubleshoot():
     """
     typer.secho("\n🔍 Django Tailwind CLI Troubleshooting Guide", fg=typer.colors.CYAN, bold=True)
     typer.secho("=" * 55, fg=typer.colors.CYAN)
-    
+
     # Issue 1: CSS not updating
     typer.secho("\n❓ Issue 1: CSS not updating in browser", fg=typer.colors.YELLOW, bold=True)
     typer.secho("   Symptoms: Changes to templates don't reflect in styles", fg=typer.colors.BLUE)
@@ -808,7 +812,7 @@ def troubleshoot():
     typer.secho("   3. Verify template has {% load tailwind_cli %} and {% tailwind_css %}", fg=typer.colors.WHITE)
     typer.secho("   4. Check if CSS file exists:", fg=typer.colors.WHITE)
     typer.secho("      python manage.py tailwind config", fg=typer.colors.GREEN)
-    
+
     # Issue 2: Build failures
     typer.secho("\n❓ Issue 2: Build/watch command fails", fg=typer.colors.YELLOW, bold=True)
     typer.secho("   Symptoms: Commands exit with errors", fg=typer.colors.BLUE)
@@ -821,7 +825,7 @@ def troubleshoot():
     typer.secho("      chmod 755 .django_tailwind_cli/", fg=typer.colors.GREEN)
     typer.secho("   4. Try force rebuild:", fg=typer.colors.WHITE)
     typer.secho("      python manage.py tailwind build --force", fg=typer.colors.GREEN)
-    
+
     # Issue 3: Configuration errors
     typer.secho("\n❓ Issue 3: Configuration errors", fg=typer.colors.YELLOW, bold=True)
     typer.secho("   Symptoms: Settings-related error messages", fg=typer.colors.BLUE)
@@ -833,7 +837,7 @@ def troubleshoot():
     typer.secho("      STATICFILES_DIRS = [BASE_DIR / 'assets']", fg=typer.colors.GREEN)
     typer.secho("   3. Check current configuration:", fg=typer.colors.WHITE)
     typer.secho("      python manage.py tailwind config", fg=typer.colors.GREEN)
-    
+
     # Issue 4: Template integration
     typer.secho("\n❓ Issue 4: Template integration problems", fg=typer.colors.YELLOW, bold=True)
     typer.secho("   Symptoms: CSS not loading in templates", fg=typer.colors.BLUE)
@@ -846,7 +850,7 @@ def troubleshoot():
     typer.secho("      python manage.py runserver", fg=typer.colors.GREEN)
     typer.secho("   4. Verify static URL in settings:", fg=typer.colors.WHITE)
     typer.secho("      STATIC_URL = '/static/'", fg=typer.colors.GREEN)
-    
+
     # Issue 5: Permission issues
     typer.secho("\n❓ Issue 5: Permission denied errors", fg=typer.colors.YELLOW, bold=True)
     typer.secho("   Symptoms: Cannot write files or execute CLI", fg=typer.colors.BLUE)
@@ -858,7 +862,7 @@ def troubleshoot():
     typer.secho("   3. Check parent directory is writable", fg=typer.colors.WHITE)
     typer.secho("   4. Re-download CLI binary:", fg=typer.colors.WHITE)
     typer.secho("      python manage.py tailwind download_cli", fg=typer.colors.GREEN)
-    
+
     # Issue 6: Network/download issues
     typer.secho("\n❓ Issue 6: Download or network failures", fg=typer.colors.YELLOW, bold=True)
     typer.secho("   Symptoms: Cannot download CLI binary", fg=typer.colors.BLUE)
@@ -869,7 +873,7 @@ def troubleshoot():
     typer.secho("   3. Increase timeout:", fg=typer.colors.WHITE)
     typer.secho("      TAILWIND_CLI_REQUEST_TIMEOUT = 30", fg=typer.colors.GREEN)
     typer.secho("   4. Try manual download from GitHub releases", fg=typer.colors.WHITE)
-    
+
     # Issue 7: Tailwind classes not working
     typer.secho("\n❓ Issue 7: Tailwind classes not working", fg=typer.colors.YELLOW, bold=True)
     typer.secho("   Symptoms: Classes in HTML don't produce styles", fg=typer.colors.BLUE)
@@ -881,7 +885,7 @@ def troubleshoot():
     typer.secho("   3. Verify class names are correct (no typos)", fg=typer.colors.WHITE)
     typer.secho("   4. Try rebuild with force:", fg=typer.colors.WHITE)
     typer.secho("      python manage.py tailwind build --force", fg=typer.colors.GREEN)
-    
+
     # Diagnostic commands
     typer.secho("\n🔧 Diagnostic Commands", fg=typer.colors.CYAN, bold=True)
     typer.secho("   Run these to gather information:", fg=typer.colors.BLUE)
@@ -889,13 +893,15 @@ def troubleshoot():
     typer.secho("   python manage.py tailwind list_templates # List scanned files", fg=typer.colors.GREEN)
     typer.secho("   python manage.py tailwind build --verbose # Detailed build info", fg=typer.colors.GREEN)
     typer.secho("   python manage.py tailwind setup          # Interactive setup", fg=typer.colors.GREEN)
-    
+
     # Getting more help
     typer.secho("\n💬 Need More Help?", fg=typer.colors.CYAN, bold=True)
     typer.secho("   • Documentation: https://django-tailwind-cli.rtfd.io/", fg=typer.colors.BLUE)
-    typer.secho("   • GitHub Issues: https://github.com/django-commons/django-tailwind-cli/issues", fg=typer.colors.BLUE)
+    typer.secho(
+        "   • GitHub Issues: https://github.com/django-commons/django-tailwind-cli/issues", fg=typer.colors.BLUE
+    )
     typer.secho("   • Command help: python manage.py tailwind COMMAND --help", fg=typer.colors.BLUE)
-    
+
     typer.secho("\n✨ Pro tip: Run 'python manage.py tailwind setup' for guided configuration!", fg=typer.colors.YELLOW)
 
 
@@ -930,7 +936,7 @@ def show_performance_tips():
     """
     typer.secho("\n⚡ Django Tailwind CLI Performance Optimization", fg=typer.colors.CYAN, bold=True)
     typer.secho("=" * 55, fg=typer.colors.CYAN)
-    
+
     # Build Performance
     typer.secho("\n🏗️ Build Performance", fg=typer.colors.YELLOW, bold=True)
     typer.secho("   Optimize your CSS build times:", fg=typer.colors.BLUE)
@@ -938,7 +944,7 @@ def show_performance_tips():
     typer.secho("   • Only force rebuild when necessary: --force", fg=typer.colors.GREEN)
     typer.secho("   • Pin Tailwind version in production: TAILWIND_CLI_VERSION", fg=typer.colors.GREEN)
     typer.secho("   • Disable automatic downloads in CI: TAILWIND_CLI_AUTOMATIC_DOWNLOAD=False", fg=typer.colors.GREEN)
-    
+
     # File Watching
     typer.secho("\n👀 File Watching Efficiency", fg=typer.colors.YELLOW, bold=True)
     typer.secho("   Optimize development file watching:", fg=typer.colors.BLUE)
@@ -946,7 +952,7 @@ def show_performance_tips():
     typer.secho("   • Exclude unnecessary directories from template scanning", fg=typer.colors.GREEN)
     typer.secho("   • Keep templates organized in standard Django locations", fg=typer.colors.GREEN)
     typer.secho("   • Use .gitignore patterns for large file trees", fg=typer.colors.GREEN)
-    
+
     # Template Optimization
     typer.secho("\n📄 Template Scanning", fg=typer.colors.YELLOW, bold=True)
     typer.secho("   Optimize template discovery:", fg=typer.colors.BLUE)
@@ -954,7 +960,7 @@ def show_performance_tips():
     typer.secho("   • Organize templates in app-specific directories", fg=typer.colors.GREEN)
     typer.secho("   • Avoid deeply nested template hierarchies", fg=typer.colors.GREEN)
     typer.secho("   • Use standard Django template patterns", fg=typer.colors.GREEN)
-    
+
     # Production Optimization
     typer.secho("\n🚀 Production Deployment", fg=typer.colors.YELLOW, bold=True)
     typer.secho("   Best practices for production:", fg=typer.colors.BLUE)
@@ -962,7 +968,7 @@ def show_performance_tips():
     typer.secho("   • Use specific version: TAILWIND_CLI_VERSION='4.1.3'", fg=typer.colors.GREEN)
     typer.secho("   • Build CSS during container build, not runtime", fg=typer.colors.GREEN)
     typer.secho("   • Serve CSS with proper cache headers", fg=typer.colors.GREEN)
-    
+
     # Development Workflow
     typer.secho("\n🛠️ Development Workflow", fg=typer.colors.YELLOW, bold=True)
     typer.secho("   Streamline your development process:", fg=typer.colors.BLUE)
@@ -970,7 +976,7 @@ def show_performance_tips():
     typer.secho("   • Monitor build times with verbose output", fg=typer.colors.GREEN)
     typer.secho("   • Configure IDE for Tailwind CSS IntelliSense", fg=typer.colors.GREEN)
     typer.secho("   • Set up proper static file serving", fg=typer.colors.GREEN)
-    
+
     # Common Pitfalls
     typer.secho("\n⚠️ Common Performance Pitfalls", fg=typer.colors.YELLOW, bold=True)
     typer.secho("   Avoid these common issues:", fg=typer.colors.BLUE)
@@ -979,7 +985,7 @@ def show_performance_tips():
     typer.secho("   ❌ Scanning unnecessary file types", fg=typer.colors.RED)
     typer.secho("   ❌ Using --force without need", fg=typer.colors.RED)
     typer.secho("   ❌ Not pinning versions in production", fg=typer.colors.RED)
-    
+
     # Configuration Examples
     typer.secho("\n⚙️ Performance Configuration Examples", fg=typer.colors.YELLOW, bold=True)
     typer.secho("   Development settings:", fg=typer.colors.BLUE)
@@ -989,7 +995,7 @@ def show_performance_tips():
     typer.secho("   TAILWIND_CLI_VERSION = '4.1.3'  # Pin version", fg=typer.colors.GREEN)
     typer.secho("   TAILWIND_CLI_AUTOMATIC_DOWNLOAD = False", fg=typer.colors.GREEN)
     typer.secho("   TAILWIND_CLI_PATH = '/usr/local/bin/tailwindcss'", fg=typer.colors.GREEN)
-    
+
     # Monitoring
     typer.secho("\n📊 Performance Monitoring", fg=typer.colors.YELLOW, bold=True)
     typer.secho("   Monitor and measure performance:", fg=typer.colors.BLUE)
@@ -997,8 +1003,11 @@ def show_performance_tips():
     typer.secho("   • Template scanning: python manage.py tailwind list_templates --verbose", fg=typer.colors.GREEN)
     typer.secho("   • Configuration check: python manage.py tailwind config", fg=typer.colors.GREEN)
     typer.secho("   • File watching logs: python manage.py tailwind watch --verbose", fg=typer.colors.GREEN)
-    
-    typer.secho("\n✨ Pro tip: Start with 'python manage.py tailwind runserver' for the best development experience!", fg=typer.colors.CYAN)
+
+    typer.secho(
+        "\n✨ Pro tip: Start with 'python manage.py tailwind runserver' for the best development experience!",
+        fg=typer.colors.CYAN,
+    )
 
 
 @handle_command_errors

@@ -36,14 +36,14 @@ class TestConfigurationErrorScenarios:
     def test_empty_staticfiles_dirs_error(self, settings: LazySettings):
         """Test error when STATICFILES_DIRS is empty."""
         settings.STATICFILES_DIRS = []
-        
+
         with pytest.raises(ValueError, match="STATICFILES_DIRS is empty"):
             _validate_required_settings()
 
     def test_none_staticfiles_dirs_error(self, settings: LazySettings):
         """Test error when STATICFILES_DIRS is None."""
         settings.STATICFILES_DIRS = None
-        
+
         with pytest.raises(ValueError, match="STATICFILES_DIRS is empty"):
             _validate_required_settings()
 
@@ -51,7 +51,7 @@ class TestConfigurationErrorScenarios:
         """Test error when TAILWIND_CLI_ASSET_NAME is empty string."""
         settings.STATICFILES_DIRS = [tmp_path / "assets"]
         settings.TAILWIND_CLI_ASSET_NAME = ""
-        
+
         with pytest.raises(ValueError, match="TAILWIND_CLI_ASSET_NAME must not be empty"):
             _validate_required_settings()
 
@@ -59,7 +59,7 @@ class TestConfigurationErrorScenarios:
         """Test error when TAILWIND_CLI_DIST_CSS is empty string."""
         settings.STATICFILES_DIRS = [tmp_path / "assets"]
         settings.TAILWIND_CLI_DIST_CSS = ""
-        
+
         with pytest.raises(ValueError, match="TAILWIND_CLI_DIST_CSS must not be empty"):
             _validate_required_settings()
 
@@ -67,7 +67,7 @@ class TestConfigurationErrorScenarios:
         """Test error when TAILWIND_CLI_SRC_REPO is empty string."""
         settings.STATICFILES_DIRS = [tmp_path / "assets"]
         settings.TAILWIND_CLI_SRC_REPO = ""
-        
+
         with pytest.raises(ValueError, match="TAILWIND_CLI_SRC_REPO must not be empty"):
             _validate_required_settings()
 
@@ -76,7 +76,7 @@ class TestConfigurationErrorScenarios:
         settings.STATICFILES_DIRS = [tmp_path / "assets"]
         settings.TAILWIND_CLI_VERSION = "3.4.0"
         settings.TAILWIND_CLI_SRC_REPO = "tailwindlabs/tailwindcss"
-        
+
         with pytest.raises(ValueError, match="Tailwind CSS 3.x is not supported"):
             get_version()
 
@@ -85,7 +85,7 @@ class TestConfigurationErrorScenarios:
         settings.STATICFILES_DIRS = [tmp_path / "assets"]
         settings.TAILWIND_CLI_VERSION = "invalid.version.string"
         settings.TAILWIND_CLI_SRC_REPO = "custom/repo"
-        
+
         with pytest.raises(ValueError):
             get_version()
 
@@ -93,9 +93,9 @@ class TestConfigurationErrorScenarios:
         """Test handling when BASE_DIR is not properly set."""
         settings.STATICFILES_DIRS = [tmp_path / "assets"]
         # Remove BASE_DIR attribute entirely
-        if hasattr(settings, 'BASE_DIR'):
-            delattr(settings, 'BASE_DIR')
-        
+        if hasattr(settings, "BASE_DIR"):
+            delattr(settings, "BASE_DIR")
+
         # Should raise AttributeError when trying to resolve relative paths
         with pytest.raises(AttributeError):
             get_config()
@@ -104,7 +104,7 @@ class TestConfigurationErrorScenarios:
         """Test handling of invalid path configurations."""
         settings.STATICFILES_DIRS = [tmp_path / "assets"]
         settings.BASE_DIR = tmp_path
-        
+
         # Test with invalid characters in path (on Windows)
         if os.name == "nt":  # Windows
             settings.TAILWIND_CLI_PATH = "invalid<>path"
@@ -120,15 +120,15 @@ class TestNetworkErrorScenarios:
         settings.STATICFILES_DIRS = [tmp_path / "assets"]
         settings.TAILWIND_CLI_VERSION = "latest"
         settings.TAILWIND_CLI_REQUEST_TIMEOUT = 0.001  # Very short timeout
-        
+
         # Clear any existing cache to ensure fallback behavior
         cache_path = _get_cache_path()
         if cache_path.exists():
             cache_path.unlink()
-        
+
         with patch("requests.get") as mock_get:
             mock_get.side_effect = requests.Timeout("Connection timeout")
-            
+
             # Should fall back to fallback version
             version_str, _ = get_version()
             assert version_str == "4.1.3"  # FALLBACK_VERSION
@@ -137,15 +137,15 @@ class TestNetworkErrorScenarios:
         """Test connection error when fetching latest version."""
         settings.STATICFILES_DIRS = [tmp_path / "assets"]
         settings.TAILWIND_CLI_VERSION = "latest"
-        
+
         # Clear any existing cache to ensure fallback behavior
         cache_path = _get_cache_path()
         if cache_path.exists():
             cache_path.unlink()
-        
+
         with patch("requests.get") as mock_get:
             mock_get.side_effect = requests.ConnectionError("Network unreachable")
-            
+
             # Should fall back to fallback version
             version_str, _ = get_version()
             assert version_str == "4.1.3"  # FALLBACK_VERSION
@@ -154,18 +154,18 @@ class TestNetworkErrorScenarios:
         """Test HTTP error when fetching latest version."""
         settings.STATICFILES_DIRS = [tmp_path / "assets"]
         settings.TAILWIND_CLI_VERSION = "latest"
-        
+
         # Clear any existing cache to ensure fallback behavior
         cache_path = _get_cache_path()
         if cache_path.exists():
             cache_path.unlink()
-        
+
         with patch("requests.get") as mock_get:
             mock_response = Mock()
             mock_response.ok = False
             mock_response.status_code = 404
             mock_get.return_value = mock_response
-            
+
             # Should fall back to fallback version
             version_str, _ = get_version()
             assert version_str == "4.1.3"  # FALLBACK_VERSION
@@ -175,10 +175,10 @@ class TestNetworkErrorScenarios:
         settings.BASE_DIR = tmp_path
         settings.STATICFILES_DIRS = [tmp_path / "assets"]
         settings.TAILWIND_CLI_PATH = tmp_path / ".cli"
-        
+
         with patch("requests.get") as mock_get:
             mock_get.side_effect = requests.RequestException("Network error")
-            
+
             with pytest.raises(CommandError, match="Failed to download Tailwind CSS CLI"):
                 call_command("tailwind", "download_cli")
 
@@ -187,17 +187,17 @@ class TestNetworkErrorScenarios:
         settings.BASE_DIR = tmp_path
         settings.STATICFILES_DIRS = [tmp_path / "assets"]
         settings.TAILWIND_CLI_PATH = tmp_path / ".cli"
-        
+
         with patch("requests.get") as mock_get:
             mock_response = Mock()
             mock_response.headers = {"content-length": "1000"}  # Claims 1000 bytes
             mock_response.iter_content.return_value = [b"incomplete"]  # Only ~10 bytes
             mock_response.raise_for_status.return_value = None
             mock_get.return_value = mock_response
-            
+
             # Should complete download despite size mismatch
             call_command("tailwind", "download_cli")
-            
+
             config = get_config()
             assert config.cli_path.exists()
             assert config.cli_path.read_bytes() == b"incomplete"
@@ -206,18 +206,18 @@ class TestNetworkErrorScenarios:
         """Test handling of corrupted version cache."""
         settings.STATICFILES_DIRS = [tmp_path / "assets"]
         settings.TAILWIND_CLI_VERSION = "latest"
-        
+
         # Create corrupted cache file
         cache_path = _get_cache_path()
         cache_path.parent.mkdir(parents=True, exist_ok=True)
         cache_path.write_text("corrupted\ncache\ndata")
-        
+
         with patch("requests.get") as mock_get:
             mock_response = Mock()
             mock_response.ok = True
             mock_response.headers = {"location": "https://github.com/repo/releases/tag/v4.1.0"}
             mock_get.return_value = mock_response
-            
+
             # Should handle corrupted cache gracefully and fetch new version
             version_str, version = get_version()
             assert version_str == "4.1.0"
@@ -231,21 +231,21 @@ class TestSubprocessErrorScenarios:
         settings.BASE_DIR = tmp_path
         settings.STATICFILES_DIRS = [tmp_path / "assets"]
         settings.TAILWIND_CLI_PATH = tmp_path / ".cli"
-        
+
         # Create a fake CLI that will be executable
         config = get_config()
         config.cli_path.parent.mkdir(parents=True, exist_ok=True)
         config.cli_path.write_bytes(b"fake-cli")
         config.cli_path.chmod(0o755)
-        
+
         with patch("subprocess.run") as mock_subprocess:
             # Simulate subprocess failure
             error = subprocess.CalledProcessError(1, ["fake-cli"], stderr="Build failed: syntax error")
             mock_subprocess.side_effect = error
-            
+
             with pytest.raises(SystemExit, match="1"):
                 call_command("tailwind", "build")
-            
+
             captured = capsys.readouterr()
             assert "Failed to build production stylesheet" in captured.out
 
@@ -254,21 +254,21 @@ class TestSubprocessErrorScenarios:
         settings.BASE_DIR = tmp_path
         settings.STATICFILES_DIRS = [tmp_path / "assets"]
         settings.TAILWIND_CLI_PATH = tmp_path / ".cli"
-        
+
         # Create a fake CLI
         config = get_config()
         config.cli_path.parent.mkdir(parents=True, exist_ok=True)
         config.cli_path.write_bytes(b"fake-cli")
         config.cli_path.chmod(0o755)
-        
+
         with patch("subprocess.run") as mock_subprocess:
             # Simulate subprocess failure
             error = subprocess.CalledProcessError(2, ["fake-cli", "--watch"], stderr="Watch failed: permission denied")
             mock_subprocess.side_effect = error
-            
+
             with pytest.raises(SystemExit, match="1"):
                 call_command("tailwind", "watch")
-            
+
             captured = capsys.readouterr()
             assert "Failed to start in watch mode" in captured.out
 
@@ -277,13 +277,13 @@ class TestSubprocessErrorScenarios:
         settings.BASE_DIR = tmp_path
         settings.STATICFILES_DIRS = [tmp_path / "assets"]
         settings.TAILWIND_CLI_PATH = tmp_path / ".cli"
-        
+
         # Create CLI file but make it non-executable
         config = get_config()
         config.cli_path.parent.mkdir(parents=True, exist_ok=True)
         config.cli_path.write_text("fake cli content")
         config.cli_path.chmod(0o644)  # Not executable
-        
+
         with patch("requests.get") as mock_get:
             mock_response = Mock()
             mock_response.content = b"real-cli-binary"
@@ -291,13 +291,13 @@ class TestSubprocessErrorScenarios:
             mock_response.iter_content.return_value = [b"real-cli-binary"]
             mock_response.raise_for_status.return_value = None
             mock_get.return_value = mock_response
-            
+
             with patch("subprocess.run") as mock_subprocess:
                 mock_subprocess.return_value = Mock(returncode=0)
-                
+
                 # Should re-download CLI when existing one is not executable
                 call_command("tailwind", "build")
-                
+
                 # Verify new CLI was downloaded
                 assert config.cli_path.read_bytes() == b"real-cli-binary"
 
@@ -306,15 +306,15 @@ class TestSubprocessErrorScenarios:
         settings.BASE_DIR = tmp_path
         settings.STATICFILES_DIRS = [tmp_path / "assets"]
         settings.TAILWIND_CLI_PATH = tmp_path / ".cli"
-        
+
         config = get_config()
         config.cli_path.parent.mkdir(parents=True, exist_ok=True)
         config.cli_path.write_bytes(b"fake-cli")
         config.cli_path.chmod(0o755)
-        
+
         with patch("subprocess.run") as mock_subprocess:
             mock_subprocess.side_effect = PermissionError("Permission denied")
-            
+
             # PermissionError should be caught and converted to SystemExit
             with pytest.raises((SystemExit, PermissionError)):
                 call_command("tailwind", "build")
@@ -327,15 +327,15 @@ class TestFileSystemErrorScenarios:
         """Test handling when CLI directory is not writable."""
         if os.name == "nt":  # Skip on Windows due to permission model differences
             pytest.skip("Permission testing not reliable on Windows")
-            
+
         settings.BASE_DIR = tmp_path
         settings.STATICFILES_DIRS = [tmp_path / "assets"]
-        
+
         # Create read-only directory
         readonly_dir = tmp_path / "readonly"
         readonly_dir.mkdir(mode=0o555)  # Read and execute only
         settings.TAILWIND_CLI_PATH = readonly_dir / "cli"
-        
+
         try:
             with patch("requests.get") as mock_get:
                 mock_response = Mock()
@@ -344,7 +344,7 @@ class TestFileSystemErrorScenarios:
                 mock_response.iter_content.return_value = [b"cli-binary"]
                 mock_response.raise_for_status.return_value = None
                 mock_get.return_value = mock_response
-                
+
                 with pytest.raises((CommandError, PermissionError)):
                     call_command("tailwind", "download_cli")
         finally:
@@ -356,18 +356,18 @@ class TestFileSystemErrorScenarios:
         settings.BASE_DIR = tmp_path
         settings.STATICFILES_DIRS = [tmp_path / "nonexistent" / "deeply" / "nested" / "assets"]
         settings.TAILWIND_CLI_PATH = tmp_path / ".cli"
-        
+
         # Create CLI
         config = get_config()
         config.cli_path.parent.mkdir(parents=True, exist_ok=True)
         config.cli_path.write_bytes(b"fake-cli")
         config.cli_path.chmod(0o755)
-        
+
         with patch("subprocess.run") as mock_subprocess:
             # Make subprocess fail due to missing output directory
             error = subprocess.CalledProcessError(1, ["fake-cli"], stderr="Cannot write to output file")
             mock_subprocess.side_effect = error
-            
+
             with pytest.raises(SystemExit):
                 call_command("tailwind", "build")
 
@@ -375,27 +375,27 @@ class TestFileSystemErrorScenarios:
         """Test handling when source CSS file cannot be read."""
         if os.name == "nt":  # Skip on Windows
             pytest.skip("Permission testing not reliable on Windows")
-            
+
         settings.BASE_DIR = tmp_path
         settings.STATICFILES_DIRS = [tmp_path / "assets"]
         settings.TAILWIND_CLI_PATH = tmp_path / ".cli"
         settings.TAILWIND_CLI_SRC_CSS = tmp_path / "source.css"
-        
+
         # Create unreadable source CSS
         source_css = tmp_path / "source.css"
         source_css.write_text("@import 'tailwindcss';")
         source_css.chmod(0o000)  # No permissions
-        
+
         try:
             config = get_config()
             config.cli_path.parent.mkdir(parents=True, exist_ok=True)
             config.cli_path.write_bytes(b"fake-cli")
             config.cli_path.chmod(0o755)
-            
+
             with patch("subprocess.run") as mock_subprocess:
                 error = subprocess.CalledProcessError(1, ["fake-cli"], stderr="Cannot read input file")
                 mock_subprocess.side_effect = error
-                
+
                 with pytest.raises(SystemExit):
                     call_command("tailwind", "build")
         finally:
@@ -405,10 +405,10 @@ class TestFileSystemErrorScenarios:
     def test_temporary_file_creation_failure(self, settings: LazySettings, tmp_path: Path):
         """Test handling when temporary files cannot be created."""
         settings.STATICFILES_DIRS = [tmp_path / "assets"]
-        
+
         with patch("tempfile.gettempdir") as mock_temp:
             mock_temp.return_value = "/nonexistent/temp/dir"
-            
+
             # Should handle gracefully when cache directory cannot be created
             with pytest.raises(FileNotFoundError):
                 _get_cache_path()  # This will fail due to nonexistent directory
@@ -418,13 +418,13 @@ class TestFileSystemErrorScenarios:
         settings.BASE_DIR = tmp_path
         settings.STATICFILES_DIRS = [tmp_path / "assets"]
         settings.TAILWIND_CLI_PATH = tmp_path / ".cli"
-        
+
         # Create the CLI directory but make it read-only to simulate write errors
         if os.name != "nt":  # Skip on Windows
             config = get_config()
             config.cli_path.parent.mkdir(parents=True, exist_ok=True)
             config.cli_path.parent.chmod(0o555)  # Read-only directory
-            
+
             try:
                 with patch("requests.get") as mock_get:
                     mock_response = Mock()
@@ -433,7 +433,7 @@ class TestFileSystemErrorScenarios:
                     mock_response.iter_content.return_value = [b"cli-binary"]
                     mock_response.raise_for_status.return_value = None
                     mock_get.return_value = mock_response
-                    
+
                     # Should handle permission/disk errors gracefully
                     with pytest.raises((CommandError, PermissionError, OSError)):
                         call_command("tailwind", "download_cli")
@@ -449,7 +449,7 @@ class TestFileSystemErrorScenarios:
                 mock_response.iter_content.return_value = [b"cli-binary"]
                 mock_response.raise_for_status.return_value = None
                 mock_get.return_value = mock_response
-                
+
                 call_command("tailwind", "download_cli")
                 config = get_config()
                 assert config.cli_path.exists()
@@ -461,24 +461,24 @@ class TestConcurrencyErrorScenarios:
     def test_process_manager_signal_handling_error(self):
         """Test ProcessManager error handling during signal processing."""
         manager = ProcessManager()
-        
+
         # Mock process that raises exception during terminate
         mock_process = Mock()
         mock_process.poll.return_value = None
         mock_process.terminate.side_effect = OSError("Process already terminated")
         mock_process.wait.return_value = None
         manager.processes = [mock_process]
-        
+
         # Should handle terminate errors gracefully
         manager._signal_handler(signal.SIGINT, None)
-        
+
         # Should still clean up processes list
         assert manager.processes == []
 
     def test_process_manager_wait_timeout_error(self):
         """Test ProcessManager handling of wait timeout."""
         manager = ProcessManager()
-        
+
         # Mock process that times out during wait
         mock_process = Mock()
         mock_process.poll.return_value = None
@@ -486,10 +486,10 @@ class TestConcurrencyErrorScenarios:
         mock_process.wait.side_effect = subprocess.TimeoutExpired(["cmd"], 5)
         mock_process.kill.return_value = None
         manager.processes = [mock_process]
-        
+
         # Should escalate to kill when terminate times out
         manager._signal_handler(signal.SIGINT, None)
-        
+
         mock_process.terminate.assert_called_once()
         mock_process.kill.assert_called_once()
 
@@ -498,7 +498,7 @@ class TestConcurrencyErrorScenarios:
         settings.BASE_DIR = tmp_path
         settings.STATICFILES_DIRS = [tmp_path / "assets"]
         settings.TAILWIND_CLI_PATH = tmp_path / ".cli"
-        
+
         with patch("requests.get") as mock_get:
             mock_response = Mock()
             mock_response.content = b"our-cli-binary"
@@ -506,10 +506,10 @@ class TestConcurrencyErrorScenarios:
             mock_response.iter_content.return_value = [b"our-cli-binary"]
             mock_response.raise_for_status.return_value = None
             mock_get.return_value = mock_response
-            
+
             # Should complete successfully
             call_command("tailwind", "download_cli")
-            
+
             config = get_config()
             assert config.cli_path.exists()
             assert config.cli_path.read_bytes() == b"our-cli-binary"
@@ -518,18 +518,18 @@ class TestConcurrencyErrorScenarios:
         """Test handling of version cache race conditions."""
         settings.STATICFILES_DIRS = [tmp_path / "assets"]
         settings.TAILWIND_CLI_VERSION = "latest"
-        
+
         # Clear any existing cache to ensure fresh state
         cache_path = _get_cache_path()
         if cache_path.exists():
             cache_path.unlink()
-        
+
         with patch("requests.get") as mock_get:
             mock_response = Mock()
             mock_response.ok = True
             mock_response.headers = {"location": "https://github.com/repo/releases/tag/v4.1.5"}
             mock_get.return_value = mock_response
-            
+
             # Should handle version fetch gracefully
             version_str, parsed_version = get_version()
             assert version_str == "4.1.5"
@@ -544,7 +544,7 @@ class TestEdgeCaseScenarios:
         settings.BASE_DIR = tmp_path
         settings.STATICFILES_DIRS = [tmp_path / "assets"]
         settings.TAILWIND_CLI_PATH = tmp_path / ".cli"
-        
+
         with patch("requests.get") as mock_get:
             mock_response = Mock()
             mock_response.content = b""  # Empty content
@@ -552,13 +552,13 @@ class TestEdgeCaseScenarios:
             mock_response.iter_content.return_value = iter([])  # Empty iterator
             mock_response.raise_for_status.return_value = None
             mock_get.return_value = mock_response
-            
+
             # Ensure directory exists before attempting download
             config = get_config()
             config.cli_path.parent.mkdir(parents=True, exist_ok=True)
-            
+
             call_command("tailwind", "download_cli")
-            
+
             assert config.cli_path.exists()
             assert config.cli_path.read_bytes() == b""
 
@@ -569,11 +569,11 @@ class TestEdgeCaseScenarios:
         long_path = tmp_path
         for _ in range(3):  # Create nested long directories
             long_path = long_path / long_path_component
-            
+
         settings.BASE_DIR = tmp_path
         settings.STATICFILES_DIRS = [long_path / "assets"]
         settings.TAILWIND_CLI_PATH = long_path / ".cli"
-        
+
         try:
             config = get_config()
             # Should handle long paths gracefully or raise appropriate error
@@ -585,11 +585,11 @@ class TestEdgeCaseScenarios:
     def test_unicode_path_handling(self, settings: LazySettings, tmp_path: Path):
         """Test handling of Unicode characters in file paths."""
         unicode_path = tmp_path / "测试目录" / "файлы" / "🎨assets"
-        
+
         settings.BASE_DIR = tmp_path
         settings.STATICFILES_DIRS = [unicode_path]
         settings.TAILWIND_CLI_PATH = unicode_path.parent / ".cli"
-        
+
         try:
             unicode_path.mkdir(parents=True, exist_ok=True)
             config = get_config()
@@ -602,18 +602,18 @@ class TestEdgeCaseScenarios:
     def test_version_parsing_edge_cases(self, settings: LazySettings, tmp_path: Path):
         """Test version parsing with edge case version strings."""
         settings.STATICFILES_DIRS = [tmp_path / "assets"]
-        
+
         edge_case_versions = [
             "4.0.0-alpha.1",
             "4.0.0-beta.2+build.123",
             "4.0.0-rc.1",
             "4.10.20",  # High version numbers
         ]
-        
+
         for version_str in edge_case_versions:
             settings.TAILWIND_CLI_VERSION = version_str
             settings.TAILWIND_CLI_SRC_REPO = "custom/repo"
-            
+
             try:
                 parsed_version_str, _ = get_version()
                 assert parsed_version_str == version_str
@@ -625,26 +625,26 @@ class TestEdgeCaseScenarios:
         """Test handling of malformed redirect URLs during version fetch."""
         settings.STATICFILES_DIRS = [tmp_path / "assets"]
         settings.TAILWIND_CLI_VERSION = "latest"
-        
+
         # Clear any existing cache to ensure fallback behavior
         cache_path = _get_cache_path()
         if cache_path.exists():
             cache_path.unlink()
-        
+
         malformed_locations = [
             "not-a-url",
             "https://malformed/path/without/version",
             "https://github.com/repo/releases/tag/",  # Missing version
             "https://github.com/repo/releases/tag/invalid-version",
         ]
-        
+
         for location in malformed_locations:
             with patch("requests.get") as mock_get:
                 mock_response = Mock()
                 mock_response.ok = True
                 mock_response.headers = {"location": location}
                 mock_get.return_value = mock_response
-                
+
                 # Should fall back to fallback version on parsing errors
                 version_str, _ = get_version()
                 assert version_str == "4.1.3"  # FALLBACK_VERSION
@@ -652,10 +652,10 @@ class TestEdgeCaseScenarios:
     def test_cache_file_corruption_scenarios(self, settings: LazySettings, tmp_path: Path):
         """Test various cache file corruption scenarios."""
         settings.STATICFILES_DIRS = [tmp_path / "assets"]
-        
+
         cache_path = _get_cache_path()
         cache_path.parent.mkdir(parents=True, exist_ok=True)
-        
+
         corruption_scenarios = [
             "",  # Empty file
             "single_line",  # Missing required lines
@@ -663,10 +663,10 @@ class TestEdgeCaseScenarios:
             "repo\nversion\ninvalid_timestamp",  # Invalid timestamp format
             "repo\nversion\n" + str(time.time() + 7200),  # Future timestamp
         ]
-        
+
         for corrupted_content in corruption_scenarios:
             cache_path.write_text(corrupted_content)
-            
+
             # Should handle corruption gracefully
             cached = _load_cached_version("test/repo")
             assert cached is None  # Should return None for corrupted cache
@@ -678,7 +678,7 @@ class TestEdgeCaseScenarios:
             info = _get_platform_info()
             assert info.system == "unknown"
             assert info.extension == ""  # Should default to no extension
-            
+
         # Test various platform.machine() return values
         with patch("platform.machine", return_value="unknown_arch"):
             info = _get_platform_info()
@@ -688,7 +688,7 @@ class TestEdgeCaseScenarios:
         """Test the command error handling decorator with various exception types."""
         settings.BASE_DIR = tmp_path
         settings.STATICFILES_DIRS = [tmp_path / "assets"]
-        
+
         # Test with unknown command - should raise SystemExit or CommandError
         with pytest.raises((CommandError, SystemExit)):
             call_command("tailwind", "nonexistent_command")

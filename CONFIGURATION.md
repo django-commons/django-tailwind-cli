@@ -124,24 +124,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.12'
-          
+
       - name: Install uv
         uses: astral-sh/setup-uv@v1
-        
+
       - name: Install dependencies
         run: uv sync --all-extras
-        
+
       - name: Download Tailwind CLI
         run: uv run python manage.py tailwind download_cli
-        
+
       - name: Build CSS
         run: uv run python manage.py tailwind build
-        
+
       - name: Run tests
         run: uv run pytest
 ```
@@ -191,7 +191,7 @@ TAILWIND_CLI_SRC_CSS = "src/styles/main.css"
   html {
     scroll-behavior: smooth;
   }
-  
+
   body {
     @apply font-sans antialiased;
   }

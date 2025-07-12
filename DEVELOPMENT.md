@@ -35,7 +35,7 @@ python manage.py runserver          # Terminal 2: Django server
    ```html
    <!-- templates/myapp/page.html -->
    {% extends "base.html" %}
-   
+
    {% block content %}
    <div class="max-w-4xl mx-auto p-6">
      <h1 class="text-3xl font-bold text-gray-900">New Page</h1>
@@ -279,23 +279,23 @@ from django.core.management import call_command
 
 class Command(BaseCommand):
     help = "Complete development environment setup"
-    
+
     def handle(self, *args, **options):
         self.stdout.write("Setting up development environment...")
-        
+
         # Run Tailwind setup
         call_command('tailwind', 'setup')
-        
+
         # Build initial CSS
         call_command('tailwind', 'build')
-        
+
         # Run migrations
         call_command('migrate')
-        
+
         # Create superuser if needed
-        call_command('createsuperuser', '--noinput', 
+        call_command('createsuperuser', '--noinput',
                     username='admin', email='admin@example.com')
-        
+
         self.stdout.write(
             self.style.SUCCESS("Development environment ready!")
         )
@@ -347,12 +347,12 @@ from django.test import TestCase
 from django.template.loader import render_to_string
 
 class TailwindIntegrationTest(TestCase):
-    
+
     def test_base_template_includes_tailwind(self):
         """Test that base template includes Tailwind CSS."""
         html = render_to_string('base.html')
         self.assertIn('tailwind.css', html)
-    
+
     def test_tailwind_classes_in_template(self):
         """Test that templates use Tailwind classes."""
         html = render_to_string('myapp/index.html')
@@ -372,20 +372,20 @@ from django.conf import settings
 from pathlib import Path
 
 class TailwindBuildTest(TestCase):
-    
+
     def test_css_build_process(self):
         """Test that CSS builds successfully."""
         # Run build command
         result = subprocess.run([
             'python', 'manage.py', 'tailwind', 'build', '--force'
         ], capture_output=True, text=True)
-        
+
         self.assertEqual(result.returncode, 0)
-        
+
         # Check that CSS file was created
         css_path = Path(settings.STATICFILES_DIRS[0]) / 'css/tailwind.css'
         self.assertTrue(css_path.exists())
-        
+
         # Check CSS content
         css_content = css_path.read_text()
         self.assertIn('@media', css_content)  # Should contain media queries
@@ -403,17 +403,17 @@ import subprocess
 from django.test import TestCase
 
 class TailwindPerformanceTest(TestCase):
-    
+
     def test_build_performance(self):
         """Test that builds complete within reasonable time."""
         start_time = time.time()
-        
+
         result = subprocess.run([
             'python', 'manage.py', 'tailwind', 'build', '--force'
         ], capture_output=True)
-        
+
         build_time = time.time() - start_time
-        
+
         self.assertEqual(result.returncode, 0)
         self.assertLess(build_time, 30)  # Should build in under 30 seconds
 ```

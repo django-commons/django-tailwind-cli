@@ -5,7 +5,7 @@ The tags automatically handle debug vs production modes and respect configuratio
 
 Usage:
     In your Django template:
-    
+
     ```html
     {% load tailwind_cli %}
     <!DOCTYPE html>
@@ -33,21 +33,21 @@ register = template.Library()
 @register.inclusion_tag("tailwind_cli/tailwind_css.html")  # type: ignore
 def tailwind_css() -> dict[str, bool | str]:
     """Include Tailwind CSS file in templates with debug-aware cache handling.
-    
+
     This template tag automatically includes the Tailwind CSS file in your templates.
     It handles different behavior for development vs production:
-    
+
     - **Development mode (DEBUG=True):** Includes CSS without cache headers for instant updates
     - **Production mode (DEBUG=False):** Includes CSS with cache-friendly headers
-    
+
     The CSS file path is determined by the TAILWIND_CLI_DIST_CSS setting, with a sensible
     default of 'css/tailwind.css' relative to STATICFILES_DIRS[0].
-    
+
     Returns:
         dict: Template context containing:
             - debug (bool): Whether Django is in debug mode
             - tailwind_dist_css (str): Path to the CSS file relative to static files
-    
+
     Example:
         ```html
         {% load tailwind_cli %}
@@ -55,16 +55,16 @@ def tailwind_css() -> dict[str, bool | str]:
             {% tailwind_css %}
         </head>
         ```
-        
+
         This renders to:
         ```html
         <!-- In development -->
         <link rel="stylesheet" href="/static/css/tailwind.css">
-        
+
         <!-- In production -->
         <link rel="stylesheet" href="/static/css/tailwind.css" media="screen">
         ```
-    
+
     Configuration:
         - TAILWIND_CLI_DIST_CSS: Custom CSS file path (default: 'css/tailwind.css')
         - DEBUG: Controls cache behavior and development features

@@ -124,7 +124,7 @@ Start adding Tailwind classes to your templates:
 
 ### 🏗️ Build System
 - **Automatic CLI download** - No manual setup required
-- **Smart caching** - Faster rebuilds with file change detection  
+- **Smart caching** - Faster rebuilds with file change detection
 - **Production optimization** - Automatic CSS purging and minification
 - **Force rebuild** - `--force` flag for clean builds
 
@@ -291,7 +291,7 @@ just test             # Run test suite
 just test-all         # Run tests across Python/Django versions
 
 # Without just
-uv sync --all-extras  # Update dependencies  
+uv sync --all-extras  # Update dependencies
 uvx pre-commit run --all-files  # Run linting
 uv run pytest        # Run tests
 uvx --with tox-uv tox # Run full test matrix

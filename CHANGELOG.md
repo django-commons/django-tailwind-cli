@@ -4,12 +4,12 @@
 
 ### 🎯 New Features
 - **Interactive setup command**: `python manage.py tailwind setup` for guided configuration
-- **Configuration viewer**: `python manage.py tailwind config` to inspect current settings  
+- **Configuration viewer**: `python manage.py tailwind config` to inspect current settings
 - **Troubleshooting guide**: `python manage.py tailwind troubleshoot` for common issues
 - **Performance tips**: `python manage.py tailwind optimize` for optimization guidance
 - **Enhanced verbose mode**: `--verbose` flag for detailed build and watch diagnostics
 
-### ⚡ Performance Improvements  
+### ⚡ Performance Improvements
 - **Smart rebuilds**: File modification checks prevent unnecessary CSS rebuilds
 - **Version caching**: 1-hour cache reduces GitHub API requests
 - **Process optimization**: Improved `tailwind runserver` with better signal handling
@@ -27,7 +27,7 @@
 - **Inline documentation**: Detailed docstrings and usage examples throughout codebase
 
 ### 🧪 Quality Assurance
-- **Comprehensive testing**: 58+ new tests covering integration workflows and error scenarios  
+- **Comprehensive testing**: 58+ new tests covering integration workflows and error scenarios
 - **Cross-platform support**: Windows, macOS, and Linux compatibility testing
 - **89% test coverage**: Robust validation of all major functionality
 
