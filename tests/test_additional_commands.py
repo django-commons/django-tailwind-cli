@@ -5,9 +5,7 @@ specifically targeting the config, troubleshoot, and optimize commands.
 Also includes tests for error handling and edge cases.
 """
 
-import sys
 from pathlib import Path
-from unittest.mock import Mock
 
 import pytest
 from django.conf import LazySettings
@@ -77,7 +75,7 @@ class TestConfigCommand:
 
         assert "Auto Download: No" in captured.out
 
-    def test_config_command_file_paths(self, capsys: CaptureFixture[str], tmp_path: Path):
+    def test_config_command_file_paths(self, capsys: CaptureFixture[str]):
         """Test that config command shows file paths and existence status."""
         config = get_config()
 
@@ -126,7 +124,7 @@ class TestConfigCommand:
         assert "Download URL:" in captured.out
         assert "github.com" in captured.out
 
-    def test_config_command_status_summary_ready(self, capsys: CaptureFixture[str], tmp_path: Path):
+    def test_config_command_status_summary_ready(self, capsys: CaptureFixture[str]):
         """Test config command shows ready status when files exist."""
         config = get_config()
 
@@ -265,7 +263,7 @@ class TestErrorHandling:
         assert result == "success"
         mock_exit.assert_not_called()
 
-    def test_build_verbose_flag(self, mocker: MockerFixture, capsys: CaptureFixture[str]):
+    def test_build_verbose_flag(self, capsys: CaptureFixture[str]):
         """Test build command with verbose flag shows additional output."""
         config = get_config()
         config.cli_path.parent.mkdir(parents=True, exist_ok=True)
@@ -277,7 +275,7 @@ class TestErrorHandling:
         # Should show verbose output about build process
         assert "Built production stylesheet" in captured.out
 
-    def test_watch_verbose_flag(self, mocker: MockerFixture, capsys: CaptureFixture[str]):
+    def test_watch_verbose_flag(self, capsys: CaptureFixture[str]):
         """Test watch command with verbose flag shows additional output."""
         config = get_config()
         config.cli_path.parent.mkdir(parents=True, exist_ok=True)

@@ -692,3 +692,157 @@ class TestEdgeCaseScenarios:
         # Test with unknown command - should raise SystemExit or CommandError
         with pytest.raises((CommandError, SystemExit)):
             call_command("tailwind", "nonexistent_command")
+
+
+class TestErrorSuggestionScenarios:
+    """Test error suggestion functions that provide user guidance."""
+
+    def test_suggest_command_error_solutions_staticfiles_dirs(self, capsys: CaptureFixture[str]):
+        """Test error suggestions for STATICFILES_DIRS issues."""
+        from django_tailwind_cli.management.commands.tailwind import _suggest_command_error_solutions
+
+        _suggest_command_error_solutions("Error: STATICFILES_DIRS is not configured properly")
+
+        captured = capsys.readouterr()
+        assert "💡 Solution:" in captured.out
+        assert "STATICFILES_DIRS" in captured.out
+        assert "BASE_DIR / 'assets'" in captured.out
+
+    def test_suggest_command_error_solutions_base_dir(self, capsys: CaptureFixture[str]):
+        """Test error suggestions for BASE_DIR issues."""
+        from django_tailwind_cli.management.commands.tailwind import _suggest_command_error_solutions
+
+        _suggest_command_error_solutions("Error: BASE_DIR is not properly configured")
+
+        captured = capsys.readouterr()
+        assert "💡 Solution:" in captured.out
+        assert "BASE_DIR" in captured.out
+        assert "Path(__file__).resolve().parent.parent" in captured.out
+
+    def test_suggest_command_error_solutions_tailwind_css_3x(self, capsys: CaptureFixture[str]):
+        """Test error suggestions for Tailwind CSS 3.x issues."""
+        from django_tailwind_cli.management.commands.tailwind import _suggest_command_error_solutions
+
+        _suggest_command_error_solutions("Error: Tailwind CSS 3.x is not supported")
+
+        captured = capsys.readouterr()
+        assert "💡 Solution:" in captured.out
+        assert "django-tailwind-cli v2.21.1" in captured.out
+        assert "Tailwind CSS 3.x" in captured.out
+
+    def test_suggest_command_error_solutions_version(self, capsys: CaptureFixture[str]):
+        """Test error suggestions for version issues."""
+        from django_tailwind_cli.management.commands.tailwind import _suggest_command_error_solutions
+
+        _suggest_command_error_solutions("Error: invalid version specified")
+
+        captured = capsys.readouterr()
+        assert "💡 Solution:" in captured.out
+        assert "TAILWIND_CLI_VERSION" in captured.out
+        assert "'latest'" in captured.out
+
+    def test_suggest_command_error_solutions_no_match(self, capsys: CaptureFixture[str]):
+        """Test error suggestions when no specific match is found."""
+        from django_tailwind_cli.management.commands.tailwind import _suggest_command_error_solutions
+
+        _suggest_command_error_solutions("Some random error message")
+
+        captured = capsys.readouterr()
+        # Should not print any suggestions for unknown errors
+        assert captured.out == ""
+
+    def test_suggest_file_error_solutions_file_not_found(self, capsys: CaptureFixture[str]):
+        """Test file error suggestions for file not found issues."""
+        from django_tailwind_cli.management.commands.tailwind import _suggest_file_error_solutions
+
+        _suggest_file_error_solutions("Error: file not found: /path/to/missing/file.css")
+
+        captured = capsys.readouterr()
+        assert "💡 Suggestions:" in captured.out
+        assert "CSS input file" in captured.out
+
+    def test_suggest_file_error_solutions_permission_denied(self, capsys: CaptureFixture[str]):
+        """Test file error suggestions for permission issues."""
+        from django_tailwind_cli.management.commands.tailwind import _suggest_file_error_solutions
+
+        _suggest_file_error_solutions("Error: permission denied accessing file")
+
+        captured = capsys.readouterr()
+        assert "💡 Suggestions:" in captured.out
+        assert "file path is correct" in captured.out
+
+    def test_suggest_file_error_solutions_directory_not_found(self, capsys: CaptureFixture[str]):
+        """Test file error suggestions for directory issues."""
+        from django_tailwind_cli.management.commands.tailwind import _suggest_file_error_solutions
+
+        _suggest_file_error_solutions("Error: directory not found or invalid")
+
+        captured = capsys.readouterr()
+        assert "💡 Suggestions:" in captured.out
+        assert "directory exists" in captured.out
+
+
+class TestSetupCommandScenarios:
+    """Test the setup command functionality."""
+
+    def test_setup_command_import_error_handling(
+        self, settings: LazySettings, tmp_path: Path, capsys: CaptureFixture[str]
+    ):
+        """Test setup command when django-tailwind-cli cannot be imported."""
+        settings.STATICFILES_DIRS = [tmp_path / "assets"]
+
+        # Mock the import of __version__ within the setup function
+        with patch("django_tailwind_cli.__version__", side_effect=ImportError):
+            call_command("tailwind", "setup")
+
+        captured = capsys.readouterr()
+        assert "django-tailwind-cli not found" in captured.out or "Installation Check" in captured.out
+
+    def test_setup_command_missing_staticfiles_dirs(self, settings: LazySettings, capsys: CaptureFixture[str]):
+        """Test setup command when STATICFILES_DIRS is not configured."""
+        settings.STATICFILES_DIRS = []
+        settings.INSTALLED_APPS = ["django_tailwind_cli"]
+
+        call_command("tailwind", "setup")
+
+        captured = capsys.readouterr()
+        assert "STATICFILES_DIRS not configured" in captured.out
+
+    def test_setup_command_configuration_error(
+        self, settings: LazySettings, tmp_path: Path, capsys: CaptureFixture[str]
+    ):
+        """Test setup command when configuration loading fails."""
+        settings.STATICFILES_DIRS = [tmp_path / "assets"]
+        settings.INSTALLED_APPS = ["django_tailwind_cli"]
+
+        with patch(
+            "django_tailwind_cli.management.commands.tailwind.get_config",
+            side_effect=Exception("Config error"),
+        ):
+            call_command("tailwind", "setup")
+
+        captured = capsys.readouterr()
+        assert "Configuration error" in captured.out
+
+    def test_setup_command_success(self, settings: LazySettings, tmp_path: Path, capsys: CaptureFixture[str]):
+        """Test successful setup command execution."""
+        settings.BASE_DIR = tmp_path
+        settings.STATICFILES_DIRS = [tmp_path / "assets"]
+        settings.INSTALLED_APPS = ["django_tailwind_cli"]
+
+        # Create the assets directory
+        (tmp_path / "assets").mkdir(parents=True, exist_ok=True)
+
+        # Mock the CLI download and subprocess operations to prevent hanging
+        with patch("django_tailwind_cli.management.commands.tailwind._download_cli"):
+            with patch("subprocess.run") as mock_subprocess:
+                # Mock successful subprocess run
+                mock_result = Mock()
+                mock_result.returncode = 0
+                mock_subprocess.return_value = mock_result
+
+                call_command("tailwind", "setup")
+
+        captured = capsys.readouterr()
+        assert "Django Tailwind CLI Setup Guide" in captured.out
+        assert "Configuration loaded successfully" in captured.out

@@ -157,9 +157,7 @@ class TestProcessManagementCommands:
         mocker.patch("requests.get").return_value.content = b"fake-cli-binary"
 
         # Mock the ProcessManager entirely to prevent real process creation
-        self.mock_process_manager = mocker.patch(
-            "django_tailwind_cli.management.commands.tailwind.ProcessManager"
-        )
+        self.mock_process_manager = mocker.patch("django_tailwind_cli.management.commands.tailwind.ProcessManager")
         mock_manager_instance = Mock()
         mock_manager_instance.start_concurrent_processes.return_value = None
         self.mock_process_manager.return_value = mock_manager_instance
@@ -182,10 +180,11 @@ class TestProcessManagementCommands:
     @pytest.mark.timeout(3)
     def test_runserver_with_django_extensions(self):
         """Test runserver when django-extensions is available."""
+
         # Mock both django-extensions and werkzeug as available
         def mock_find_spec(name):
             return Mock() if name in ["django_extensions", "werkzeug"] else None
-        
+
         self.mock_find_spec.side_effect = mock_find_spec
 
         call_command("tailwind", "runserver")

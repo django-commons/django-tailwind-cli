@@ -130,7 +130,7 @@ def _suggest_file_error_solutions(error_msg: str) -> None:
         typer.secho("   • Verify file permissions", fg=typer.colors.BLUE)
 
 
-def _suggest_permission_error_solutions(error_msg: str) -> None:
+def _suggest_permission_error_solutions(_error_msg: str) -> None:
     """Provide actionable suggestions for permission errors."""
     typer.secho("\n💡 Solutions:", fg=typer.colors.YELLOW)
     typer.secho("   • Check file/directory permissions:", fg=typer.colors.BLUE)
@@ -535,7 +535,7 @@ def show_config():
     """
     from django.core.management.color import color_style
 
-    style = color_style()
+    color_style()  # Initialize color styling
     config = get_config()
 
     typer.secho("\n🔧 Django Tailwind CLI Configuration", fg=typer.colors.CYAN, bold=True)
@@ -643,7 +643,7 @@ def setup_guide():
 
         typer.secho(f"   ✅ django-tailwind-cli is installed (version: {__version__})", fg=typer.colors.GREEN)
     except ImportError:
-        typer.secho(f"   ❌ django-tailwind-cli not found", fg=typer.colors.RED)
+        typer.secho("   ❌ django-tailwind-cli not found", fg=typer.colors.RED)
         typer.secho("   Run: pip install django-tailwind-cli", fg=typer.colors.BLUE)
         return
 
@@ -677,7 +677,7 @@ def setup_guide():
     typer.secho("\n🔧 Step 3: Configuration Status", fg=typer.colors.YELLOW, bold=True)
     try:
         config = get_config()
-        typer.secho(f"   ✅ Configuration loaded successfully", fg=typer.colors.GREEN)
+        typer.secho("   ✅ Configuration loaded successfully", fg=typer.colors.GREEN)
         typer.secho(f"   Version: {config.version_str}", fg=typer.colors.BLUE)
         typer.secho(f"   CLI Path: {config.cli_path}", fg=typer.colors.BLUE)
         typer.secho(f"   CSS Output: {config.dist_css}", fg=typer.colors.BLUE)
