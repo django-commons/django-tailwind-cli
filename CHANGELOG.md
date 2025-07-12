@@ -4,6 +4,13 @@
 
 - Set the minimum supported version of Python to 3.10.
 - Updated GitHub Actions CI matrix to test Python 3.10-3.14.
+- Refactored configuration system for better maintainability and performance.
+  - Split large `get_config()` function into focused, single-responsibility functions
+  - Added version caching system to reduce GitHub API requests (1-hour cache)
+  - Enhanced error messages with specific guidance for configuration issues
+  - Added configurable request timeout via `TAILWIND_CLI_REQUEST_TIMEOUT` setting
+  - Improved type safety with `PlatformInfo` and `VersionCache` data structures
+  - Better validation of Django settings with helpful error messages
 
 ## 4.2.4
 

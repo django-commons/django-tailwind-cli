@@ -67,7 +67,7 @@ src/django_tailwind_cli/
 
 ### Key Components
 
-1. **Configuration System** (`config.py`): 
+1. **Configuration System** (`config.py`):
    - `Config` class centralizes all settings
    - Reads from Django settings with sensible defaults
    - Handles CLI paths, CSS paths, and command configurations
