@@ -176,6 +176,7 @@ chore(deps): bump django-typer to 2.1.2
 ```
 
 ### Important Notes
-- **Do not include Claude Code references** in commit messages
+- **NEVER include Claude Code references in commit messages** - This is strictly prohibited
+- **NEVER add "Generated with Claude Code" or "Co-Authored-By: Claude" lines** - Commit messages must be clean
 - Keep commit messages focused on the technical changes made
 - Use bullet points to describe key modifications and their impact
