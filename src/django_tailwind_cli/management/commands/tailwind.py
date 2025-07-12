@@ -400,6 +400,8 @@ def _create_tailwind_config() -> None:
 def _get_build_cmd(*, minify: bool = True, watch: bool = False) -> list[str]:
     build_cmd = [
         str(utils.get_full_cli_path()),
+        "--config",
+        str(utils.get_full_config_file_path()),
         "--output",
         str(utils.get_full_dist_css_path()),
     ]
