@@ -6,7 +6,6 @@ import subprocess
 import sys
 from multiprocessing import Process
 from pathlib import Path
-from typing import Optional, Union
 
 import requests
 import typer
@@ -59,7 +58,7 @@ def list_templates():
     """List the templates of your django project."""
     template_files: list[str] = []
 
-    def _list_template_files(td: Union[str, Path]) -> None:
+    def _list_template_files(td: str | Path) -> None:
         for d, _, filenames in os.walk(str(td)):
             for filename in filenames:
                 if filename.endswith(".html") or filename.endswith(".txt"):
@@ -95,7 +94,7 @@ def remove_cli():
 
 @app.command()
 def runserver(
-    addrport: Optional[str] = typer.Argument(
+    addrport: str | None = typer.Argument(
         None,
         help="Optional port number, or ipaddr:port",
     ),
@@ -151,7 +150,7 @@ def runserver(
         "--print-sql-location",
         help="Show location in code where SQL query generated from. (Requires django-extensions.)",
     ),
-    cert_file: Optional[str] = typer.Option(
+    cert_file: str | None = typer.Option(
         None,
         help=(
             "SSL .crt file path. If not provided path from --key-file will be selected. "
@@ -159,7 +158,7 @@ def runserver(
             "(Requires django-extensions.)"
         ),
     ),
-    key_file: Optional[str] = typer.Option(
+    key_file: str | None = typer.Option(
         None,
         help=(
             "SSL .key file path. If not provided path from --cert-file will be "
@@ -300,7 +299,7 @@ def _create_standard_config() -> None:
 
 def get_runserver_options(
     *,
-    addrport: Optional[str] = None,
+    addrport: str | None = None,
     use_ipv6: bool = False,
     no_threading: bool = False,
     no_static: bool = False,
@@ -311,8 +310,8 @@ def get_runserver_options(
     pm: bool = False,
     print_sql: bool = False,
     print_sql_location: bool = False,
-    cert_file: Optional[str] = None,
-    key_file: Optional[str] = None,
+    cert_file: str | None = None,
+    key_file: str | None = None,
 ) -> list[str]:
     options: list[str] = []
 

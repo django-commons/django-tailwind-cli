@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Set the minimum supported version of Python to 3.10.
+- Updated GitHub Actions CI matrix to test Python 3.10-3.14.
+
 ## 4.2.4
 
 - Merged pull request [#161](https://github.com/django-commons/django-tailwind-cli/pull/161) by [@adamghill](https://github.com/adamghill) which fixed the [prefix handling for staticfiles diretories](https://docs.djangoproject.com/en/5.2/ref/settings/#prefixes-optional).

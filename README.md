@@ -85,7 +85,7 @@ if you want to activate browser reload or the `runserver_plus` management comman
 
 ## Requirements
 
-Python 3.9 or newer with Django >= 4.0.
+Python 3.10 or newer with Django >= 4.0.
 
 ## Documentation
 

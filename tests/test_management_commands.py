@@ -153,10 +153,6 @@ def test_build_output_of_second_run(capsys: CaptureFixture[str]):
     assert "Built production stylesheet" in captured.out
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 9),
-    reason="The capturing of KeyboardInterupt fails with pytest every other time.",
-)
 def test_build_keyboard_interrupt(capsys: CaptureFixture[str], mocker: MockerFixture):
     subprocess_run = mocker.patch("subprocess.run")
     subprocess_run.side_effect = KeyboardInterrupt
@@ -204,10 +200,6 @@ def test_watch_output_of_second_run(capsys: CaptureFixture[str]):
     assert "Downloading Tailwind CSS CLI from " not in captured.out
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 9),
-    reason="The capturing of KeyboardInterupt fails with pytest every other time.",
-)
 def test_watch_keyboard_interrupt(capsys: CaptureFixture[str], mocker: MockerFixture):
     subprocess_run = mocker.patch("subprocess.run")
     subprocess_run.side_effect = KeyboardInterrupt
