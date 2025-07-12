@@ -26,22 +26,27 @@ def configure_settings(
     ],
 )
 def test_get_version(
-    settings: SettingsWrapper, version_str: str, expected_version_str: str, version: tuple[int, int, int], mocker: MockerFixture
+    settings: SettingsWrapper,
+    version_str: str,
+    expected_version_str: str,
+    version: tuple[int, int, int],
+    mocker: MockerFixture,
 ):
     settings.TAILWIND_CLI_VERSION = version_str
-    
+
     # For "latest" version test, mock the network request to ensure fallback
     if version_str == "latest":
         # Clear any existing cache
         from django_tailwind_cli.config import _get_cache_path
+
         cache_path = _get_cache_path()
         if cache_path.exists():
             cache_path.unlink()
-        
+
         # Mock failed network request to force fallback
         request_get = mocker.patch("requests.get")
         request_get.return_value.ok = False
-    
+
     r_version_str, r_version = get_version()
     assert r_version_str == expected_version_str
     assert r_version.major == version[0]
@@ -52,10 +57,11 @@ def test_get_version(
 def test_get_version_latest_without_proper_http_response(mocker: MockerFixture):
     # Clear any existing cache
     from django_tailwind_cli.config import _get_cache_path
+
     cache_path = _get_cache_path()
     if cache_path.exists():
         cache_path.unlink()
-    
+
     request_get = mocker.patch("requests.get")
     request_get.return_value.ok = False
 
@@ -69,10 +75,11 @@ def test_get_version_latest_without_proper_http_response(mocker: MockerFixture):
 def test_get_version_latest_without_redirect(mocker: MockerFixture):
     # Clear any existing cache
     from django_tailwind_cli.config import _get_cache_path
+
     cache_path = _get_cache_path()
     if cache_path.exists():
         cache_path.unlink()
-    
+
     request_get = mocker.patch("requests.get")
     request_get.return_value.headers = {}
 
