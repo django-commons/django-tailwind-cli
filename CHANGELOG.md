@@ -2,72 +2,39 @@
 
 ## Unreleased
 
-- Set the minimum supported version of Python to 3.10.
-- Updated GitHub Actions CI matrix to test Python 3.10-3.14.
-- Refactored configuration system for better maintainability and performance.
-  - Split large `get_config()` function into focused, single-responsibility functions
-  - Added version caching system to reduce GitHub API requests (1-hour cache)
-  - Enhanced error messages with specific guidance for configuration issues
-  - Added configurable request timeout via `TAILWIND_CLI_REQUEST_TIMEOUT` setting
-  - Improved type safety with `PlatformInfo` and `VersionCache` data structures
-  - Better validation of Django settings with helpful error messages
-- Improved process management for `tailwind runserver` command.
-  - Replaced problematic `multiprocessing.Process` with proper `subprocess.Popen`
-  - Added `ProcessManager` class for reliable concurrent process handling
-  - Implemented proper signal handling (SIGINT/SIGTERM) for graceful shutdown
-  - Added process monitoring with automatic cleanup and error recovery
-  - Enhanced CLI download with streaming progress indication
-  - Improved error handling with better exception chaining and timeouts
-- Reduced code duplication in management commands for better maintainability.
-  - Extracted common setup logic into `_setup_tailwind_environment()` function
-  - Created centralized `_execute_tailwind_command()` for consistent subprocess handling
-  - Added `@handle_command_errors` decorator for uniform error handling across commands
-  - Refactored `build()` and `watch()` commands to use shared utilities
-  - Maintained backward compatibility with all existing test expectations
-- Optimized file operations for improved performance and reduced I/O overhead.
-  - Added file modification time checks to prevent unnecessary CSS rebuilds
-  - Implemented smart content comparison to avoid rewriting unchanged files
-  - Added `--force` flag to `tailwind build` command for explicit rebuild control
-  - Introduced file existence caching with 5-second duration for hot paths
-  - Enhanced CLI binary validation to skip redundant downloads
-  - Preserved existing custom CSS content while optimizing default file creation
-- Enhanced template discovery and developer experience with verbose logging.
-  - Added `--verbose` flag to `build`, `watch`, and `list_templates` commands
-  - Implemented comprehensive error handling for template path resolution
-  - Added performance metrics and timing information for all operations
-  - Enhanced `list_templates` with detailed scanning diagnostics and error reporting
-  - Improved CLI download progress with file size and permission details
-  - Added colorized console output with emojis for better visual feedback
-- Added comprehensive integration tests for improved quality assurance and reliability.
-  - Created 22 new integration tests covering end-to-end workflows and system interactions
-  - Added full build workflow testing from CLI download to CSS generation
-  - Implemented watch mode integration testing with process management validation
-  - Added cross-platform compatibility tests for Windows, macOS, and Linux
-  - Created error recovery scenario testing for corrupted binaries and missing directories
-  - Added CLI download integration tests with progress tracking and network error handling
-  - Implemented verbose logging integration tests across all management commands
-  - Enhanced test coverage to 87% with comprehensive workflow validation
-  - Fixed coverage configuration issues to ensure consistent test reporting
-- Added comprehensive error scenario coverage for enhanced reliability and robustness.
-  - Created 36 new error scenario tests covering configuration validation, network failures, and edge cases
-  - Added configuration error testing for invalid settings, empty values, and malformed configurations
-  - Implemented network error scenario testing including timeouts, connection failures, and HTTP errors
-  - Added subprocess execution error testing for CLI failures, permission errors, and process management
-  - Created file system error scenario testing for permission issues, disk space problems, and path handling
-  - Added concurrency and race condition testing for ProcessManager and version caching
-  - Implemented edge case testing for Unicode paths, extremely long paths, and zero-byte downloads
-  - Enhanced error handling validation across all management commands and utility functions
-  - Fixed config tests to properly clear cache and mock network requests for consistent fallback behavior
-  - Improved test coverage to 89% with comprehensive error scenario validation
-- Improved documentation and usability for enhanced developer experience.
-  - Enhanced all command help text with detailed examples and common use cases
-  - Added actionable error messages with specific solutions for configuration and system issues
-  - Created comprehensive configuration documentation with complete settings reference and examples
-  - Added new `config` command to display current configuration settings in formatted output
-  - Implemented new `setup` command providing interactive step-by-step setup guidance for new projects
-  - Added new `troubleshoot` command with solutions for 7 common issues including debugging steps
-  - Improved error handling with helper functions providing specific guidance for different error types
-  - Enhanced main command help with practical examples for getting started quickly
+### 🎯 New Features
+- **Interactive setup command**: `python manage.py tailwind setup` for guided configuration
+- **Configuration viewer**: `python manage.py tailwind config` to inspect current settings  
+- **Troubleshooting guide**: `python manage.py tailwind troubleshoot` for common issues
+- **Performance tips**: `python manage.py tailwind optimize` for optimization guidance
+- **Enhanced verbose mode**: `--verbose` flag for detailed build and watch diagnostics
+
+### ⚡ Performance Improvements  
+- **Smart rebuilds**: File modification checks prevent unnecessary CSS rebuilds
+- **Version caching**: 1-hour cache reduces GitHub API requests
+- **Process optimization**: Improved `tailwind runserver` with better signal handling
+- **File operations**: Optimized I/O with caching and content comparison
+
+### 🛠️ Developer Experience
+- **Better error messages**: Actionable solutions for configuration and system issues
+- **Colorized output**: Visual feedback with emojis and progress indicators
+- **Help text improvements**: Detailed examples and use cases for all commands
+- **Template scanning**: Enhanced discovery with error handling and performance metrics
+
+### 📚 Documentation & Resources
+- **Comprehensive README**: Step-by-step quick start and feature overview
+- **Advanced guides**: CONFIGURATION.md and DEVELOPMENT.md for production deployments
+- **Inline documentation**: Detailed docstrings and usage examples throughout codebase
+
+### 🧪 Quality Assurance
+- **Comprehensive testing**: 58+ new tests covering integration workflows and error scenarios  
+- **Cross-platform support**: Windows, macOS, and Linux compatibility testing
+- **89% test coverage**: Robust validation of all major functionality
+
+### 🔧 Technical Improvements
+- **Python 3.10+ minimum**: Updated supported Python versions to 3.10-3.14
+- **Refactored internals**: Better maintainability with focused, single-responsibility functions
+- **Type safety**: Improved with `PlatformInfo` and `VersionCache` data structures
 
 ## 4.2.4
 
