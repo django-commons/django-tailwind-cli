@@ -287,7 +287,7 @@ class TestSubprocessErrorScenarios:
         with patch("requests.get") as mock_get:
             mock_response = Mock()
             mock_response.content = b"real-cli-binary"
-            mock_response.headers.get.return_value = "100"
+            mock_response.headers = {"content-length": "100"}
             mock_response.iter_content.return_value = [b"real-cli-binary"]
             mock_response.raise_for_status.return_value = None
             mock_get.return_value = mock_response

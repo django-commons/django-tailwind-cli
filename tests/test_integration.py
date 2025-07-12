@@ -41,7 +41,7 @@ class TestBuildWorkflowIntegration:
         with patch("requests.get") as mock_get:
             mock_response = Mock()
             mock_response.content = b"fake-cli-binary"
-            mock_response.headers.get.return_value = "100"
+            mock_response.headers = {"content-length": "100"}
             mock_response.iter_content.return_value = [b"fake-cli-binary"]
             mock_response.raise_for_status.return_value = None
             mock_get.return_value = mock_response
@@ -86,7 +86,7 @@ class TestBuildWorkflowIntegration:
         with patch("requests.get") as mock_get, patch("subprocess.run") as mock_subprocess:
             mock_response = Mock()
             mock_response.content = b"fake-cli-binary"
-            mock_response.headers.get.return_value = "100"
+            mock_response.headers = {"content-length": "100"}
             mock_response.iter_content.return_value = [b"fake-cli-binary"]
             mock_response.raise_for_status.return_value = None
             mock_get.return_value = mock_response
@@ -109,7 +109,7 @@ class TestBuildWorkflowIntegration:
         with patch("requests.get") as mock_get, patch("subprocess.run") as mock_subprocess:
             mock_response = Mock()
             mock_response.content = b"fake-cli-binary"
-            mock_response.headers.get.return_value = "100"
+            mock_response.headers = {"content-length": "100"}
             mock_response.iter_content.return_value = [b"fake-cli-binary"]
             mock_response.raise_for_status.return_value = None
             mock_get.return_value = mock_response
@@ -271,7 +271,7 @@ class TestCLIDownloadIntegration:
         with patch("requests.get") as mock_get:
             mock_response = Mock()
             mock_response.content = b"fake-cli-binary" * 1000  # Larger content for progress
-            mock_response.headers.get.return_value = str(len(mock_response.content))
+            mock_response.headers = {"content-length": str(len(mock_response.content))}
             mock_response.iter_content.return_value = [b"fake-cli-binary" * 100] * 10
             mock_response.raise_for_status.return_value = None
             mock_get.return_value = mock_response
@@ -303,7 +303,7 @@ class TestCLIDownloadIntegration:
         with patch("requests.get") as mock_get:
             mock_response = Mock()
             mock_response.content = b"fake-cli-binary"
-            mock_response.headers.get.return_value = "100"
+            mock_response.headers = {"content-length": "100"}
             mock_response.iter_content.return_value = [b"fake-cli-binary"]
             mock_response.raise_for_status.return_value = None
             mock_get.return_value = mock_response
@@ -385,7 +385,7 @@ class TestErrorRecoveryScenarios:
         with patch("requests.get") as mock_get, patch("subprocess.run") as mock_subprocess:
             mock_response = Mock()
             mock_response.content = b"fake-cli-binary"
-            mock_response.headers.get.return_value = "100"
+            mock_response.headers = {"content-length": "100"}
             mock_response.iter_content.return_value = [b"fake-cli-binary"]
             mock_response.raise_for_status.return_value = None
             mock_get.return_value = mock_response
@@ -408,7 +408,7 @@ class TestErrorRecoveryScenarios:
         with patch("requests.get") as mock_get, patch("subprocess.run") as mock_subprocess:
             mock_response = Mock()
             mock_response.content = b"fake-cli-binary"
-            mock_response.headers.get.return_value = "100"
+            mock_response.headers = {"content-length": "100"}
             mock_response.iter_content.return_value = [b"fake-cli-binary"]
             mock_response.raise_for_status.return_value = None
             mock_get.return_value = mock_response
@@ -436,7 +436,7 @@ class TestErrorRecoveryScenarios:
             with patch("requests.get") as mock_get:
                 mock_response = Mock()
                 mock_response.content = b"fake-cli-binary"
-                mock_response.headers.get.return_value = "100"
+                mock_response.headers = {"content-length": "100"}
                 mock_response.iter_content.return_value = [b"fake-cli-binary"]
                 mock_response.raise_for_status.return_value = None
                 mock_get.return_value = mock_response
@@ -461,7 +461,7 @@ class TestVerboseLoggingIntegration:
         with patch("requests.get") as mock_get, patch("subprocess.run") as mock_subprocess:
             mock_response = Mock()
             mock_response.content = b"fake-cli-binary"
-            mock_response.headers.get.return_value = "100"
+            mock_response.headers = {"content-length": "100"}
             mock_response.iter_content.return_value = [b"fake-cli-binary"]
             mock_response.raise_for_status.return_value = None
             mock_get.return_value = mock_response
@@ -483,7 +483,7 @@ class TestVerboseLoggingIntegration:
         with patch("requests.get") as mock_get, patch("subprocess.run") as mock_subprocess:
             mock_response = Mock()
             mock_response.content = b"fake-cli-binary"
-            mock_response.headers.get.return_value = "100"
+            mock_response.headers = {"content-length": "100"}
             mock_response.iter_content.return_value = [b"fake-cli-binary"]
             mock_response.raise_for_status.return_value = None
             mock_get.return_value = mock_response
