@@ -1,3 +1,75 @@
+"""Configuration management for django-tailwind-cli.
+
+This module handles all configuration aspects of the Tailwind CSS integration,
+including version management, path resolution, and Django settings validation.
+
+Configuration Settings:
+    The following Django settings are recognized:
+
+    Core Settings:
+        STATICFILES_DIRS (required): List of directories for static files
+            Example: STATICFILES_DIRS = [BASE_DIR / 'assets']
+
+        TAILWIND_CLI_VERSION (optional): Tailwind CSS version to use
+            Default: 'latest'
+            Example: TAILWIND_CLI_VERSION = '4.1.3'
+            Special: 'latest' fetches newest version from GitHub
+
+    Path Settings:
+        TAILWIND_CLI_PATH (optional): Path to CLI binary or directory
+            Default: '.django_tailwind_cli' (in project root)
+            Example: TAILWIND_CLI_PATH = '/usr/local/bin/tailwindcss'
+
+        TAILWIND_CLI_SRC_CSS (optional): Input CSS file path
+            Default: '.django_tailwind_cli/source.css' (auto-created)
+            Example: TAILWIND_CLI_SRC_CSS = 'src/styles/main.css'
+
+        TAILWIND_CLI_DIST_CSS (optional): Output CSS file path
+            Default: 'css/tailwind.css' (relative to STATICFILES_DIRS[0])
+            Example: TAILWIND_CLI_DIST_CSS = 'dist/main.css'
+
+    Advanced Settings:
+        TAILWIND_CLI_USE_DAISY_UI (optional): Enable DaisyUI components
+            Default: False
+            Example: TAILWIND_CLI_USE_DAISY_UI = True
+
+        TAILWIND_CLI_SRC_REPO (optional): Custom Tailwind CLI repository
+            Default: 'tailwindlabs/tailwindcss' (or DaisyUI variant)
+            Example: TAILWIND_CLI_SRC_REPO = 'custom/tailwind-fork'
+
+        TAILWIND_CLI_ASSET_NAME (optional): CLI asset name for downloads
+            Default: 'tailwindcss' (or 'tailwindcss-extra' for DaisyUI)
+            Example: TAILWIND_CLI_ASSET_NAME = 'tailwind-custom'
+
+        TAILWIND_CLI_AUTOMATIC_DOWNLOAD (optional): Auto-download CLI
+            Default: True
+            Example: TAILWIND_CLI_AUTOMATIC_DOWNLOAD = False
+
+        TAILWIND_CLI_REQUEST_TIMEOUT (optional): Network request timeout
+            Default: 10 (seconds)
+            Example: TAILWIND_CLI_REQUEST_TIMEOUT = 30
+
+Examples of complete settings configuration:
+
+    # Minimal configuration
+    STATICFILES_DIRS = [BASE_DIR / 'assets']
+
+    # Production configuration
+    STATICFILES_DIRS = [BASE_DIR / 'static']
+    TAILWIND_CLI_VERSION = '4.1.3'  # Pin to specific version
+    TAILWIND_CLI_DIST_CSS = 'css/app.css'
+
+    # Development with DaisyUI
+    STATICFILES_DIRS = [BASE_DIR / 'assets']
+    TAILWIND_CLI_USE_DAISY_UI = True
+    TAILWIND_CLI_SRC_CSS = 'src/styles/main.css'
+
+    # Custom CLI setup
+    STATICFILES_DIRS = [BASE_DIR / 'static']
+    TAILWIND_CLI_PATH = '/opt/tailwindcss/bin/tailwindcss'
+    TAILWIND_CLI_AUTOMATIC_DOWNLOAD = False
+"""
+
 import os
 import platform
 import tempfile

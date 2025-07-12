@@ -59,6 +59,15 @@
   - Enhanced error handling validation across all management commands and utility functions
   - Fixed config tests to properly clear cache and mock network requests for consistent fallback behavior
   - Improved test coverage to 89% with comprehensive error scenario validation
+- Improved documentation and usability for enhanced developer experience.
+  - Enhanced all command help text with detailed examples and common use cases
+  - Added actionable error messages with specific solutions for configuration and system issues
+  - Created comprehensive configuration documentation with complete settings reference and examples
+  - Added new `config` command to display current configuration settings in formatted output
+  - Implemented new `setup` command providing interactive step-by-step setup guidance for new projects
+  - Added new `troubleshoot` command with solutions for 7 common issues including debugging steps
+  - Improved error handling with helper functions providing specific guidance for different error types
+  - Enhanced main command help with practical examples for getting started quickly
 
 ## 4.2.4
 
