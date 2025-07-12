@@ -60,60 +60,197 @@ def build(
         "--force",
         help="Force rebuild even if output is up to date.",
     ),
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        "-v",
+        help="Show detailed build information and diagnostics.",
+    ),
 ) -> None:
     """Build a minified production ready CSS file."""
+    start_time = time.time()
     config = get_config()
-    _setup_tailwind_environment()
+
+    if verbose:
+        typer.secho("🏗️  Starting Tailwind CSS build process...", fg=typer.colors.CYAN)
+        typer.secho(f"   • Source CSS: {config.src_css}", fg=typer.colors.BLUE)
+        typer.secho(f"   • Output CSS: {config.dist_css}", fg=typer.colors.BLUE)
+        typer.secho(f"   • CLI Path: {config.cli_path}", fg=typer.colors.BLUE)
+        typer.secho(f"   • Version: {config.version_str}", fg=typer.colors.BLUE)
+        typer.secho(f"   • DaisyUI: {'enabled' if config.use_daisy_ui else 'disabled'}", fg=typer.colors.BLUE)
+
+    _setup_tailwind_environment_with_verbose(verbose=verbose)
 
     # Check if rebuild is necessary (unless forced)
     if not force and not _should_rebuild_css(config.src_css, config.dist_css):
+        if verbose:
+            typer.secho("⏭️  Build skipped: output is up-to-date", fg=typer.colors.YELLOW)
+            if config.src_css.exists() and config.dist_css.exists():
+                src_mtime = config.src_css.stat().st_mtime
+                dist_mtime = config.dist_css.stat().st_mtime
+                typer.secho(f"   • Source modified: {time.ctime(src_mtime)}", fg=typer.colors.BLUE)
+                typer.secho(f"   • Output modified: {time.ctime(dist_mtime)}", fg=typer.colors.BLUE)
         typer.secho(
             f"Production stylesheet '{config.dist_css}' is up to date. Use --force to rebuild.",
             fg=typer.colors.CYAN,
         )
         return
 
+    if verbose:
+        typer.secho("⚡ Executing Tailwind CSS build command...", fg=typer.colors.CYAN)
+        typer.secho(f"   • Command: {' '.join(config.build_cmd)}", fg=typer.colors.BLUE)
+
     _execute_tailwind_command(
         config.build_cmd,
         success_message=f"Built production stylesheet '{config.dist_css}'.",
         error_message="Failed to build production stylesheet",
+        verbose=verbose,
     )
+
+    if verbose:
+        end_time = time.time()
+        build_duration = end_time - start_time
+        typer.secho(f"✅ Build completed in {build_duration:.3f}s", fg=typer.colors.GREEN)
 
 
 @handle_command_errors
 @app.command()
-def watch():
+def watch(
+    *,
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        "-v",
+        help="Show detailed watch information and diagnostics.",
+    ),
+):
     """Start Tailwind CLI in watch mode during development."""
     config = get_config()
-    _setup_tailwind_environment()
+
+    if verbose:
+        typer.secho("👀 Starting Tailwind CSS watch mode...", fg=typer.colors.CYAN)
+        typer.secho(f"   • Source CSS: {config.src_css}", fg=typer.colors.BLUE)
+        typer.secho(f"   • Output CSS: {config.dist_css}", fg=typer.colors.BLUE)
+        typer.secho(f"   • CLI Path: {config.cli_path}", fg=typer.colors.BLUE)
+        typer.secho(f"   • Version: {config.version_str}", fg=typer.colors.BLUE)
+        typer.secho(f"   • Command: {' '.join(config.watch_cmd)}", fg=typer.colors.BLUE)
+
+    _setup_tailwind_environment_with_verbose(verbose=verbose)
+
+    if verbose:
+        typer.secho("🔄 Starting file watcher...", fg=typer.colors.CYAN)
 
     _execute_tailwind_command(
         config.watch_cmd,
         success_message="Stopped watching for changes.",
         error_message="Failed to start in watch mode",
         capture_output=True,
+        verbose=verbose,
     )
 
 
 @app.command(name="list_templates")
-def list_templates():
-    """List the templates of your django project."""
+def list_templates(
+    *,
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        "-v",
+        help="Show detailed scanning information and performance metrics.",
+    ),
+):
+    """List the templates of your django project with enhanced discovery."""
+    start_time = time.time()
     template_files: list[str] = []
+    scanned_dirs: list[str] = []
+    error_dirs: list[tuple[str, str]] = []
 
-    def _list_template_files(td: str | Path) -> None:
-        for d, _, filenames in os.walk(str(td)):
-            for filename in filenames:
-                if filename.endswith(".html") or filename.endswith(".txt"):
-                    template_files.append(os.path.join(d, filename))
+    def _list_template_files_enhanced(td: str | Path, source: str) -> int:
+        """Enhanced template file discovery with error handling."""
+        td_path = Path(td)
+        if not td_path.exists():
+            error_msg = f"Directory does not exist: {td_path}"
+            error_dirs.append((str(td_path), error_msg))
+            if verbose:
+                typer.secho(f"⚠️  {error_msg}", fg=typer.colors.YELLOW)
+            return 0
 
+        if not td_path.is_dir():
+            error_msg = f"Path is not a directory: {td_path}"
+            error_dirs.append((str(td_path), error_msg))
+            if verbose:
+                typer.secho(f"⚠️  {error_msg}", fg=typer.colors.YELLOW)
+            return 0
+
+        scanned_dirs.append(f"{td_path} ({source})")
+        files_found = 0
+
+        try:
+            for d, _, filenames in os.walk(str(td_path)):
+                for filename in filenames:
+                    if filename.endswith(".html") or filename.endswith(".txt"):
+                        full_path = os.path.join(d, filename)
+                        template_files.append(full_path)
+                        files_found += 1
+                        if verbose:
+                            typer.secho(f"✓ Found: {full_path}", fg=typer.colors.GREEN)
+
+            if verbose:
+                typer.secho(f"📁 Scanned {source}: {td_path} ({files_found} templates)", fg=typer.colors.BLUE)
+
+        except (OSError, PermissionError) as e:
+            error_msg = f"Cannot scan directory {td_path}: {e}"
+            error_dirs.append((str(td_path), error_msg))
+            if verbose:
+                typer.secho(f"❌ {error_msg}", fg=typer.colors.RED)
+
+        return files_found
+
+    if verbose:
+        typer.secho("🔍 Starting enhanced template discovery...", fg=typer.colors.CYAN)
+
+    # Scan app template directories
     app_template_dirs = get_app_template_dirs("templates")
+    if verbose:
+        typer.secho(f"📱 Found {len(app_template_dirs)} app template directories", fg=typer.colors.BLUE)
+
     for app_template_dir in app_template_dirs:
-        _list_template_files(app_template_dir)
+        _list_template_files_enhanced(app_template_dir, "app")
 
-    for template_dir in settings.TEMPLATES[0]["DIRS"]:
-        _list_template_files(template_dir)
+    # Scan global template directories
+    global_template_dirs = settings.TEMPLATES[0]["DIRS"] if settings.TEMPLATES else []
+    if verbose:
+        typer.secho(f"🌐 Found {len(global_template_dirs)} global template directories", fg=typer.colors.BLUE)
 
-    typer.echo("\n".join(template_files))
+    for template_dir in global_template_dirs:
+        _list_template_files_enhanced(template_dir, "global")
+
+    # Performance metrics
+    end_time = time.time()
+    scan_duration = end_time - start_time
+
+    if verbose:
+        typer.secho("\n📊 Template Discovery Summary:", fg=typer.colors.CYAN)
+        typer.secho(f"   • Total templates found: {len(template_files)}", fg=typer.colors.GREEN)
+        typer.secho(f"   • Directories scanned: {len(scanned_dirs)}", fg=typer.colors.BLUE)
+        typer.secho(f"   • Scan duration: {scan_duration:.3f}s", fg=typer.colors.BLUE)
+
+        if error_dirs:
+            typer.secho(f"   • Errors encountered: {len(error_dirs)}", fg=typer.colors.YELLOW)
+            for error_path, error_msg in error_dirs:
+                typer.secho(f"     - {error_path}: {error_msg}", fg=typer.colors.YELLOW)
+
+        typer.secho("\n📂 Scanned Directories:", fg=typer.colors.CYAN)
+        for scanned_dir in scanned_dirs:
+            typer.secho(f"   • {scanned_dir}", fg=typer.colors.BLUE)
+
+        typer.secho(f"\n📄 Template Files ({len(template_files)} found):", fg=typer.colors.CYAN)
+
+    # Output template files (always shown)
+    if template_files:
+        typer.echo("\n".join(template_files))
+    elif verbose:
+        typer.secho("No template files found!", fg=typer.colors.YELLOW)
 
 
 @handle_command_errors
@@ -404,6 +541,14 @@ def _setup_tailwind_environment() -> None:
     _create_standard_config()
 
 
+def _setup_tailwind_environment_with_verbose(*, verbose: bool = False) -> None:
+    """Common setup for all Tailwind commands with verbose logging."""
+    if verbose:
+        typer.secho("⚙️  Setting up Tailwind environment...", fg=typer.colors.CYAN)
+    _download_cli_with_verbose(verbose=verbose)
+    _create_standard_config_with_verbose(verbose=verbose)
+
+
 def _should_rebuild_css(src_css: Path, dist_css: Path) -> bool:
     """Check if CSS should be rebuilt based on file modification times.
 
@@ -430,21 +575,43 @@ def _should_rebuild_css(src_css: Path, dist_css: Path) -> bool:
 
 
 def _execute_tailwind_command(
-    cmd: list[str], *, success_message: str, error_message: str, capture_output: bool = True
+    cmd: list[str],
+    *,
+    success_message: str,
+    error_message: str,
+    capture_output: bool = True,
+    verbose: bool = False,
 ) -> None:
-    """Execute a Tailwind command with consistent error handling.
+    """Execute a Tailwind command with consistent error handling and optional verbose output.
 
     Args:
         cmd: Command to execute.
         success_message: Message to display on success.
         error_message: Message prefix for errors.
         capture_output: Whether to capture subprocess output.
+        verbose: Whether to show detailed execution information.
     """
     try:
+        if verbose:
+            typer.secho(f"🚀 Executing: {' '.join(cmd)}", fg=typer.colors.CYAN)
+            typer.secho(f"   • Working directory: {settings.BASE_DIR}", fg=typer.colors.BLUE)
+            typer.secho(f"   • Capture output: {capture_output}", fg=typer.colors.BLUE)
+
+        start_time = time.time()
+
         if capture_output:
-            subprocess.run(cmd, cwd=settings.BASE_DIR, check=True, capture_output=True, text=True)
+            result = subprocess.run(cmd, cwd=settings.BASE_DIR, check=True, capture_output=True, text=True)
+            if verbose and result.stdout:
+                typer.secho("📤 Command output:", fg=typer.colors.BLUE)
+                typer.echo(result.stdout)
         else:
             subprocess.run(cmd, cwd=settings.BASE_DIR, check=True)
+
+        if verbose:
+            end_time = time.time()
+            execution_time = end_time - start_time
+            typer.secho(f"⏱️  Command completed in {execution_time:.3f}s", fg=typer.colors.GREEN)
+
         typer.secho(success_message, fg=typer.colors.GREEN)
     except KeyboardInterrupt:
         if "build" in error_message.lower():
@@ -454,6 +621,15 @@ def _execute_tailwind_command(
         else:
             typer.secho(f"Canceled {error_message.lower()}.", fg=typer.colors.RED)
     except subprocess.CalledProcessError as e:  # pragma: no cover
+        if verbose:
+            typer.secho(f"❌ Command failed with exit code {e.returncode}", fg=typer.colors.RED)
+            if e.stdout:
+                typer.secho("📤 Standard output:", fg=typer.colors.BLUE)
+                typer.echo(e.stdout)
+            if e.stderr:
+                typer.secho("📢 Standard error:", fg=typer.colors.RED)
+                typer.echo(e.stderr)
+
         error_detail = e.stderr if e.stderr else "An unknown error occurred."
         typer.secho(f"{error_message}: {error_detail}", fg=typer.colors.RED)
         sys.exit(1)
@@ -543,22 +719,43 @@ def _check_file_exists_cached(file_path: Path, cache_duration: float = 5.0) -> b
 
 def _download_cli(*, force_download: bool = False) -> None:
     """Assure that the CLI is loaded if automatic downloads are activated."""
+    _download_cli_with_verbose(verbose=False, force_download=force_download)
+
+
+def _download_cli_with_verbose(*, verbose: bool = False, force_download: bool = False) -> None:
+    """Assure that the CLI is loaded with optional verbose logging."""
     c = get_config()
+
+    if verbose:
+        typer.secho("🔍 Checking Tailwind CSS CLI availability...", fg=typer.colors.CYAN)
+        typer.secho(f"   • CLI Path: {c.cli_path}", fg=typer.colors.BLUE)
+        typer.secho(f"   • Version: {c.version_str}", fg=typer.colors.BLUE)
+        typer.secho(f"   • Download URL: {c.download_url}", fg=typer.colors.BLUE)
+        typer.secho(f"   • Automatic download: {c.automatic_download}", fg=typer.colors.BLUE)
 
     if not force_download and not c.automatic_download:
         if not _check_file_exists_cached(c.cli_path):
+            if verbose:
+                typer.secho("❌ CLI not found and automatic download is disabled", fg=typer.colors.RED)
             raise CommandError(
                 "Automatic download of Tailwind CSS CLI is deactivated. Please download the Tailwind CSS CLI manually."
             )
+        if verbose:
+            typer.secho("✅ CLI found, automatic download not needed", fg=typer.colors.GREEN)
         return
 
     # Use optimized CLI check for existing installations
     if not force_download and _is_cli_up_to_date(c.cli_path, c.version_str):
+        if verbose:
+            typer.secho("✅ CLI is up-to-date and functional", fg=typer.colors.GREEN)
         typer.secho(
             f"Tailwind CSS CLI already exists at '{c.cli_path}'.",
             fg=typer.colors.GREEN,
         )
         return
+
+    if verbose:
+        typer.secho("📥 Starting CLI download...", fg=typer.colors.CYAN)
 
     typer.secho("Tailwind CSS CLI not found.", fg=typer.colors.RED)
     typer.secho(f"Downloading Tailwind CSS CLI from '{c.download_url}'.", fg=typer.colors.YELLOW)
@@ -568,6 +765,14 @@ def _download_cli(*, force_download: bool = False) -> None:
 
     # Make CLI executable
     c.cli_path.chmod(0o755)
+
+    if verbose:
+        import stat
+
+        file_stats = c.cli_path.stat()
+        typer.secho(f"📁 File permissions: {stat.filemode(file_stats.st_mode)}", fg=typer.colors.BLUE)
+        typer.secho(f"📏 File size: {file_stats.st_size:,} bytes", fg=typer.colors.BLUE)
+
     typer.secho(f"Downloaded Tailwind CSS CLI to '{c.cli_path}'.", fg=typer.colors.GREEN)
 
 
@@ -577,13 +782,29 @@ DAISY_UI_SOURCE_CSS = '@import "tailwindcss";\n@plugin "daisyui";\n'
 
 def _create_standard_config() -> None:
     """Create a standard Tailwind CSS config file with optimization."""
+    _create_standard_config_with_verbose(verbose=False)
+
+
+def _create_standard_config_with_verbose(*, verbose: bool = False) -> None:
+    """Create a standard Tailwind CSS config file with optional verbose logging."""
     c = get_config()
 
+    if verbose:
+        typer.secho("📄 Checking Tailwind CSS source configuration...", fg=typer.colors.CYAN)
+        typer.secho(f"   • Source CSS path: {c.src_css}", fg=typer.colors.BLUE)
+        typer.secho(f"   • Overwrite default: {c.overwrite_default_config}", fg=typer.colors.BLUE)
+        typer.secho(f"   • DaisyUI enabled: {c.use_daisy_ui}", fg=typer.colors.BLUE)
+
     if not c.src_css:
+        if verbose:
+            typer.secho("⏭️  No source CSS path configured, skipping creation", fg=typer.colors.YELLOW)
         return
 
     # Determine the content based on DaisyUI setting
     content = DAISY_UI_SOURCE_CSS if c.use_daisy_ui else DEFAULT_SOURCE_CSS
+
+    if verbose:
+        typer.secho(f"📝 Content template: {'DaisyUI' if c.use_daisy_ui else 'Default'}", fg=typer.colors.BLUE)
 
     # Only create/update if:
     # 1. overwrite_default_config is True (meaning we're using default path) AND file doesn't exist
@@ -592,17 +813,33 @@ def _create_standard_config() -> None:
     if c.overwrite_default_config:
         # For default config, only create if file doesn't exist or content differs
         should_create = _should_recreate_file(c.src_css, content)
+        if verbose:
+            existing_msg = "exists with different content" if c.src_css.exists() else "does not exist"
+            typer.secho(f"🔍 File check (default config): {existing_msg}", fg=typer.colors.BLUE)
     else:
         # For custom config path, only create if file doesn't exist
         should_create = not c.src_css.exists()
+        if verbose:
+            existing_msg = "exists (preserving)" if c.src_css.exists() else "does not exist"
+            typer.secho(f"🔍 File check (custom config): {existing_msg}", fg=typer.colors.BLUE)
 
     if should_create:
+        if verbose:
+            typer.secho("📝 Creating/updating source CSS file...", fg=typer.colors.CYAN)
+
         c.src_css.parent.mkdir(parents=True, exist_ok=True)
         c.src_css.write_text(content)
+
+        if verbose:
+            typer.secho(f"✅ Created directory: {c.src_css.parent}", fg=typer.colors.GREEN)
+            typer.secho(f"📄 Content length: {len(content)} characters", fg=typer.colors.BLUE)
+
         typer.secho(
             f"Created Tailwind Source CSS at '{c.src_css}'",
             fg=typer.colors.GREEN,
         )
+    elif verbose:
+        typer.secho("⏭️  Source CSS file is up-to-date, no changes needed", fg=typer.colors.GREEN)
 
 
 def get_runserver_options(

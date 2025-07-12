@@ -31,6 +31,13 @@
   - Introduced file existence caching with 5-second duration for hot paths
   - Enhanced CLI binary validation to skip redundant downloads
   - Preserved existing custom CSS content while optimizing default file creation
+- Enhanced template discovery and developer experience with verbose logging.
+  - Added `--verbose` flag to `build`, `watch`, and `list_templates` commands
+  - Implemented comprehensive error handling for template path resolution
+  - Added performance metrics and timing information for all operations
+  - Enhanced `list_templates` with detailed scanning diagnostics and error reporting
+  - Improved CLI download progress with file size and permission details
+  - Added colorized console output with emojis for better visual feedback
 
 ## 4.2.4
 
