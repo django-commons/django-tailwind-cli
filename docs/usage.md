@@ -19,17 +19,9 @@ hide:
 
 Run `python manage.py tailwind build` to create an optimized production built of the stylesheet. Afterwards you are ready to deploy. Take care the this command is run before `python manage.py collectstatic` in your build process.
 
-### download_cli
+### watch
 
-Run `python manage.py tailwind download_cli` to just download the CLI. This commands downloads the correct version of the CLI for your platform and stores it in the path configured by the `TAILWIND_CLI_PATH` setting.
-
-### list_templates
-
-Run `python manage.py tailwind list_templates` to find all templates in your django project. This is handy for a setup where you dynamically build the list of files being analyzed by tailwindcss.
-
-### remove_cli
-
-Run `python manage.py tailwind remove_cli` to remove the installed cli.
+Run `python manage.py tailwind watch` to just start a tailwind watcher process if you prefer to start your debug server in a seperate shell or prefer a different solution than runserver or runserver_plus.
 
 ### runserver
 
@@ -82,6 +74,66 @@ Options:
                                   runserver]
   --help                          Show this message and exit.
 ```
+
+### list_templates
+
+Run `python manage.py tailwind list_templates` to find all templates in your django project. This is handy for a setup where you dynamically build the list of files being analyzed by tailwindcss.
+
+### download_cli
+
+Run `python manage.py tailwind download_cli` to just download the CLI. This commands downloads the correct version of the CLI for your platform and stores it in the path configured by the `TAILWIND_CLI_PATH` setting.
+
+### config
+
+Run `python manage.py tailwind config` to show current Tailwind CSS configuration. This command displays the current configuration settings and their values, helping you understand how django-tailwind-cli is configured in your project.
+
+The command shows:
+- All configuration paths (CLI, CSS input/output)
+- Version information  
+- Django settings values
+- File existence status
+- Platform information
+
+### setup
+
+Run `python manage.py tailwind setup` to launch the interactive setup guide for django-tailwind-cli. This command provides step-by-step guidance for setting up Tailwind CSS in your Django project, from installation to first build.
+
+The guide covers:
+1. Installation verification
+2. Django settings configuration  
+3. CLI binary download
+4. First CSS build
+5. Template integration
+6. Development workflow
+
+This is perfect for first-time setup, troubleshooting configuration issues, or learning the development workflow.
+
+### troubleshoot
+
+Run `python manage.py tailwind troubleshoot` to access the troubleshooting guide for common issues. This command provides solutions for the most common issues encountered when using django-tailwind-cli, with step-by-step debugging guidance.
+
+Common issues covered:
+- CSS not updating in browser
+- Build failures and errors
+- Missing or incorrect configuration
+- Permission and download issues
+- Template integration problems
+
+### optimize
+
+Run `python manage.py tailwind optimize` to view performance optimization tips and best practices. This command provides detailed guidance on optimizing your Tailwind CSS build performance and development workflow for the best possible experience.
+
+Areas covered:
+- Build performance optimization
+- File watching efficiency
+- Template scanning optimization
+- Production deployment best practices
+- Development workflow improvements
+- Common performance pitfalls
+
+### remove_cli
+
+Run `python manage.py tailwind remove_cli` to remove the installed cli.
 
 ### watch
 
