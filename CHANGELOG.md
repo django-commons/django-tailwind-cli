@@ -11,6 +11,13 @@
   - Added configurable request timeout via `TAILWIND_CLI_REQUEST_TIMEOUT` setting
   - Improved type safety with `PlatformInfo` and `VersionCache` data structures
   - Better validation of Django settings with helpful error messages
+- Improved process management for `tailwind runserver` command.
+  - Replaced problematic `multiprocessing.Process` with proper `subprocess.Popen`
+  - Added `ProcessManager` class for reliable concurrent process handling
+  - Implemented proper signal handling (SIGINT/SIGTERM) for graceful shutdown
+  - Added process monitoring with automatic cleanup and error recovery
+  - Enhanced CLI download with streaming progress indication
+  - Improved error handling with better exception chaining and timeouts
 
 ## 4.2.4
 

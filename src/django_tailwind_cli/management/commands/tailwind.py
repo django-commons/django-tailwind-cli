@@ -2,10 +2,12 @@
 
 import importlib.util
 import os
+import signal
 import subprocess
 import sys
-from multiprocessing import Process
+import time
 from pathlib import Path
+from types import FrameType
 
 import requests
 import typer
@@ -208,39 +210,150 @@ def runserver(
             skip_checks=skip_checks,
         )
 
+    # Prepare commands for concurrent execution
     watch_cmd = [sys.executable, "manage.py", "tailwind", "watch"]
-    watch_process = Process(
-        target=subprocess.run,
-        args=(watch_cmd,),
-        kwargs={
-            "cwd": settings.BASE_DIR,
-            "check": True,
-        },
-    )
+    debug_server_cmd = [sys.executable, "manage.py", server_command] + runserver_options
 
-    debug_server_cmd = [
-        sys.executable,
-        "manage.py",
-        server_command,
-    ] + runserver_options
+    # Use improved process manager
+    process_manager = ProcessManager()
+    process_manager.start_concurrent_processes(watch_cmd, debug_server_cmd)
 
-    debugserver_process = Process(
-        target=subprocess.run,
-        args=(debug_server_cmd,),
-        kwargs={
-            "cwd": settings.BASE_DIR,
-            "check": True,
-        },
-    )
 
+# PROCESS MANAGEMENT FUNCTIONS -------------------------------------------------------------------
+
+
+class ProcessManager:
+    """Manages concurrent processes for Tailwind watch and Django runserver."""
+
+    def __init__(self) -> None:
+        self.processes: list[subprocess.Popen[str]] = []
+        self.shutdown_requested = False
+
+    def start_concurrent_processes(self, watch_cmd: list[str], server_cmd: list[str]) -> None:
+        """Start watch and server processes concurrently with proper cleanup.
+
+        Args:
+            watch_cmd: Command to start Tailwind watch process.
+            server_cmd: Command to start Django development server.
+        """
+        # Set up signal handlers for graceful shutdown
+        signal.signal(signal.SIGINT, self._signal_handler)
+        signal.signal(signal.SIGTERM, self._signal_handler)
+
+        try:
+            # Start Tailwind watch process
+            watch_process = subprocess.Popen(
+                watch_cmd,
+                cwd=settings.BASE_DIR,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,  # Line buffered
+            )
+            self.processes.append(watch_process)
+            typer.secho("Started Tailwind CSS watch process", fg=typer.colors.GREEN)
+
+            # Give Tailwind a moment to start
+            time.sleep(1)
+
+            # Start Django development server
+            server_process = subprocess.Popen(
+                server_cmd,
+                cwd=settings.BASE_DIR,
+                text=True,
+            )
+            self.processes.append(server_process)
+            typer.secho("Started Django development server", fg=typer.colors.GREEN)
+
+            # Monitor processes
+            self._monitor_processes()
+
+        except Exception as e:
+            typer.secho(f"Error starting processes: {e}", fg=typer.colors.RED)
+            self._cleanup_processes()
+            raise
+
+    def _signal_handler(self, _signum: int, _frame: FrameType | None) -> None:
+        """Handle shutdown signals gracefully."""
+        typer.secho("\\nShutdown signal received, stopping processes...", fg=typer.colors.YELLOW)
+        self.shutdown_requested = True
+        self._cleanup_processes()
+
+    def _monitor_processes(self) -> None:
+        """Monitor running processes and handle their lifecycle."""
+        while not self.shutdown_requested and any(p.poll() is None for p in self.processes):
+            time.sleep(0.5)
+
+            # Check if any process has exited unexpectedly
+            for process in self.processes:
+                if process.poll() is not None and process.returncode != 0:
+                    typer.secho(f"Process exited with code {process.returncode}", fg=typer.colors.RED)
+                    self.shutdown_requested = True
+                    break
+
+        # Clean up any remaining processes
+        self._cleanup_processes()
+
+    def _cleanup_processes(self) -> None:
+        """Clean up all managed processes."""
+        for process in self.processes:
+            if process.poll() is None:
+                try:
+                    # Try graceful shutdown first
+                    process.terminate()
+                    try:
+                        process.wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        # Force kill if graceful shutdown fails
+                        process.kill()
+                        process.wait()
+                except (OSError, subprocess.SubprocessError):
+                    # Process might have already exited
+                    pass
+
+        self.processes.clear()
+
+
+def _download_cli_with_progress(url: str, filepath: Path) -> None:
+    """Download CLI with progress indication.
+
+    Args:
+        url: Download URL.
+        filepath: Destination file path.
+    """
     try:
-        watch_process.start()
-        debugserver_process.start()
-        watch_process.join()
-        debugserver_process.join()
-    except KeyboardInterrupt:  # pragma: no cover
-        watch_process.terminate()
-        debugserver_process.terminate()
+        response = requests.get(url, stream=True, timeout=30)
+        response.raise_for_status()
+
+        total_size = int(response.headers.get("content-length", 0))
+
+        if total_size == 0:
+            # Fallback for unknown size
+            typer.secho("Downloading Tailwind CSS CLI...", fg=typer.colors.YELLOW)
+            filepath.write_bytes(response.content)
+            return
+
+        # Download with progress
+        downloaded = 0
+        filepath.parent.mkdir(parents=True, exist_ok=True)
+
+        with filepath.open("wb") as f:
+            typer.secho("Downloading Tailwind CSS CLI...", fg=typer.colors.YELLOW)
+            for chunk in response.iter_content(chunk_size=8192):
+                if chunk:
+                    f.write(chunk)
+                    downloaded += len(chunk)
+
+                    # Show progress every 10%
+                    if total_size > 0:
+                        progress = (downloaded / total_size) * 100
+                        if downloaded % (total_size // 10 + 1) < 8192:
+                            typer.secho(f"Progress: {progress:.1f}%", fg=typer.colors.CYAN)
+
+        typer.secho("Download completed!", fg=typer.colors.GREEN)
+
+    except requests.RequestException as e:
+        raise CommandError(f"Failed to download Tailwind CSS CLI: {e}") from e
 
 
 # UTILITY FUNCTIONS -------------------------------------------------------------------------------
@@ -267,12 +380,10 @@ def _download_cli(*, force_download: bool = False) -> None:
     typer.secho("Tailwind CSS CLI not found.", fg=typer.colors.RED)
     typer.secho(f"Downloading Tailwind CSS CLI from '{c.download_url}'.", fg=typer.colors.YELLOW)
 
-    # Download and store the tailwind cli binary
-    c.cli_path.parent.mkdir(parents=True, exist_ok=True)
-    response = requests.get(c.download_url)
-    c.cli_path.write_bytes(response.content)
+    # Download with progress indication
+    _download_cli_with_progress(c.download_url, c.cli_path)
 
-    # make cli executable
+    # Make CLI executable
     c.cli_path.chmod(0o755)
     typer.secho(f"Downloaded Tailwind CSS CLI to '{c.cli_path}'.", fg=typer.colors.GREEN)
 
