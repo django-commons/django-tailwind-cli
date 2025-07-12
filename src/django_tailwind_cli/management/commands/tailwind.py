@@ -187,12 +187,14 @@ def build(
     This command processes your Tailwind CSS input file and generates an optimized
     production CSS file with only the styles actually used in your templates.
 
+    \b
     The build process:
     1. Scans all Django templates for Tailwind class usage
     2. Generates CSS with only the used utility classes
     3. Minifies the output for optimal file size
     4. Saves to your configured output path (STATICFILES_DIRS)
 
+    \b
     Examples:
         # Build production CSS (skips if already up-to-date)
         python manage.py tailwind build
@@ -203,6 +205,7 @@ def build(
         # Show detailed build information
         python manage.py tailwind build --verbose
 
+    \b
     Output location:
         The CSS file is saved to: STATICFILES_DIRS[0]/css/tailwind.css
         (configurable via TAILWIND_CLI_DIST_CSS setting)
@@ -265,17 +268,20 @@ def watch(
 ):
     """Start Tailwind CSS in watch mode for development.
 
+    \b
     Watch mode automatically rebuilds your CSS whenever you change:
     - Django template files (*.html)
     - Python files that might contain Tailwind classes
     - Your Tailwind input CSS file
     - JavaScript files (if configured)
 
+    \b
     The watcher provides instant feedback during development, showing:
     - File change detection
     - Build progress and timing
     - Any build errors or warnings
 
+    \b
     Examples:
         # Start watch mode
         python manage.py tailwind watch
@@ -283,6 +289,7 @@ def watch(
         # Watch with detailed diagnostics
         python manage.py tailwind watch --verbose
 
+    \b
     Tips:
         - Keep this running in a separate terminal during development
         - Use alongside 'python manage.py runserver' for full development setup
@@ -330,17 +337,20 @@ def list_templates(
     that Tailwind CSS will process for class names. Understanding which templates
     are scanned helps optimize your Tailwind configuration.
 
+    \b
     Scanned locations:
     1. App template directories (APP_NAME/templates/)
     2. Global template directories (TEMPLATES[0]['DIRS'])
     3. All subdirectories within these locations
 
+    \b
     File types scanned:
     - *.html - HTML templates
     - *.py - Python files (may contain Tailwind classes in strings)
     - *.js - JavaScript files
     - *.vue, *.jsx - If using frontend frameworks
 
+    \b
     Examples:
         # List all template files
         python manage.py tailwind list_templates
@@ -348,12 +358,14 @@ def list_templates(
         # Show detailed scan information
         python manage.py tailwind list_templates --verbose
 
+    \b
     Verbose mode shows:
         - Directories being scanned
         - Number of templates per directory
         - Any permission or access errors
         - Total scan time and statistics
 
+    \b
     Use this to:
         - Verify Tailwind is scanning the right files
         - Debug missing styles (file might not be scanned)
@@ -460,16 +472,19 @@ def download_cli():
     This command downloads the standalone Tailwind CSS CLI binary for your
     platform. The CLI is required to build and watch your CSS files.
 
+    \b
     The download process:
     1. Detects your operating system and architecture
     2. Downloads the appropriate binary from GitHub releases
     3. Saves it to your project directory
     4. Makes it executable (on Unix-like systems)
 
+    \b
     Binary location:
         Default: .django_tailwind_cli/ in your project root
         Custom: Set TAILWIND_CLI_PATH in settings
 
+    \b
     Examples:
         # Download the CLI binary
         python manage.py tailwind download_cli
@@ -479,6 +494,7 @@ def download_cli():
         # - Linux: .django_tailwind_cli/tailwindcss-linux-[arch]-[version]
         # - Windows: .django_tailwind_cli/tailwindcss-windows-[arch]-[version].exe
 
+    \b
     Notes:
         - This is usually done automatically on first build/watch
         - Re-run to update to a newer version
@@ -496,6 +512,7 @@ def show_config():
     This command displays the current configuration settings and their values,
     helping you understand how django-tailwind-cli is configured in your project.
 
+    \b
     Information displayed:
     - All configuration paths (CLI, CSS input/output)
     - Version information
@@ -503,10 +520,12 @@ def show_config():
     - File existence status
     - Platform information
 
+    \b
     Examples:
         # Show current configuration
         python manage.py tailwind config
 
+    \b
     Use this to:
         - Debug configuration issues
         - Verify settings are applied correctly
@@ -591,6 +610,7 @@ def setup_guide():
     This command provides step-by-step guidance for setting up Tailwind CSS
     in your Django project, from installation to first build.
 
+    \b
     The guide covers:
     1. Installation verification
     2. Django settings configuration
@@ -599,10 +619,12 @@ def setup_guide():
     5. Template integration
     6. Development workflow
 
+    \b
     Examples:
         # Run the interactive setup guide
         python manage.py tailwind setup
 
+    \b
     This is perfect for:
         - First-time setup
         - Troubleshooting configuration issues
@@ -752,6 +774,7 @@ def troubleshoot():
     This command provides solutions for the most common issues encountered
     when using django-tailwind-cli, with step-by-step debugging guidance.
 
+    \b
     Common issues covered:
     - CSS not updating in browser
     - Build failures and errors
@@ -759,10 +782,12 @@ def troubleshoot():
     - Permission and download issues
     - Template integration problems
 
+    \b
     Examples:
         # Run the troubleshooting guide
         python manage.py tailwind troubleshoot
 
+    \b
     Use this when:
         - Styles aren't appearing in your browser
         - Build or watch commands fail
@@ -973,12 +998,14 @@ def runserver(
     - Runs Django's development server
     - Manages both processes with proper signal handling
 
+    \b
     Features:
     - Automatic process management (both stop cleanly with Ctrl+C)
     - Live CSS updates as you edit templates and styles
     - Support for django-extensions runserver_plus (if installed)
     - All standard runserver options are supported
 
+    \b
     Examples:
         # Run on default port (8000)
         python manage.py tailwind runserver
@@ -995,6 +1022,7 @@ def runserver(
         # Force default runserver (ignore django-extensions)
         python manage.py tailwind runserver --force-default-runserver
 
+    \b
     Tips:
         - This replaces the need to run 'tailwind watch' and 'runserver' separately
         - Both processes are managed together - Ctrl+C stops both cleanly
