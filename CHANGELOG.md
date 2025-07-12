@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 4.3.0 (2025-07-12)
+
 ### 🎯 New Features
 - **Interactive setup command**: `python manage.py tailwind setup` for guided configuration
 - **Configuration viewer**: `python manage.py tailwind config` to inspect current settings
