@@ -77,7 +77,7 @@ class TestBuildWorkflowIntegration:
         settings.TAILWIND_CLI_PATH = tmp_path / ".django_tailwind_cli"
         settings.TAILWIND_CLI_SRC_CSS = tmp_path / "custom.css"
         settings.STATICFILES_DIRS = (tmp_path / "assets",)
-        
+
         # Create custom CSS file
         custom_css = '@import "tailwindcss";\n@theme { --color-primary: blue; }\n'
         settings.TAILWIND_CLI_SRC_CSS.parent.mkdir(parents=True, exist_ok=True)
@@ -231,6 +231,7 @@ class TestProcessManagerIntegration:
 
         # Manually trigger cleanup to test behavior
         import signal
+
         manager._signal_handler(signal.SIGINT, None)
 
         # Verify cleanup was called
@@ -248,6 +249,7 @@ class TestProcessManagerIntegration:
 
         # Manually trigger cleanup to test behavior
         import signal
+
         manager._signal_handler(signal.SIGINT, None)
 
         # Should not call terminate on already-exited process
@@ -325,7 +327,9 @@ class TestCrossPlatformCompatibility:
             ("Linux", ""),
         ],
     )
-    def test_platform_specific_cli_paths(self, settings: LazySettings, tmp_path: Path, mock_system: str, expected_extension: str):
+    def test_platform_specific_cli_paths(
+        self, settings: LazySettings, tmp_path: Path, mock_system: str, expected_extension: str
+    ):
         """Test CLI paths are platform-appropriate."""
         settings.BASE_DIR = tmp_path
         settings.TAILWIND_CLI_PATH = tmp_path / ".django_tailwind_cli"
