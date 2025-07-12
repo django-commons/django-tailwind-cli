@@ -174,3 +174,8 @@ chore(deps): bump django-typer to 2.1.2
 - Update minimum version for security fix
 - Adjust type hints for new API
 ```
+
+### Important Notes
+- **Do not include Claude Code references** in commit messages
+- Keep commit messages focused on the technical changes made
+- Use bullet points to describe key modifications and their impact
