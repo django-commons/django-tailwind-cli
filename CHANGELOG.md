@@ -6,6 +6,7 @@
 - **Type safety**: Fixed all pyright typing errors for better code quality and maintainability
 - **Code cleanup**: Removed unused functions and improved type annotations throughout codebase
 - **Dependencies**: Removed unused mypy configuration and django-stubs dependency
+- **VS Code integration**: Added PyLance ignore comments for test files accessing private methods
 
 ## 4.3.0 (2025-07-12)
 

@@ -3,6 +3,7 @@
 These tests verify end-to-end functionality including CLI download,
 file operations, and cross-platform compatibility.
 """
+# pyright: reportPrivateUsage=false
 
 import os
 import platform

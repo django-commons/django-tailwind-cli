@@ -4,6 +4,7 @@ These tests verify error handling, edge cases, and failure recovery across
 all components of the system including configuration, network operations,
 file operations, and subprocess execution.
 """
+# pyright: reportPrivateUsage=false
 
 import os
 import signal
