@@ -50,7 +50,6 @@ dev = [
     "pytest-randomly>=3.15.0",
     "pytest-timeout>=2.3.1",
     "pytest>=8.3.3",
-    "django-stubs[compatible-mypy]>=5.1.1",
 ]
 
 [build-system]
@@ -71,14 +70,6 @@ reportPrivateUsage = "warning"
 [tool.pyright.defineConstant]
 TYPE_CHECKING = true
 
-# mypy
-[tool.mypy]
-python_version = "3.10"
-plugins = ["mypy_django_plugin.main"]
-
-[tool.django-stubs]
-django_settings_module = "tests.settings"
-strict_settings = false
 
 # Ruff
 [tool.ruff]
