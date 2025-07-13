@@ -175,7 +175,7 @@ def _validate_required_settings() -> None:
         )
 
 
-def _get_platform_info() -> PlatformInfo:
+def get_platform_info() -> PlatformInfo:
     """Get platform information for CLI binary selection.
 
     Returns:
@@ -354,7 +354,8 @@ def _resolve_css_paths() -> tuple[Path, str, Path, bool]:
             "TAILWIND_CLI_DIST_CSS must not be None. Either remove the setting or provide a valid CSS path."
         )
 
-    first_staticfile_dir = settings.STATICFILES_DIRS[0]
+    first_staticfile_dir: str | tuple[str, str] = settings.STATICFILES_DIRS[0]
+    staticfile_path: str
     if isinstance(first_staticfile_dir, tuple):
         # Handle prefixed staticfile dir
         staticfile_path = first_staticfile_dir[1]
@@ -425,7 +426,7 @@ def get_config() -> Config:
     automatic_download = getattr(settings, "TAILWIND_CLI_AUTOMATIC_DOWNLOAD", True)
 
     # Get platform information
-    platform_info = _get_platform_info()
+    platform_info = get_platform_info()
 
     # Get version information
     version_str, version = get_version()

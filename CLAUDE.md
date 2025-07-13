@@ -180,3 +180,27 @@ chore(deps): bump django-typer to 2.1.2
 - **NEVER add "Generated with Claude Code" or "Co-Authored-By: Claude" lines** - Commit messages must be clean
 - Keep commit messages focused on the technical changes made
 - Use bullet points to describe key modifications and their impact
+
+## Changelog Requirements
+
+**IMPORTANT**: Every time you are asked to commit changes, you MUST also update the CHANGELOG.md file:
+
+1. **Update CHANGELOG.md**: Add a compact entry under the "## Unreleased" section describing the changes
+2. **Format**: Use the existing changelog format with appropriate categories:
+   - 🎯 **New Features**: For new functionality
+   - ⚡ **Performance Improvements**: For optimization changes
+   - 🛠️ **Developer Experience**: For DX improvements
+   - 🔧 **Technical Improvements**: For internal code improvements
+   - 🐛 **Bug Fixes**: For fixes
+   - 📚 **Documentation**: For docs changes
+3. **Keep it concise**: One or two bullet points maximum describing the key change
+4. **Focus on user impact**: Describe what changed from a user's perspective, not implementation details
+
+### Example Changelog Entry
+```markdown
+## Unreleased
+
+### 🔧 Technical Improvements
+- **Type safety**: Fixed all pyright typing errors for better code quality
+- **Code cleanup**: Removed unused functions and improved type annotations
+```

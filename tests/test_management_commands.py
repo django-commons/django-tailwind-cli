@@ -182,7 +182,7 @@ class TestProcessManagementCommands:
         """Test runserver when django-extensions is available."""
 
         # Mock both django-extensions and werkzeug as available
-        def mock_find_spec(name):
+        def mock_find_spec(name: str) -> object | None:
             return Mock() if name in ["django_extensions", "werkzeug"] else None
 
         self.mock_find_spec.side_effect = mock_find_spec

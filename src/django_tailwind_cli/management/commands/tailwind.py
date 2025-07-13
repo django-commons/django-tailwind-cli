@@ -21,7 +21,7 @@ from django_typer.management import Typer
 
 from django_tailwind_cli.config import get_config
 
-app = Typer(
+app = Typer(  # pyright: ignore[reportUnknownVariableType]
     name="tailwind",
     help="""Tailwind CSS integration for Django projects.
 
@@ -430,10 +430,11 @@ def list_templates(
         _list_template_files_enhanced(app_template_dir, "app")
 
     # Scan global template directories
-    global_template_dirs = settings.TEMPLATES[0]["DIRS"] if settings.TEMPLATES else []
+    global_template_dirs: list[str] = settings.TEMPLATES[0]["DIRS"] if settings.TEMPLATES else []
     if verbose:
         typer.secho(f"🌐 Found {len(global_template_dirs)} global template directories", fg=typer.colors.BLUE)
 
+    template_dir: str
     for template_dir in global_template_dirs:
         _list_template_files_enhanced(template_dir, "global")
 
@@ -579,9 +580,9 @@ def show_config():
         typer.secho(f"   TAILWIND_CLI_DIST_CSS: {dist_css_setting}", fg=typer.colors.GREEN)
 
     # Platform information
-    from django_tailwind_cli.config import _get_platform_info
+    from django_tailwind_cli.config import get_platform_info
 
-    platform_info = _get_platform_info()
+    platform_info = get_platform_info()
     typer.secho("\n💻 Platform Information:", fg=typer.colors.YELLOW, bold=True)
     typer.secho(f"   Operating System: {platform_info.system}", fg=typer.colors.GREEN)
     typer.secho(f"   Architecture: {platform_info.machine}", fg=typer.colors.GREEN)
@@ -1318,12 +1319,6 @@ def _download_cli_with_progress(url: str, filepath: Path) -> None:
         raise CommandError(f"Failed to download Tailwind CSS CLI: {e}") from e
 
 
-def _setup_tailwind_environment() -> None:
-    """Common setup for all Tailwind commands."""
-    _download_cli()
-    _create_standard_config()
-
-
 def _setup_tailwind_environment_with_verbose(*, verbose: bool = False) -> None:
     """Common setup for all Tailwind commands with verbose logging."""
     if verbose:
@@ -1561,11 +1556,6 @@ def _download_cli_with_verbose(*, verbose: bool = False, force_download: bool = 
 
 DEFAULT_SOURCE_CSS = '@import "tailwindcss";\n'
 DAISY_UI_SOURCE_CSS = '@import "tailwindcss";\n@plugin "daisyui";\n'
-
-
-def _create_standard_config() -> None:
-    """Create a standard Tailwind CSS config file with optimization."""
-    _create_standard_config_with_verbose(verbose=False)
 
 
 def _create_standard_config_with_verbose(*, verbose: bool = False) -> None:

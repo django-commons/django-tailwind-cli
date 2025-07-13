@@ -89,7 +89,7 @@ Run `python manage.py tailwind config` to show current Tailwind CSS configuratio
 
 The command shows:
 - All configuration paths (CLI, CSS input/output)
-- Version information  
+- Version information
 - Django settings values
 - File existence status
 - Platform information
@@ -100,7 +100,7 @@ Run `python manage.py tailwind setup` to launch the interactive setup guide for 
 
 The guide covers:
 1. Installation verification
-2. Django settings configuration  
+2. Django settings configuration
 3. CLI binary download
 4. First CSS build
 5. Template integration

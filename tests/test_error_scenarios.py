@@ -21,7 +21,7 @@ from semver import Version
 
 from django_tailwind_cli.config import (
     _get_cache_path,
-    _get_platform_info,
+    get_platform_info,
     _load_cached_version,
     _validate_required_settings,
     get_config,
@@ -219,7 +219,7 @@ class TestNetworkErrorScenarios:
             mock_get.return_value = mock_response
 
             # Should handle corrupted cache gracefully and fetch new version
-            version_str, version = get_version()
+            version_str, _ = get_version()
             assert version_str == "4.1.0"
 
 
@@ -675,13 +675,13 @@ class TestEdgeCaseScenarios:
         """Test platform information detection edge cases."""
         # Test various platform.system() return values
         with patch("platform.system", return_value="Unknown"):
-            info = _get_platform_info()
+            info = get_platform_info()
             assert info.system == "unknown"
             assert info.extension == ""  # Should default to no extension
 
         # Test various platform.machine() return values
         with patch("platform.machine", return_value="unknown_arch"):
-            info = _get_platform_info()
+            info = get_platform_info()
             assert info.machine == "unknown_arch"  # Should preserve unknown architectures
 
     def test_command_error_handling_decorator_edge_cases(self, settings: LazySettings, tmp_path: Path):

@@ -66,6 +66,10 @@ pythonVersion = "3.10"
 typeCheckingMode = "strict"
 venvPath = ".venv"
 venv = "."
+reportPrivateUsage = "warning"
+
+[tool.pyright.defineConstant]
+TYPE_CHECKING = true
 
 # mypy
 [tool.mypy]
