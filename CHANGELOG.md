@@ -5,8 +5,11 @@
 ### 🔧 Technical Improvements
 - **Type safety**: Fixed all pyright typing errors for better code quality and maintainability
 - **Code cleanup**: Removed unused functions and improved type annotations throughout codebase
-- **Dependencies**: Removed unused mypy configuration and django-stubs dependency
+- **Dependencies**: Removed requests dependency, replaced with custom HTTP implementation
+- **Exception handling**: Fixed exception naming to follow Python conventions and avoid builtin shadowing
+- **Test coverage**: Added proper type annotations to all mock_download functions across test files
 - **VS Code integration**: Added PyLance ignore comments for test files accessing private methods
+- **Django 6.0 support**: Added Django 6.0 to testing matrix and version compatibility
 
 ## 4.3.0 (2025-07-12)
 

@@ -9,11 +9,12 @@ import os
 import platform
 import time
 from pathlib import Path
+from collections.abc import Callable
 from unittest.mock import Mock, patch
 
 import pytest
-import requests
 from django.conf import LazySettings
+from django_tailwind_cli.utils import http
 from django.core.management import call_command
 from pytest import CaptureFixture
 
@@ -39,14 +40,16 @@ class TestBuildWorkflowIntegration:
         settings.TAILWIND_CLI_AUTOMATIC_DOWNLOAD = True
 
         # Mock network requests
-        with patch("requests.get") as mock_get:
-            mock_response = Mock()
-            mock_response.content = b"fake-cli-binary"
-            mock_response.headers = {"content-length": "100"}
-            mock_response.iter_content.return_value = [b"fake-cli-binary"]
-            mock_response.raise_for_status.return_value = None
-            mock_get.return_value = mock_response
+        def mock_download(
+            url: str,
+            filepath: Path,
+            timeout: int = 30,
+            progress_callback: Callable[[int, int, float], None] | None = None,
+        ) -> None:
+            filepath.parent.mkdir(parents=True, exist_ok=True)
+            filepath.write_bytes(b"fake-cli-binary")
 
+        with patch("django_tailwind_cli.utils.http.download_with_progress", side_effect=mock_download):
             # Mock subprocess to avoid actual CLI execution
             with patch("subprocess.run") as mock_subprocess:
                 mock_subprocess.return_value = Mock(returncode=0, stdout="", stderr="")
@@ -84,13 +87,22 @@ class TestBuildWorkflowIntegration:
         settings.TAILWIND_CLI_SRC_CSS.parent.mkdir(parents=True, exist_ok=True)
         settings.TAILWIND_CLI_SRC_CSS.write_text(custom_css)
 
-        with patch("requests.get") as mock_get, patch("subprocess.run") as mock_subprocess:
-            mock_response = Mock()
-            mock_response.content = b"fake-cli-binary"
-            mock_response.headers = {"content-length": "100"}
-            mock_response.iter_content.return_value = [b"fake-cli-binary"]
-            mock_response.raise_for_status.return_value = None
-            mock_get.return_value = mock_response
+        with (
+            patch("django_tailwind_cli.utils.http.download_with_progress") as mock_download,
+            patch("subprocess.run") as mock_subprocess,
+        ):
+            # Mock download function to create actual file
+            def mock_download_func(
+                url: str,
+                filepath: Path,
+                timeout: int = 30,
+                progress_callback: Callable[[int, int, float], None] | None = None,
+            ) -> None:
+                filepath.parent.mkdir(parents=True, exist_ok=True)
+                filepath.write_bytes(b"fake-cli-binary")
+                filepath.chmod(0o755)
+
+            mock_download.side_effect = mock_download_func
             mock_subprocess.return_value = Mock(returncode=0, stdout="", stderr="")
 
             call_command("tailwind", "build")
@@ -107,13 +119,22 @@ class TestBuildWorkflowIntegration:
         settings.TAILWIND_CLI_USE_DAISY_UI = True
         settings.TAILWIND_CLI_VERSION = "4.1.3"
 
-        with patch("requests.get") as mock_get, patch("subprocess.run") as mock_subprocess:
-            mock_response = Mock()
-            mock_response.content = b"fake-cli-binary"
-            mock_response.headers = {"content-length": "100"}
-            mock_response.iter_content.return_value = [b"fake-cli-binary"]
-            mock_response.raise_for_status.return_value = None
-            mock_get.return_value = mock_response
+        with (
+            patch("django_tailwind_cli.utils.http.download_with_progress") as mock_download,
+            patch("subprocess.run") as mock_subprocess,
+        ):
+            # Mock download function to create actual file
+            def mock_download_func(
+                url: str,
+                filepath: Path,
+                timeout: int = 30,
+                progress_callback: Callable[[int, int, float], None] | None = None,
+            ) -> None:
+                filepath.parent.mkdir(parents=True, exist_ok=True)
+                filepath.write_bytes(b"fake-cli-binary")
+                filepath.chmod(0o755)
+
+            mock_download.side_effect = mock_download_func
             mock_subprocess.return_value = Mock(returncode=0, stdout="", stderr="")
 
             call_command("tailwind", "build")
@@ -169,13 +190,22 @@ class TestWatchModeIntegration:
         settings.STATICFILES_DIRS = (tmp_path / "assets",)
         settings.TAILWIND_CLI_VERSION = "4.1.3"  # Avoid latest version fetch
 
-        with patch("requests.get") as mock_get, patch("subprocess.run") as mock_subprocess:
-            mock_response = Mock()
-            mock_response.content = b"fake-cli-binary"
-            mock_response.headers = {"content-length": "100"}
-            mock_response.iter_content.return_value = [b"fake-cli-binary"]
-            mock_response.raise_for_status.return_value = None
-            mock_get.return_value = mock_response
+        with (
+            patch("django_tailwind_cli.utils.http.download_with_progress") as mock_download,
+            patch("subprocess.run") as mock_subprocess,
+        ):
+            # Mock download function to create actual file
+            def mock_download_func(
+                url: str,
+                filepath: Path,
+                timeout: int = 30,
+                progress_callback: Callable[[int, int, float], None] | None = None,
+            ) -> None:
+                filepath.parent.mkdir(parents=True, exist_ok=True)
+                filepath.write_bytes(b"fake-cli-binary")
+                filepath.chmod(0o755)
+
+            mock_download.side_effect = mock_download_func
             mock_subprocess.return_value = Mock(returncode=0, stdout="", stderr="")
 
             call_command("tailwind", "watch")
@@ -196,13 +226,22 @@ class TestWatchModeIntegration:
         settings.STATICFILES_DIRS = (tmp_path / "assets",)
         settings.TAILWIND_CLI_VERSION = "4.1.3"  # Avoid latest version fetch
 
-        with patch("requests.get") as mock_get, patch("subprocess.run") as mock_subprocess:
-            mock_response = Mock()
-            mock_response.content = b"fake-cli-binary"
-            mock_response.headers = {"content-length": "100"}
-            mock_response.iter_content.return_value = [b"fake-cli-binary"]
-            mock_response.raise_for_status.return_value = None
-            mock_get.return_value = mock_response
+        with (
+            patch("django_tailwind_cli.utils.http.download_with_progress") as mock_download,
+            patch("subprocess.run") as mock_subprocess,
+        ):
+            # Mock download function to create actual file
+            def mock_download_func(
+                url: str,
+                filepath: Path,
+                timeout: int = 30,
+                progress_callback: Callable[[int, int, float], None] | None = None,
+            ) -> None:
+                filepath.parent.mkdir(parents=True, exist_ok=True)
+                filepath.write_bytes(b"fake-cli-binary")
+                filepath.chmod(0o755)
+
+            mock_download.side_effect = mock_download_func
             mock_subprocess.side_effect = KeyboardInterrupt()
 
             call_command("tailwind", "watch")
@@ -269,14 +308,16 @@ class TestCLIDownloadIntegration:
         settings.TAILWIND_CLI_PATH = tmp_path / ".django_tailwind_cli"
         settings.STATICFILES_DIRS = (tmp_path / "assets",)
 
-        with patch("requests.get") as mock_get:
-            mock_response = Mock()
-            mock_response.content = b"fake-cli-binary" * 1000  # Larger content for progress
-            mock_response.headers = {"content-length": str(len(mock_response.content))}
-            mock_response.iter_content.return_value = [b"fake-cli-binary" * 100] * 10
-            mock_response.raise_for_status.return_value = None
-            mock_get.return_value = mock_response
+        def mock_download(
+            url: str,
+            filepath: Path,
+            timeout: int = 30,
+            progress_callback: Callable[[int, int, float], None] | None = None,
+        ) -> None:
+            filepath.parent.mkdir(parents=True, exist_ok=True)
+            filepath.write_bytes(b"fake-cli-binary")
 
+        with patch("django_tailwind_cli.utils.http.download_with_progress", side_effect=mock_download):
             call_command("tailwind", "download_cli")
 
             captured = capsys.readouterr()
@@ -289,10 +330,10 @@ class TestCLIDownloadIntegration:
         settings.TAILWIND_CLI_PATH = tmp_path / ".django_tailwind_cli"
         settings.STATICFILES_DIRS = (tmp_path / "assets",)
 
-        with patch("requests.get") as mock_get:
-            mock_get.side_effect = requests.RequestException("Network error")
+        with patch("django_tailwind_cli.utils.http.download_with_progress") as mock_download:
+            mock_download.side_effect = http.RequestError("Network error")
 
-            with pytest.raises((requests.RequestException, Exception)):  # Should raise CommandError
+            with pytest.raises((http.RequestError, Exception)):  # Should raise CommandError
                 call_command("tailwind", "download_cli")
 
     def test_cli_permissions_after_download(self, settings: LazySettings, tmp_path: Path):
@@ -301,14 +342,16 @@ class TestCLIDownloadIntegration:
         settings.TAILWIND_CLI_PATH = tmp_path / ".django_tailwind_cli"
         settings.STATICFILES_DIRS = (tmp_path / "assets",)
 
-        with patch("requests.get") as mock_get:
-            mock_response = Mock()
-            mock_response.content = b"fake-cli-binary"
-            mock_response.headers = {"content-length": "100"}
-            mock_response.iter_content.return_value = [b"fake-cli-binary"]
-            mock_response.raise_for_status.return_value = None
-            mock_get.return_value = mock_response
+        def mock_download(
+            url: str,
+            filepath: Path,
+            timeout: int = 30,
+            progress_callback: Callable[[int, int, float], None] | None = None,
+        ) -> None:
+            filepath.parent.mkdir(parents=True, exist_ok=True)
+            filepath.write_bytes(b"fake-cli-binary")
 
+        with patch("django_tailwind_cli.utils.http.download_with_progress", side_effect=mock_download):
             call_command("tailwind", "download_cli")
 
             config = get_config()
@@ -350,13 +393,22 @@ class TestCrossPlatformCompatibility:
         settings.STATICFILES_DIRS = (spaced_path / "assets",)
         settings.TAILWIND_CLI_VERSION = "4.1.3"  # Avoid latest version fetch
 
-        with patch("requests.get") as mock_get, patch("subprocess.run") as mock_subprocess:
-            mock_response = Mock()
-            mock_response.content = b"fake-cli-binary"
-            mock_response.headers = {"content-length": "100"}
-            mock_response.iter_content.return_value = [b"fake-cli-binary"]
-            mock_response.raise_for_status.return_value = None
-            mock_get.return_value = mock_response
+        with (
+            patch("django_tailwind_cli.utils.http.download_with_progress") as mock_download,
+            patch("subprocess.run") as mock_subprocess,
+        ):
+            # Mock download function to create actual file
+            def mock_download_func(
+                url: str,
+                filepath: Path,
+                timeout: int = 30,
+                progress_callback: Callable[[int, int, float], None] | None = None,
+            ) -> None:
+                filepath.parent.mkdir(parents=True, exist_ok=True)
+                filepath.write_bytes(b"fake-cli-binary")
+                filepath.chmod(0o755)
+
+            mock_download.side_effect = mock_download_func
             mock_subprocess.return_value = Mock(returncode=0, stdout="", stderr="")
 
             # Should not raise exception
@@ -383,13 +435,22 @@ class TestErrorRecoveryScenarios:
         config.cli_path.write_text("corrupted")  # Text file, not binary
         config.cli_path.chmod(0o644)  # Not executable
 
-        with patch("requests.get") as mock_get, patch("subprocess.run") as mock_subprocess:
-            mock_response = Mock()
-            mock_response.content = b"fake-cli-binary"
-            mock_response.headers = {"content-length": "100"}
-            mock_response.iter_content.return_value = [b"fake-cli-binary"]
-            mock_response.raise_for_status.return_value = None
-            mock_get.return_value = mock_response
+        with (
+            patch("django_tailwind_cli.utils.http.download_with_progress") as mock_download,
+            patch("subprocess.run") as mock_subprocess,
+        ):
+            # Mock download function to create actual file
+            def mock_download_func(
+                url: str,
+                filepath: Path,
+                timeout: int = 30,
+                progress_callback: Callable[[int, int, float], None] | None = None,
+            ) -> None:
+                filepath.parent.mkdir(parents=True, exist_ok=True)
+                filepath.write_bytes(b"fake-cli-binary")
+                filepath.chmod(0o755)
+
+            mock_download.side_effect = mock_download_func
             mock_subprocess.return_value = Mock(returncode=0, stdout="", stderr="")
 
             # Should re-download and fix the binary
@@ -406,13 +467,22 @@ class TestErrorRecoveryScenarios:
         settings.TAILWIND_CLI_PATH = tmp_path / "missing" / "path" / ".django_tailwind_cli"
         settings.STATICFILES_DIRS = (tmp_path / "missing" / "assets",)
 
-        with patch("requests.get") as mock_get, patch("subprocess.run") as mock_subprocess:
-            mock_response = Mock()
-            mock_response.content = b"fake-cli-binary"
-            mock_response.headers = {"content-length": "100"}
-            mock_response.iter_content.return_value = [b"fake-cli-binary"]
-            mock_response.raise_for_status.return_value = None
-            mock_get.return_value = mock_response
+        with (
+            patch("django_tailwind_cli.utils.http.download_with_progress") as mock_download,
+            patch("subprocess.run") as mock_subprocess,
+        ):
+            # Mock download function to create actual file
+            def mock_download_func(
+                url: str,
+                filepath: Path,
+                timeout: int = 30,
+                progress_callback: Callable[[int, int, float], None] | None = None,
+            ) -> None:
+                filepath.parent.mkdir(parents=True, exist_ok=True)
+                filepath.write_bytes(b"fake-cli-binary")
+                filepath.chmod(0o755)
+
+            mock_download.side_effect = mock_download_func
             mock_subprocess.return_value = Mock(returncode=0, stdout="", stderr="")
 
             # Should create missing directories and complete build
@@ -434,13 +504,19 @@ class TestErrorRecoveryScenarios:
             restricted_dir.mkdir(mode=0o000)  # No permissions
             settings.TAILWIND_CLI_PATH = restricted_dir / "cli"
 
-            with patch("requests.get") as mock_get:
-                mock_response = Mock()
-                mock_response.content = b"fake-cli-binary"
-                mock_response.headers = {"content-length": "100"}
-                mock_response.iter_content.return_value = [b"fake-cli-binary"]
-                mock_response.raise_for_status.return_value = None
-                mock_get.return_value = mock_response
+            with patch("django_tailwind_cli.utils.http.download_with_progress") as mock_download:
+                # Mock download function to create actual file
+                def mock_download_func(
+                    url: str,
+                    filepath: Path,
+                    timeout: int = 30,
+                    progress_callback: Callable[[int, int, float], None] | None = None,
+                ) -> None:
+                    filepath.parent.mkdir(parents=True, exist_ok=True)
+                    filepath.write_bytes(b"fake-cli-binary")
+                    filepath.chmod(0o755)
+
+                mock_download.side_effect = mock_download_func
 
                 # Should handle permission error gracefully
                 with pytest.raises((PermissionError, Exception)):  # May raise PermissionError or CommandError
@@ -459,13 +535,22 @@ class TestVerboseLoggingIntegration:
         settings.TAILWIND_CLI_PATH = tmp_path / ".django_tailwind_cli"
         settings.STATICFILES_DIRS = (tmp_path / "assets",)
 
-        with patch("requests.get") as mock_get, patch("subprocess.run") as mock_subprocess:
-            mock_response = Mock()
-            mock_response.content = b"fake-cli-binary"
-            mock_response.headers = {"content-length": "100"}
-            mock_response.iter_content.return_value = [b"fake-cli-binary"]
-            mock_response.raise_for_status.return_value = None
-            mock_get.return_value = mock_response
+        with (
+            patch("django_tailwind_cli.utils.http.download_with_progress") as mock_download,
+            patch("subprocess.run") as mock_subprocess,
+        ):
+            # Mock download function to create actual file
+            def mock_download_func(
+                url: str,
+                filepath: Path,
+                timeout: int = 30,
+                progress_callback: Callable[[int, int, float], None] | None = None,
+            ) -> None:
+                filepath.parent.mkdir(parents=True, exist_ok=True)
+                filepath.write_bytes(b"fake-cli-binary")
+                filepath.chmod(0o755)
+
+            mock_download.side_effect = mock_download_func
             mock_subprocess.return_value = Mock(returncode=0, stdout="Build output", stderr="")
 
             call_command("tailwind", "build", "--verbose")
@@ -481,13 +566,22 @@ class TestVerboseLoggingIntegration:
         settings.TAILWIND_CLI_PATH = tmp_path / ".django_tailwind_cli"
         settings.STATICFILES_DIRS = (tmp_path / "assets",)
 
-        with patch("requests.get") as mock_get, patch("subprocess.run") as mock_subprocess:
-            mock_response = Mock()
-            mock_response.content = b"fake-cli-binary"
-            mock_response.headers = {"content-length": "100"}
-            mock_response.iter_content.return_value = [b"fake-cli-binary"]
-            mock_response.raise_for_status.return_value = None
-            mock_get.return_value = mock_response
+        with (
+            patch("django_tailwind_cli.utils.http.download_with_progress") as mock_download,
+            patch("subprocess.run") as mock_subprocess,
+        ):
+            # Mock download function to create actual file
+            def mock_download_func(
+                url: str,
+                filepath: Path,
+                timeout: int = 30,
+                progress_callback: Callable[[int, int, float], None] | None = None,
+            ) -> None:
+                filepath.parent.mkdir(parents=True, exist_ok=True)
+                filepath.write_bytes(b"fake-cli-binary")
+                filepath.chmod(0o755)
+
+            mock_download.side_effect = mock_download_func
             mock_subprocess.return_value = Mock(returncode=0, stdout="", stderr="")
 
             call_command("tailwind", "watch", "--verbose")

@@ -5,6 +5,7 @@ by implementing better mocking strategies, timeouts, and process management.
 """
 
 from pathlib import Path
+from collections.abc import Callable
 from unittest.mock import Mock
 
 import pytest
@@ -31,7 +32,17 @@ class TestFastCommands:
 
         # Mock only what's necessary for fast tests
         mocker.patch("subprocess.run")
-        mocker.patch("requests.get").return_value.content = b"fake-cli-binary"
+
+        def mock_download(
+            url: str,
+            filepath: Path,
+            timeout: int = 30,
+            progress_callback: Callable[[int, int, float], None] | None = None,
+        ) -> None:
+            filepath.parent.mkdir(parents=True, exist_ok=True)
+            filepath.write_bytes(b"fake-cli-binary")
+
+        mocker.patch("django_tailwind_cli.utils.http.download_with_progress", side_effect=mock_download)
 
     def test_calling_unknown_subcommand(self):
         """Test handling of unknown subcommands."""
@@ -95,7 +106,17 @@ class TestSubprocessCommands:
         # Mock all subprocess-related calls comprehensively
         self.mock_subprocess_run = mocker.patch("subprocess.run")
         self.mock_subprocess_popen = mocker.patch("subprocess.Popen")
-        mocker.patch("requests.get").return_value.content = b"fake-cli-binary"
+
+        def mock_download(
+            url: str,
+            filepath: Path,
+            timeout: int = 30,
+            progress_callback: Callable[[int, int, float], None] | None = None,
+        ) -> None:
+            filepath.parent.mkdir(parents=True, exist_ok=True)
+            filepath.write_bytes(b"fake-cli-binary")
+
+        mocker.patch("django_tailwind_cli.utils.http.download_with_progress", side_effect=mock_download)
 
         # Configure Popen mock to return immediately
         mock_process = Mock()
@@ -154,7 +175,17 @@ class TestProcessManagementCommands:
         # Mock ALL process-related functionality
         mocker.patch("subprocess.run")
         mocker.patch("subprocess.Popen")
-        mocker.patch("requests.get").return_value.content = b"fake-cli-binary"
+
+        def mock_download(
+            url: str,
+            filepath: Path,
+            timeout: int = 30,
+            progress_callback: Callable[[int, int, float], None] | None = None,
+        ) -> None:
+            filepath.parent.mkdir(parents=True, exist_ok=True)
+            filepath.write_bytes(b"fake-cli-binary")
+
+        mocker.patch("django_tailwind_cli.utils.http.download_with_progress", side_effect=mock_download)
 
         # Mock the ProcessManager entirely to prevent real process creation
         self.mock_process_manager = mocker.patch("django_tailwind_cli.management.commands.tailwind.ProcessManager")
@@ -219,7 +250,17 @@ class TestTemplateScanning:
 
         # Mock subprocess to avoid CLI calls
         mocker.patch("subprocess.run")
-        mocker.patch("requests.get").return_value.content = b"fake-cli-binary"
+
+        def mock_download(
+            url: str,
+            filepath: Path,
+            timeout: int = 30,
+            progress_callback: Callable[[int, int, float], None] | None = None,
+        ) -> None:
+            filepath.parent.mkdir(parents=True, exist_ok=True)
+            filepath.write_bytes(b"fake-cli-binary")
+
+        mocker.patch("django_tailwind_cli.utils.http.download_with_progress", side_effect=mock_download)
 
     @pytest.mark.timeout(10)  # Template scanning can be slower
     def test_list_templates_basic(self, capsys: CaptureFixture[str]):

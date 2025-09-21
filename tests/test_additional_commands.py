@@ -6,6 +6,7 @@ Also includes tests for error handling and edge cases.
 """
 
 from pathlib import Path
+from collections.abc import Callable
 
 import pytest
 from django.conf import LazySettings
@@ -30,7 +31,14 @@ def configure_test_settings(settings: LazySettings, tmp_path: Path, mocker: Mock
 
     # Mock subprocess to avoid actual CLI calls
     mocker.patch("subprocess.run")
-    mocker.patch("requests.get").return_value.content = b"fake binary content"
+
+    def mock_download(
+        url: str, filepath: Path, timeout: int = 30, progress_callback: Callable[[int, int, float], None] | None = None
+    ) -> None:
+        filepath.parent.mkdir(parents=True, exist_ok=True)
+        filepath.write_bytes(b"fake binary content")
+
+    mocker.patch("django_tailwind_cli.utils.http.download_with_progress", side_effect=mock_download)
 
 
 class TestConfigCommand:

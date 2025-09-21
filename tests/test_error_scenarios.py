@@ -11,11 +11,12 @@ import signal
 import subprocess
 import time
 from pathlib import Path
+from collections.abc import Callable
 from unittest.mock import Mock, patch
 
 import pytest
-import requests
 from django.conf import LazySettings
+from django_tailwind_cli.utils import http
 from django.core.management import CommandError, call_command
 from pytest import CaptureFixture
 from semver import Version
@@ -127,8 +128,8 @@ class TestNetworkErrorScenarios:
         if cache_path.exists():
             cache_path.unlink()
 
-        with patch("requests.get") as mock_get:
-            mock_get.side_effect = requests.Timeout("Connection timeout")
+        with patch("django_tailwind_cli.utils.http.fetch_redirect_location") as mock_fetch:
+            mock_fetch.side_effect = http.RequestTimeoutError("Connection timeout")
 
             # Should fall back to fallback version
             version_str, _ = get_version()
@@ -144,8 +145,8 @@ class TestNetworkErrorScenarios:
         if cache_path.exists():
             cache_path.unlink()
 
-        with patch("requests.get") as mock_get:
-            mock_get.side_effect = requests.ConnectionError("Network unreachable")
+        with patch("django_tailwind_cli.utils.http.fetch_redirect_location") as mock_fetch:
+            mock_fetch.side_effect = http.NetworkConnectionError("Network unreachable")
 
             # Should fall back to fallback version
             version_str, _ = get_version()
@@ -161,11 +162,8 @@ class TestNetworkErrorScenarios:
         if cache_path.exists():
             cache_path.unlink()
 
-        with patch("requests.get") as mock_get:
-            mock_response = Mock()
-            mock_response.ok = False
-            mock_response.status_code = 404
-            mock_get.return_value = mock_response
+        with patch("django_tailwind_cli.utils.http.fetch_redirect_location") as mock_fetch:
+            mock_fetch.return_value = (False, None)
 
             # Should fall back to fallback version
             version_str, _ = get_version()
@@ -177,8 +175,8 @@ class TestNetworkErrorScenarios:
         settings.STATICFILES_DIRS = [tmp_path / "assets"]
         settings.TAILWIND_CLI_PATH = tmp_path / ".cli"
 
-        with patch("requests.get") as mock_get:
-            mock_get.side_effect = requests.RequestException("Network error")
+        with patch("django_tailwind_cli.utils.http.download_with_progress") as mock_download:
+            mock_download.side_effect = http.RequestError("Network error")
 
             with pytest.raises(CommandError, match="Failed to download Tailwind CSS CLI"):
                 call_command("tailwind", "download_cli")
@@ -189,13 +187,17 @@ class TestNetworkErrorScenarios:
         settings.STATICFILES_DIRS = [tmp_path / "assets"]
         settings.TAILWIND_CLI_PATH = tmp_path / ".cli"
 
-        with patch("requests.get") as mock_get:
-            mock_response = Mock()
-            mock_response.headers = {"content-length": "1000"}  # Claims 1000 bytes
-            mock_response.iter_content.return_value = [b"incomplete"]  # Only ~10 bytes
-            mock_response.raise_for_status.return_value = None
-            mock_get.return_value = mock_response
+        def mock_download(
+            url: str,
+            filepath: Path,
+            timeout: int = 30,
+            progress_callback: Callable[[int, int, float], None] | None = None,
+        ) -> None:
+            # Simulate incomplete download by writing partial content
+            filepath.parent.mkdir(parents=True, exist_ok=True)
+            filepath.write_bytes(b"incomplete")
 
+        with patch("django_tailwind_cli.utils.http.download_with_progress", side_effect=mock_download):
             # Should complete download despite size mismatch
             call_command("tailwind", "download_cli")
 
@@ -213,11 +215,8 @@ class TestNetworkErrorScenarios:
         cache_path.parent.mkdir(parents=True, exist_ok=True)
         cache_path.write_text("corrupted\ncache\ndata")
 
-        with patch("requests.get") as mock_get:
-            mock_response = Mock()
-            mock_response.ok = True
-            mock_response.headers = {"location": "https://github.com/repo/releases/tag/v4.1.0"}
-            mock_get.return_value = mock_response
+        with patch("django_tailwind_cli.utils.http.fetch_redirect_location") as mock_fetch:
+            mock_fetch.return_value = (True, "https://github.com/repo/releases/tag/v4.1.0")
 
             # Should handle corrupted cache gracefully and fetch new version
             version_str, _ = get_version()
@@ -285,14 +284,17 @@ class TestSubprocessErrorScenarios:
         config.cli_path.write_text("fake cli content")
         config.cli_path.chmod(0o644)  # Not executable
 
-        with patch("requests.get") as mock_get:
-            mock_response = Mock()
-            mock_response.content = b"real-cli-binary"
-            mock_response.headers = {"content-length": "100"}
-            mock_response.iter_content.return_value = [b"real-cli-binary"]
-            mock_response.raise_for_status.return_value = None
-            mock_get.return_value = mock_response
+        def mock_download(
+            url: str,
+            filepath: Path,
+            timeout: int = 30,
+            progress_callback: Callable[[int, int, float], None] | None = None,
+        ) -> None:
+            # Write the expected binary content
+            filepath.parent.mkdir(parents=True, exist_ok=True)
+            filepath.write_bytes(b"real-cli-binary")
 
+        with patch("django_tailwind_cli.utils.http.download_with_progress", side_effect=mock_download):
             with patch("subprocess.run") as mock_subprocess:
                 mock_subprocess.return_value = Mock(returncode=0)
 
@@ -337,15 +339,17 @@ class TestFileSystemErrorScenarios:
         readonly_dir.mkdir(mode=0o555)  # Read and execute only
         settings.TAILWIND_CLI_PATH = readonly_dir / "cli"
 
-        try:
-            with patch("requests.get") as mock_get:
-                mock_response = Mock()
-                mock_response.content = b"cli-binary"
-                mock_response.headers = {"content-length": "100"}
-                mock_response.iter_content.return_value = [b"cli-binary"]
-                mock_response.raise_for_status.return_value = None
-                mock_get.return_value = mock_response
+        def mock_download(
+            url: str,
+            filepath: Path,
+            timeout: int = 30,
+            progress_callback: Callable[[int, int, float], None] | None = None,
+        ) -> None:
+            filepath.parent.mkdir(parents=True, exist_ok=True)
+            filepath.write_bytes(b"cli-binary")
 
+        try:
+            with patch("django_tailwind_cli.utils.http.download_with_progress", side_effect=mock_download):
                 with pytest.raises((CommandError, PermissionError)):
                     call_command("tailwind", "download_cli")
         finally:
@@ -427,14 +431,17 @@ class TestFileSystemErrorScenarios:
             config.cli_path.parent.chmod(0o555)  # Read-only directory
 
             try:
-                with patch("requests.get") as mock_get:
-                    mock_response = Mock()
-                    mock_response.content = b"cli-binary"
-                    mock_response.headers = {"content-length": "100"}
-                    mock_response.iter_content.return_value = [b"cli-binary"]
-                    mock_response.raise_for_status.return_value = None
-                    mock_get.return_value = mock_response
 
+                def mock_download(
+                    url: str,
+                    filepath: Path,
+                    timeout: int = 30,
+                    progress_callback: Callable[[int, int, float], None] | None = None,
+                ) -> None:
+                    filepath.parent.mkdir(parents=True, exist_ok=True)
+                    filepath.write_bytes(b"cli-binary")
+
+                with patch("django_tailwind_cli.utils.http.download_with_progress", side_effect=mock_download):
                     # Should handle permission/disk errors gracefully
                     with pytest.raises((CommandError, PermissionError, OSError)):
                         call_command("tailwind", "download_cli")
@@ -443,14 +450,11 @@ class TestFileSystemErrorScenarios:
                 config.cli_path.parent.chmod(0o755)
         else:
             # On Windows, just test that the command can complete normally
-            with patch("requests.get") as mock_get:
-                mock_response = Mock()
-                mock_response.content = b"cli-binary"
-                mock_response.headers = {"content-length": "100"}
-                mock_response.iter_content.return_value = [b"cli-binary"]
-                mock_response.raise_for_status.return_value = None
-                mock_get.return_value = mock_response
+            def mock_download(url, filepath, timeout=30, progress_callback=None):
+                filepath.parent.mkdir(parents=True, exist_ok=True)
+                filepath.write_bytes(b"cli-binary")
 
+            with patch("django_tailwind_cli.utils.http.download_with_progress", side_effect=mock_download):
                 call_command("tailwind", "download_cli")
                 config = get_config()
                 assert config.cli_path.exists()
@@ -500,14 +504,16 @@ class TestConcurrencyErrorScenarios:
         settings.STATICFILES_DIRS = [tmp_path / "assets"]
         settings.TAILWIND_CLI_PATH = tmp_path / ".cli"
 
-        with patch("requests.get") as mock_get:
-            mock_response = Mock()
-            mock_response.content = b"our-cli-binary"
-            mock_response.headers = {"content-length": "100"}
-            mock_response.iter_content.return_value = [b"our-cli-binary"]
-            mock_response.raise_for_status.return_value = None
-            mock_get.return_value = mock_response
+        def mock_download(
+            url: str,
+            filepath: Path,
+            timeout: int = 30,
+            progress_callback: Callable[[int, int, float], None] | None = None,
+        ) -> None:
+            filepath.parent.mkdir(parents=True, exist_ok=True)
+            filepath.write_bytes(b"our-cli-binary")
 
+        with patch("django_tailwind_cli.utils.http.download_with_progress", side_effect=mock_download):
             # Should complete successfully
             call_command("tailwind", "download_cli")
 
@@ -525,11 +531,8 @@ class TestConcurrencyErrorScenarios:
         if cache_path.exists():
             cache_path.unlink()
 
-        with patch("requests.get") as mock_get:
-            mock_response = Mock()
-            mock_response.ok = True
-            mock_response.headers = {"location": "https://github.com/repo/releases/tag/v4.1.5"}
-            mock_get.return_value = mock_response
+        with patch("django_tailwind_cli.utils.http.fetch_redirect_location") as mock_fetch:
+            mock_fetch.return_value = (True, "https://github.com/repo/releases/tag/v4.1.5")
 
             # Should handle version fetch gracefully
             version_str, parsed_version = get_version()
@@ -546,14 +549,16 @@ class TestEdgeCaseScenarios:
         settings.STATICFILES_DIRS = [tmp_path / "assets"]
         settings.TAILWIND_CLI_PATH = tmp_path / ".cli"
 
-        with patch("requests.get") as mock_get:
-            mock_response = Mock()
-            mock_response.content = b""  # Empty content
-            mock_response.headers = {"content-length": "0"}
-            mock_response.iter_content.return_value = iter([])  # Empty iterator
-            mock_response.raise_for_status.return_value = None
-            mock_get.return_value = mock_response
+        def mock_download(
+            url: str,
+            filepath: Path,
+            timeout: int = 30,
+            progress_callback: Callable[[int, int, float], None] | None = None,
+        ) -> None:
+            filepath.parent.mkdir(parents=True, exist_ok=True)
+            filepath.write_bytes(b"")  # Empty content
 
+        with patch("django_tailwind_cli.utils.http.download_with_progress", side_effect=mock_download):
             # Ensure directory exists before attempting download
             config = get_config()
             config.cli_path.parent.mkdir(parents=True, exist_ok=True)
@@ -640,11 +645,8 @@ class TestEdgeCaseScenarios:
         ]
 
         for location in malformed_locations:
-            with patch("requests.get") as mock_get:
-                mock_response = Mock()
-                mock_response.ok = True
-                mock_response.headers = {"location": location}
-                mock_get.return_value = mock_response
+            with patch("django_tailwind_cli.utils.http.fetch_redirect_location") as mock_fetch:
+                mock_fetch.return_value = (True, location)
 
                 # Should fall back to fallback version on parsing errors
                 version_str, _ = get_version()

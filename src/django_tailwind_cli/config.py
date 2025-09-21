@@ -78,7 +78,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import NamedTuple
 
-import requests
+from django_tailwind_cli.utils import http
 from django.conf import settings
 from semver import Version
 
@@ -288,13 +288,15 @@ def get_version() -> tuple[str, Version]:
         # Fetch latest version from GitHub
         timeout = getattr(settings, "TAILWIND_CLI_REQUEST_TIMEOUT", 10)
         try:
-            r = requests.get(f"https://github.com/{repo_url}/releases/latest/", timeout=timeout, allow_redirects=False)
-            if r.ok and "location" in r.headers:
-                version_str = r.headers["location"].rstrip("/").split("/")[-1].replace("v", "")
+            success, location = http.fetch_redirect_location(
+                f"https://github.com/{repo_url}/releases/latest/", timeout=timeout
+            )
+            if success and location:
+                version_str = location.rstrip("/").split("/")[-1].replace("v", "")
                 # Cache the result
                 _save_cached_version(repo_url, version_str)
                 return version_str, Version.parse(version_str)
-        except (requests.RequestException, ValueError):
+        except (http.RequestError, ValueError):
             # Network or parsing error, fall back to cached or default
             pass
 

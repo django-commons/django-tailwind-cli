@@ -12,7 +12,7 @@ from types import FrameType
 from typing import Any
 from collections.abc import Callable
 
-import requests
+from django_tailwind_cli.utils import http
 import typer
 from django.conf import settings
 from django.core.management.base import CommandError
@@ -1284,38 +1284,21 @@ def _download_cli_with_progress(url: str, filepath: Path) -> None:
         url: Download URL.
         filepath: Destination file path.
     """
+    last_progress = 0
+
+    def progress_callback(downloaded: int, total_size: int, progress: float) -> None:
+        nonlocal last_progress
+        # Show progress every 10%
+        if total_size > 0 and int(progress / 10) > int(last_progress / 10):
+            typer.secho(f"Progress: {progress:.1f}% ({downloaded}/{total_size} bytes)", fg=typer.colors.CYAN)
+            last_progress = progress
+
     try:
-        response = requests.get(url, stream=True, timeout=30)
-        response.raise_for_status()
-
-        total_size = int(response.headers.get("content-length", 0))
-
-        if total_size == 0:
-            # Fallback for unknown size
-            typer.secho("Downloading Tailwind CSS CLI...", fg=typer.colors.YELLOW)
-            filepath.write_bytes(response.content)
-            return
-
-        # Download with progress
-        downloaded = 0
-        filepath.parent.mkdir(parents=True, exist_ok=True)
-
-        with filepath.open("wb") as f:
-            typer.secho("Downloading Tailwind CSS CLI...", fg=typer.colors.YELLOW)
-            for chunk in response.iter_content(chunk_size=8192):
-                if chunk:
-                    f.write(chunk)
-                    downloaded += len(chunk)
-
-                    # Show progress every 10%
-                    if total_size > 0:
-                        progress = (downloaded / total_size) * 100
-                        if downloaded % (total_size // 10 + 1) < 8192:
-                            typer.secho(f"Progress: {progress:.1f}%", fg=typer.colors.CYAN)
-
+        typer.secho("Downloading Tailwind CSS CLI...", fg=typer.colors.YELLOW)
+        http.download_with_progress(url, filepath, timeout=30, progress_callback=progress_callback)
         typer.secho("Download completed!", fg=typer.colors.GREEN)
 
-    except requests.RequestException as e:
+    except http.RequestError as e:
         raise CommandError(f"Failed to download Tailwind CSS CLI: {e}") from e
 
 

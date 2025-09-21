@@ -114,7 +114,7 @@ Key Django settings for configuration:
 ## Version Support
 
 - Python: 3.10-3.14
-- Django: 4.0-5.2
+- Django: 4.0-6.0
 - Tailwind CSS: 4.x only (use v2.21.1 for Tailwind 3.x)
 
 ## Commit Message Guidelines

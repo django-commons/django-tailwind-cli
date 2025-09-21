@@ -15,8 +15,8 @@ def configure_settings(
 ):
     settings.BASE_DIR = Path("/home/user/project")
     settings.STATICFILES_DIRS = (settings.BASE_DIR / "assets",)
-    request_get = mocker.patch("requests.get")
-    request_get.return_value.headers = {"location": "https://github.com/tailwindlabs/tailwindcss/releases/tag/v4.1.3"}
+    request_get = mocker.patch("django_tailwind_cli.utils.http.fetch_redirect_location")
+    request_get.return_value = (True, "https://github.com/tailwindlabs/tailwindcss/releases/tag/v4.1.3")
 
 
 @pytest.mark.parametrize(
@@ -45,8 +45,8 @@ def test_get_version(
             cache_path.unlink()
 
         # Mock failed network request to force fallback
-        request_get = mocker.patch("requests.get")
-        request_get.return_value.ok = False
+        request_get = mocker.patch("django_tailwind_cli.utils.http.fetch_redirect_location")
+        request_get.return_value = (False, None)
 
     r_version_str, r_version = get_version()
     assert r_version_str == expected_version_str
@@ -63,8 +63,8 @@ def test_get_version_latest_without_proper_http_response(mocker: MockerFixture):
     if cache_path.exists():
         cache_path.unlink()
 
-    request_get = mocker.patch("requests.get")
-    request_get.return_value.ok = False
+    request_get = mocker.patch("django_tailwind_cli.utils.http.fetch_redirect_location")
+    request_get.return_value = (False, None)
 
     r_version_str, r_version = get_version()
     assert r_version_str == "4.1.3"
@@ -81,8 +81,8 @@ def test_get_version_latest_without_redirect(mocker: MockerFixture):
     if cache_path.exists():
         cache_path.unlink()
 
-    request_get = mocker.patch("requests.get")
-    request_get.return_value.headers = {}
+    request_get = mocker.patch("django_tailwind_cli.utils.http.fetch_redirect_location")
+    request_get.return_value = (True, None)
 
     r_version_str, r_version = get_version()
     assert r_version_str == "4.1.3"
@@ -297,10 +297,8 @@ def test_daisy_ui_support(
     mocker: MockerFixture,
 ):
     settings.TAILWIND_CLI_USE_DAISY_UI = True
-    request_get = mocker.patch("requests.get")
-    request_get.return_value.headers = {
-        "location": "https://github.com/dobicinaitis/tailwind-cli-extra/releases/tag/v2.1.4"
-    }
+    request_get = mocker.patch("django_tailwind_cli.utils.http.fetch_redirect_location")
+    request_get.return_value = (True, "https://github.com/dobicinaitis/tailwind-cli-extra/releases/tag/v2.1.4")
 
     c = get_config()
 

@@ -160,7 +160,7 @@ Start adding Tailwind classes to your templates:
 ## 📋 Requirements
 
 - **Python:** 3.10+
-- **Django:** 4.0+
+- **Django:** 4.0-6.0+
 - **Platform:** Windows, macOS, Linux (automatic platform detection)
 
 ## ⚙️ Configuration Examples

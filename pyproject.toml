@@ -24,15 +24,11 @@ classifiers = [
     "Framework :: Django :: 5.0",
     "Framework :: Django :: 5.1",
     "Framework :: Django :: 5.2",
+    "Framework :: Django :: 6.0",
 ]
 dynamic = ["version"]
 requires-python = ">=3.10"
-dependencies = [
-    "django>=4.0",
-    "django-typer>=2.1.2",
-    "requests>=2.32.3",
-    "semver>=3.0.4",
-]
+dependencies = ["django>=4.0", "django-typer>=2.1.2", "semver>=3.0.4"]
 
 [project.optional-dependencies]
 django-extensions = ["django-extensions>=3.2", "werkzeug>=3.0"]
