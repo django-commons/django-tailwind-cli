@@ -119,6 +119,12 @@ Key Django settings for configuration:
 
 ## Commit Message Guidelines
 
+**⚠️ CRITICAL REQUIREMENT: NO CLAUDE REFERENCES**
+- **NEVER include any Claude Code references, marketing info, or AI-generated footers in commit messages**
+- **NEVER add "Generated with Claude Code", "Co-Authored-By: Claude", or any similar lines**
+- **Commit messages must be completely clean and professional - no AI tool attribution whatsoever**
+- **This is a strict project requirement and violations will require commit message rewrites**
+
 Use conventional commit format with the following structure:
 
 ```
@@ -176,10 +182,10 @@ chore(deps): bump django-typer to 2.1.2
 ```
 
 ### Important Notes
-- **NEVER include Claude Code references in commit messages** - This is strictly prohibited
-- **NEVER add "Generated with Claude Code" or "Co-Authored-By: Claude" lines** - Commit messages must be clean
 - Keep commit messages focused on the technical changes made
 - Use bullet points to describe key modifications and their impact
+- Follow conventional commit format consistently
+- Be concise but descriptive about what changed and why
 
 ## Changelog Requirements
 
