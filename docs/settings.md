@@ -66,13 +66,13 @@ your project.
     >    ```
 
 `TAILWIND_CLI_SRC_CSS`
-**Default**: `.django_tailwind_cli/source.css`
+: **Default**: `".django_tailwind_cli/source.css"`
 
     This variable can be set to a relative path and an absolute path.
 
     If it is a relative path it is assumed to be relative to `settings.BASE_DIR`. If `settings.BASE_DIR` is not defined or the file doesn't exist a `ValueError` is raised.
 
-    If it is an absolute path, this path is used as the input file for Tailwind CSS CLI. If the path doesn't exist, a `ValueError`is raised.
+    If it is an absolute path, this path is used as the input file for Tailwind CSS CLI. If the path doesn't exist, a `ValueError` is raised.
 
 `TAILWIND_CLI_DIST_CSS`
 : **Default**: `"css/tailwind.css"`
