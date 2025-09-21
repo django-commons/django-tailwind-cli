@@ -2,12 +2,15 @@
 
 ## Unreleased
 
+## 4.4.0 (2025-09-21)
+
 ### 🔧 Technical Improvements
 - **Type safety**: Fixed all pyright typing errors for better code quality and maintainability
 - **Code cleanup**: Removed unused functions and improved type annotations throughout codebase
 - **Dependencies**: Removed requests dependency, replaced with custom HTTP implementation
 - **Exception handling**: Fixed exception naming to follow Python conventions and avoid builtin shadowing
-- **Test coverage**: Added proper type annotations to all mock_download functions across test files
+- **Test coverage**: Added comprehensive HTTP module tests, improving coverage from 82% to 85%
+- **Error handling**: Complete test coverage for network timeouts, connection errors, and edge cases
 - **VS Code integration**: Added PyLance ignore comments for test files accessing private methods
 - **Django 6.0 support**: Added Django 6.0 to testing matrix and version compatibility
 
