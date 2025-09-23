@@ -97,6 +97,72 @@ def test_get_version_with_official_repo_and_version_3(settings: SettingsWrapper)
         get_version()
 
 
+def test_get_version_with_daisyui_enabled_latest(settings: SettingsWrapper, mocker: MockerFixture):
+    """Test that DaisyUI uses the correct repository and correctly parses version."""
+    # Clear any existing cache
+    from django_tailwind_cli.config import _get_cache_path
+    from semver import Version
+
+    cache_path = _get_cache_path()
+    if cache_path.exists():
+        cache_path.unlink()
+
+    settings.TAILWIND_CLI_USE_DAISY_UI = True
+    settings.TAILWIND_CLI_VERSION = "latest"
+
+    # Mock successful redirect to a generic valid DaisyUI version
+    test_version = "9.8.7"
+    request_get = mocker.patch("django_tailwind_cli.utils.http.fetch_redirect_location")
+    request_get.return_value = (
+        True,
+        f"https://github.com/dobicinaitis/tailwind-cli-extra/releases/tag/v{test_version}",
+    )
+
+    r_version_str, r_version = get_version()
+
+    # Test that version string is correctly extracted (without 'v' prefix)
+    assert r_version_str == test_version
+
+    # Test that version is correctly parsed as semantic version
+    assert isinstance(r_version, Version)
+    assert str(r_version) == test_version
+
+    # Verify the correct DaisyUI repository URL was used (not standard Tailwind)
+    request_get.assert_called_once_with(
+        "https://github.com/dobicinaitis/tailwind-cli-extra/releases/latest/", timeout=10
+    )
+
+
+def test_get_version_with_daisyui_fallback_when_network_fails(settings: SettingsWrapper, mocker: MockerFixture):
+    """Test fallback behavior when DaisyUI is enabled but network request fails."""
+    # Clear any existing cache
+    from django_tailwind_cli.config import _get_cache_path, FALLBACK_VERSION
+    from semver import Version
+
+    cache_path = _get_cache_path()
+    if cache_path.exists():
+        cache_path.unlink()
+
+    settings.TAILWIND_CLI_USE_DAISY_UI = True
+    settings.TAILWIND_CLI_VERSION = "latest"
+
+    # Mock failed network request
+    request_get = mocker.patch("django_tailwind_cli.utils.http.fetch_redirect_location")
+    request_get.return_value = (False, None)
+
+    r_version_str, r_version = get_version()
+
+    # Should fall back to the configured fallback version
+    assert r_version_str == FALLBACK_VERSION
+    assert isinstance(r_version, Version)
+    assert str(r_version) == FALLBACK_VERSION
+
+    # Verify the correct DaisyUI repository URL was still used in the attempt
+    request_get.assert_called_once_with(
+        "https://github.com/dobicinaitis/tailwind-cli-extra/releases/latest/", timeout=10
+    )
+
+
 def test_get_version_with_unofficial_repo_and_version_3(settings: SettingsWrapper):
     settings.TAILWIND_CLI_VERSION = "3.4.13"
     settings.TAILWIND_CLI_SRC_REPO = "oliverandrich/my-tailwindcss-cli"
@@ -296,18 +362,25 @@ def test_daisy_ui_support(
     settings: SettingsWrapper,
     mocker: MockerFixture,
 ):
+    from semver import Version
+
     settings.TAILWIND_CLI_USE_DAISY_UI = True
+    test_version = "7.6.5"
     request_get = mocker.patch("django_tailwind_cli.utils.http.fetch_redirect_location")
-    request_get.return_value = (True, "https://github.com/dobicinaitis/tailwind-cli-extra/releases/tag/v2.1.4")
+    request_get.return_value = (
+        True,
+        f"https://github.com/dobicinaitis/tailwind-cli-extra/releases/tag/v{test_version}",
+    )
 
     c = get_config()
 
+    # Test DaisyUI configuration is properly applied
     assert c.use_daisy_ui
     assert "tailwindcss-extra" in str(c.cli_path)
     assert "dobicinaitis/tailwind-cli-extra" in c.download_url
 
+    # Test version parsing works correctly
     r_version_str, r_version = get_version()
-    assert r_version_str == "2.1.4"
-    assert r_version.major == 2
-    assert r_version.minor == 1
-    assert r_version.patch == 4
+    assert r_version_str == test_version
+    assert isinstance(r_version, Version)
+    assert str(r_version) == test_version

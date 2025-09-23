@@ -8,7 +8,9 @@ from typing import TYPE_CHECKING
 from collections.abc import Callable
 from urllib.error import HTTPError as UrllibHTTPError
 from urllib.error import URLError
-from urllib.request import Request, urlopen
+from urllib.request import Request, urlopen, HTTPRedirectHandler, build_opener
+from typing import IO
+from http.client import HTTPMessage
 
 if TYPE_CHECKING:
     pass
@@ -30,6 +32,30 @@ class RequestTimeoutError(RequestError):
     """Request timeout error."""
 
 
+class NoRedirectHandler(HTTPRedirectHandler):
+    """HTTP redirect handler that captures redirect information without following."""
+
+    def http_error_302(self, req: Request, fp: IO[bytes], code: int, msg: str, headers: HTTPMessage) -> IO[bytes]:  # noqa: ARG002
+        """Handle 302 Found redirects."""
+        return fp
+
+    def http_error_301(self, req: Request, fp: IO[bytes], code: int, msg: str, headers: HTTPMessage) -> IO[bytes]:  # noqa: ARG002
+        """Handle 301 Moved Permanently redirects."""
+        return fp
+
+    def http_error_303(self, req: Request, fp: IO[bytes], code: int, msg: str, headers: HTTPMessage) -> IO[bytes]:  # noqa: ARG002
+        """Handle 303 See Other redirects."""
+        return fp
+
+    def http_error_307(self, req: Request, fp: IO[bytes], code: int, msg: str, headers: HTTPMessage) -> IO[bytes]:  # noqa: ARG002
+        """Handle 307 Temporary Redirect redirects."""
+        return fp
+
+    def http_error_308(self, req: Request, fp: IO[bytes], code: int, msg: str, headers: HTTPMessage) -> IO[bytes]:  # noqa: ARG002
+        """Handle 308 Permanent Redirect redirects."""
+        return fp
+
+
 def fetch_redirect_location(url: str, timeout: int = 10) -> tuple[bool, str | None]:
     """Fetch redirect location from a URL.
 
@@ -44,11 +70,14 @@ def fetch_redirect_location(url: str, timeout: int = 10) -> tuple[bool, str | No
         RequestError: On network or HTTP errors
     """
     try:
+        # Create opener with no redirect handler to capture redirect responses
+        opener = build_opener(NoRedirectHandler)
+
         req = Request(url)
         # Set User-Agent to avoid blocking
         req.add_header("User-Agent", "django-tailwind-cli")
 
-        with urlopen(req, timeout=timeout) as response:
+        with opener.open(req, timeout=timeout) as response:
             # Check if it's a redirect status
             if response.getcode() in (301, 302, 303, 307, 308):
                 location = response.headers.get("Location")

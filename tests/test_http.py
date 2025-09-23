@@ -21,7 +21,9 @@ class TestFetchRedirectLocation:
         """Test timeout error handling."""
         mock_error = URLError(socket.timeout("timeout"))
 
-        with patch("django_tailwind_cli.utils.http.urlopen", side_effect=mock_error):
+        with patch("django_tailwind_cli.utils.http.build_opener") as mock_build_opener:
+            mock_opener = mock_build_opener.return_value
+            mock_opener.open.side_effect = mock_error
             with pytest.raises(http.RequestTimeoutError, match="Request timeout"):
                 http.fetch_redirect_location("https://example.com")
 
@@ -29,7 +31,9 @@ class TestFetchRedirectLocation:
         """Test connection error handling."""
         mock_error = URLError(ConnectionRefusedError("connection refused"))
 
-        with patch("django_tailwind_cli.utils.http.urlopen", side_effect=mock_error):
+        with patch("django_tailwind_cli.utils.http.build_opener") as mock_build_opener:
+            mock_opener = mock_build_opener.return_value
+            mock_opener.open.side_effect = mock_error
             with pytest.raises(http.NetworkConnectionError, match="Connection error"):
                 http.fetch_redirect_location("https://example.com")
 
@@ -37,19 +41,25 @@ class TestFetchRedirectLocation:
         """Test generic URL error handling."""
         mock_error = URLError("generic error")
 
-        with patch("django_tailwind_cli.utils.http.urlopen", side_effect=mock_error):
+        with patch("django_tailwind_cli.utils.http.build_opener") as mock_build_opener:
+            mock_opener = mock_build_opener.return_value
+            mock_opener.open.side_effect = mock_error
             with pytest.raises(http.RequestError, match="URL error"):
                 http.fetch_redirect_location("https://example.com")
 
     def test_fetch_redirect_location_timeout_error_direct(self):
         """Test direct timeout error handling."""
-        with patch("django_tailwind_cli.utils.http.urlopen", side_effect=TimeoutError("timeout")):
+        with patch("django_tailwind_cli.utils.http.build_opener") as mock_build_opener:
+            mock_opener = mock_build_opener.return_value
+            mock_opener.open.side_effect = TimeoutError("timeout")
             with pytest.raises(http.RequestTimeoutError, match="Socket timeout"):
                 http.fetch_redirect_location("https://example.com")
 
     def test_fetch_redirect_location_generic_exception(self):
         """Test generic exception handling."""
-        with patch("django_tailwind_cli.utils.http.urlopen", side_effect=ValueError("unexpected")):
+        with patch("django_tailwind_cli.utils.http.build_opener") as mock_build_opener:
+            mock_opener = mock_build_opener.return_value
+            mock_opener.open.side_effect = ValueError("unexpected")
             with pytest.raises(http.RequestError, match="Unexpected error"):
                 http.fetch_redirect_location("https://example.com")
 

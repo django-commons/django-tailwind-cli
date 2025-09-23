@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### 🐛 Bug Fixes
+- **DaisyUI version detection**: Fixed incorrect version fetching when `TAILWIND_CLI_USE_DAISY_UI = True` enabled
+
 ## 4.4.0 (2025-09-21)
 
 ### 🔧 Technical Improvements
