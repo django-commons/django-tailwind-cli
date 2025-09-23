@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 4.4.2 (2025-09-23)
+
+### 🐛 Bug Fixes
+- **Test isolation**: Fixed cache interference in DaisyUI tests causing failures in Django 4.1 with Python 3.10
+
 ## 4.4.1 (2025-09-23)
 
 ### 🐛 Bug Fixes
