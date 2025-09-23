@@ -362,7 +362,13 @@ def test_daisy_ui_support(
     settings: SettingsWrapper,
     mocker: MockerFixture,
 ):
+    from django_tailwind_cli.config import _get_cache_path
     from semver import Version
+
+    # Clear any existing cache to prevent interference from other tests
+    cache_path = _get_cache_path()
+    if cache_path.exists():
+        cache_path.unlink()
 
     settings.TAILWIND_CLI_USE_DAISY_UI = True
     test_version = "7.6.5"
