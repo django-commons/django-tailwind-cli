@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### 🛠️ Developer Experience
+- **Cleanup command**: Added `just clean` target to remove temporary files and build artifacts
+
 ## 4.4.2 (2025-09-23)
 
 ### 🐛 Bug Fixes

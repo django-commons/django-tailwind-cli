@@ -42,3 +42,19 @@ VENV_DIRNAME := ".venv"
 # serve docs during development
 @serve-docs: check_uv
     uvx  --with markdown-callouts --with mkdocs-material mkdocs serve
+
+# clean up temporary files and directories
+@clean:
+    echo "Cleaning up temporary files and directories..."
+    rm -rf htmlcov/
+    rm -rf .coverage
+    rm -rf .pytest_cache/
+    rm -rf site/
+    rm -rf dist/
+    rm -rf build/
+    rm -rf .tox/
+    rm -rf src/*.egg-info
+    find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+    find . -type f -name "*.pyc" -delete 2>/dev/null || true
+    find . -type f -name "*.pyo" -delete 2>/dev/null || true
+    echo "Clean up complete!"
