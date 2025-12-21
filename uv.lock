@@ -178,7 +178,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "django", specifier = ">=4.0" },
+    { name = "django", specifier = ">=4.2,!=5.0.*" },
     { name = "django-extensions", marker = "extra == 'django-extensions'", specifier = ">=3.2" },
     { name = "django-typer", specifier = ">=2.1.2" },
     { name = "semver", specifier = ">=3.0.4" },
