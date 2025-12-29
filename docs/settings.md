@@ -85,6 +85,30 @@ If it is an absolute path, this path is used as the input file for Tailwind CSS 
 The name of the output file. This file is stored relative to the first element of the
 `STATICFILES_DIRS` array.
 
+### TAILWIND_CLI_CSS_MAP
+
+**Default**: `None`
+
+A list of tuples defining multiple CSS source/destination pairs. Each tuple contains:
+- Source CSS file path (relative to `BASE_DIR`)
+- Destination CSS file path (relative to `STATICFILES_DIRS[0]`)
+
+```python
+TAILWIND_CLI_CSS_MAP = [
+    ("admin.css", "admin.output.css"),
+    ("web.css", "web.output.css"),
+]
+```
+
+:::{warning}
+This setting is **mutually exclusive** with `TAILWIND_CLI_SRC_CSS` and `TAILWIND_CLI_DIST_CSS`.
+You cannot use both configuration modes at the same time. If `TAILWIND_CLI_CSS_MAP` is defined,
+the single-file settings will be ignored and a warning will be raised.
+:::
+
+The entry name is derived from the source filename (without extension). This name can be used
+with the `{% tailwind_css %}` template tag to include specific CSS files.
+
 ### TAILWIND_CLI_USE_DAISY_UI
 
 **Default**: `False`
@@ -197,6 +221,61 @@ Example content of `src/styles/daisyui.css` with theme configuration:
 ```
 
 For more configuration options, see the [DaisyUI Configuration Documentation](https://daisyui.com/docs/config/).
+
+### Multiple CSS Entry Points
+
+For projects that need separate CSS files for different parts of the application (e.g., admin panel and public website):
+
+```python
+# settings.py
+TAILWIND_CLI_CSS_MAP = [
+    ("styles/admin.css", "css/admin.css"),
+    ("styles/web.css", "css/web.css"),
+]
+```
+
+Example source files:
+
+`styles/admin.css`:
+```css
+@import "tailwindcss";
+
+@source "../templates/admin/**/*.html";
+
+@layer components {
+  .admin-panel {
+    @apply bg-gray-100 p-4 rounded-lg;
+  }
+}
+```
+
+`styles/web.css`:
+```css
+@import "tailwindcss";
+
+@source "../templates/web/**/*.html";
+
+@layer components {
+  .hero-section {
+    @apply bg-gradient-to-r from-blue-500 to-purple-600;
+  }
+}
+```
+
+In your templates, include all CSS files or filter by name:
+
+```htmldjango
+{# Include all CSS files #}
+{% tailwind_css %}
+
+{# Include only admin CSS #}
+{% tailwind_css "admin" %}
+
+{# Include only web CSS #}
+{% tailwind_css "web" %}
+```
+
+The `build` command processes all entries, and the `watch` command monitors all source files simultaneously.
 
 ### Staging Environment
 

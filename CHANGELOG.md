@@ -2,12 +2,18 @@
 
 ## Unreleased
 
+### 🎯 New Features
+- **Multiple CSS entry points**: Added `TAILWIND_CLI_CSS_MAP` setting for compiling multiple CSS files in a single project (e.g., separate admin and frontend styles)
+- **Template tag enhancement**: `{% tailwind_css %}` now supports optional name parameter for multi-file mode: `{% tailwind_css "admin" %}`
+
 ### 🔧 Technical Improvements
 - **Django support**: Dropped support for Django 5.1 (now supporting Django 4.2 LTS, 5.2, and 6.0 only)
 - **Pre-commit hooks**: Updated uv-secure (0.15.4) and pyright (1.1.407)
 - **Security**: Updated Django and Werkzeug to fix security vulnerabilities
 - **Documentation**: Migrated from MkDocs to Sphinx with myst-parser and Furo theme
 - **Documentation**: Added Advanced Configuration and Development Workflow pages
+- **Template tag consistency**: Template tag now uses Config class for consistent validation
+- **Test coverage**: Added integration tests for multi-file build and watch commands
 
 ### 🛠️ Developer Experience
 - **Cleanup command**: Added `just clean` target to remove temporary files and build artifacts

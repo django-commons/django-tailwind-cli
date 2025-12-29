@@ -20,13 +20,23 @@ Configuration Settings:
             Default: '.django_tailwind_cli' (in project root)
             Example: TAILWIND_CLI_PATH = '/usr/local/bin/tailwindcss'
 
-        TAILWIND_CLI_SRC_CSS (optional): Input CSS file path
+        TAILWIND_CLI_SRC_CSS (optional): Input CSS file path (single-file mode)
             Default: '.django_tailwind_cli/source.css' (auto-created)
             Example: TAILWIND_CLI_SRC_CSS = 'src/styles/main.css'
+            Note: Cannot be used with TAILWIND_CLI_CSS_MAP
 
-        TAILWIND_CLI_DIST_CSS (optional): Output CSS file path
+        TAILWIND_CLI_DIST_CSS (optional): Output CSS file path (single-file mode)
             Default: 'css/tailwind.css' (relative to STATICFILES_DIRS[0])
             Example: TAILWIND_CLI_DIST_CSS = 'dist/main.css'
+            Note: Cannot be used with TAILWIND_CLI_CSS_MAP
+
+        TAILWIND_CLI_CSS_MAP (optional): Multiple CSS entry points (multi-file mode)
+            Default: None (uses single-file mode)
+            Example: TAILWIND_CLI_CSS_MAP = [
+                ('admin.css', 'admin.output.css'),
+                ('web.css', 'web.output.css'),
+            ]
+            Note: Cannot be used with TAILWIND_CLI_SRC_CSS or TAILWIND_CLI_DIST_CSS
 
     Advanced Settings:
         TAILWIND_CLI_USE_DAISY_UI (optional): Enable DaisyUI components
@@ -68,6 +78,13 @@ Examples of complete settings configuration:
     STATICFILES_DIRS = [BASE_DIR / 'static']
     TAILWIND_CLI_PATH = '/opt/tailwindcss/bin/tailwindcss'
     TAILWIND_CLI_AUTOMATIC_DOWNLOAD = False
+
+    # Multiple CSS entry points (e.g., admin + public website)
+    STATICFILES_DIRS = [BASE_DIR / 'assets']
+    TAILWIND_CLI_CSS_MAP = [
+        ('admin.css', 'admin.output.css'),    # Admin panel styles
+        ('web.css', 'web.output.css'),        # Public website styles
+    ]
 """
 
 import os
@@ -85,44 +102,73 @@ from semver import Version
 FALLBACK_VERSION = "4.1.3"
 
 
+class CSSEntry(NamedTuple):
+    """A CSS source and destination path pair."""
+
+    name: str  # Unique identifier derived from source filename (e.g., "admin", "web")
+    src_css: Path  # Absolute path to source CSS file
+    dist_css: Path  # Absolute path to output CSS file
+    dist_css_base: str  # Relative path for template tag (e.g., "admin.output.css")
+
+
 @dataclass
 class Config:
     version_str: str
     version: Version
     cli_path: Path
     download_url: str
-    dist_css: Path
-    dist_css_base: str
-    src_css: Path
+    css_entries: list[CSSEntry]
     overwrite_default_config: bool = True
     automatic_download: bool = True
     use_daisy_ui: bool = False
 
+    # Backward compatibility properties
     @property
-    def watch_cmd(self) -> list[str]:
-        result = [
+    def src_css(self) -> Path:
+        """Return first source CSS path for backward compatibility."""
+        return self.css_entries[0].src_css if self.css_entries else Path()
+
+    @property
+    def dist_css(self) -> Path:
+        """Return first dist CSS path for backward compatibility."""
+        return self.css_entries[0].dist_css if self.css_entries else Path()
+
+    @property
+    def dist_css_base(self) -> str:
+        """Return first dist CSS base for backward compatibility."""
+        return self.css_entries[0].dist_css_base if self.css_entries else ""
+
+    def get_watch_cmd(self, entry: CSSEntry) -> list[str]:
+        """Generate watch command for a specific CSS entry."""
+        return [
             str(self.cli_path),
             "--input",
-            str(self.src_css),
+            str(entry.src_css),
             "--output",
-            str(self.dist_css),
+            str(entry.dist_css),
             "--watch",
         ]
 
-        return result
-
-    @property
-    def build_cmd(self) -> list[str]:
-        result = [
+    def get_build_cmd(self, entry: CSSEntry) -> list[str]:
+        """Generate build command for a specific CSS entry."""
+        return [
             str(self.cli_path),
             "--input",
-            str(self.src_css),
+            str(entry.src_css),
             "--output",
-            str(self.dist_css),
+            str(entry.dist_css),
             "--minify",
         ]
 
-        return result
+    @property
+    def watch_cmd(self) -> list[str]:
+        """Return watch command for first entry (backward compatibility)."""
+        return self.get_watch_cmd(self.css_entries[0])
+
+    @property
+    def build_cmd(self) -> list[str]:
+        """Return build command for first entry (backward compatibility)."""
+        return self.get_build_cmd(self.css_entries[0])
 
 
 class PlatformInfo(NamedTuple):
@@ -173,6 +219,53 @@ def _validate_required_settings() -> None:
         raise ValueError(
             "TAILWIND_CLI_SRC_REPO must not be empty. Either remove the setting or provide a valid repository URL."
         )
+
+    # Validate mutual exclusivity of CSS settings
+    _validate_css_settings()
+
+
+def _validate_css_settings() -> None:
+    """Validate CSS configuration settings for mutual exclusivity.
+
+    Raises:
+        ValueError: If both single-file and multi-file configurations are present.
+    """
+    has_css_map = hasattr(settings, "TAILWIND_CLI_CSS_MAP") and settings.TAILWIND_CLI_CSS_MAP
+    has_src_css = hasattr(settings, "TAILWIND_CLI_SRC_CSS") and settings.TAILWIND_CLI_SRC_CSS
+    has_dist_css = hasattr(settings, "TAILWIND_CLI_DIST_CSS") and settings.TAILWIND_CLI_DIST_CSS
+
+    if has_css_map and (has_src_css or has_dist_css):
+        raise ValueError(
+            "Cannot use TAILWIND_CLI_CSS_MAP together with TAILWIND_CLI_SRC_CSS or TAILWIND_CLI_DIST_CSS. "
+            "Use either the single-file configuration (SRC_CSS/DIST_CSS) or the multi-file configuration "
+            "(CSS_MAP), but not both."
+        )
+
+    # Validate CSS_MAP format if provided
+    if has_css_map:
+        css_map_raw = settings.TAILWIND_CLI_CSS_MAP
+        if not isinstance(css_map_raw, (list, tuple)):
+            raise ValueError("TAILWIND_CLI_CSS_MAP must be a list or tuple of (source, destination) pairs.")
+
+        css_map: list[tuple[str, str]] | tuple[tuple[str, str], ...] = css_map_raw  # pyright: ignore[reportAssignmentType, reportUnknownVariableType]
+        names_seen: set[str] = set()
+        for i, entry in enumerate(css_map):
+            # Runtime validation - pyright sees typed entry, but we validate for user input
+            if not isinstance(entry, (list, tuple)) or len(entry) != 2:  # pyright: ignore[reportUnnecessaryIsInstance]
+                raise ValueError(f"TAILWIND_CLI_CSS_MAP entry {i} must be a (source, destination) pair, got {entry!r}.")
+            src: str = str(entry[0])
+            dist: str = str(entry[1])
+            if not src or not dist:
+                raise ValueError(f"TAILWIND_CLI_CSS_MAP entry {i} has empty source or destination path.")
+
+            # Check for unique names
+            name = Path(src).stem
+            if name in names_seen:
+                raise ValueError(
+                    f"TAILWIND_CLI_CSS_MAP has duplicate entry name '{name}'. "
+                    "Each source file must have a unique name (stem of filename)."
+                )
+            names_seen.add(name)
 
 
 def get_platform_info() -> PlatformInfo:
@@ -252,7 +345,7 @@ def _save_cached_version(repo_url: str, version_str: str) -> None:
     try:
         with cache_path.open("w") as f:
             f.write(f"{repo_url}\n{version_str}\n{time.time()}\n")
-    except OSError:
+    except OSError:  # pragma: no cover
         # Ignore cache write errors
         pass
 
@@ -340,29 +433,69 @@ def _resolve_cli_path(platform_info: PlatformInfo, version_str: str, asset_name:
         )
 
 
-def _resolve_css_paths() -> tuple[Path, str, Path, bool]:
-    """Resolve CSS input and output paths.
+def _get_staticfile_path() -> str:
+    """Get the base path for static files from STATICFILES_DIRS.
 
     Returns:
-        tuple: (dist_css, dist_css_base, src_css, overwrite_default_config)
+        str: Path to the first staticfiles directory.
+    """
+    first_staticfile_dir: str | tuple[str, str] = settings.STATICFILES_DIRS[0]
+    if isinstance(first_staticfile_dir, tuple):
+        # Handle prefixed staticfile dir
+        return first_staticfile_dir[1]
+    return first_staticfile_dir
+
+
+def _resolve_css_paths() -> tuple[list[CSSEntry], bool]:
+    """Resolve CSS input and output paths.
+
+    Supports two configuration modes:
+    1. Multi-file mode: TAILWIND_CLI_CSS_MAP = [('admin.css', 'admin.output.css'), ...]
+    2. Single-file mode: TAILWIND_CLI_SRC_CSS and TAILWIND_CLI_DIST_CSS
+
+    Returns:
+        tuple: (list of CSSEntry, overwrite_default_config flag)
 
     Raises:
-        ValueError: If TAILWIND_CLI_DIST_CSS is None.
+        ValueError: If TAILWIND_CLI_DIST_CSS is None in single-file mode.
     """
-    # Resolve distribution CSS path
+    staticfile_path = _get_staticfile_path()
+
+    # Check for multi-file configuration
+    css_map_raw = getattr(settings, "TAILWIND_CLI_CSS_MAP", None)
+    if css_map_raw:
+        # Type assertion after validation in _validate_css_settings()
+        css_map: list[tuple[str, str]] = css_map_raw  # pyright: ignore[reportAssignmentType]
+        entries: list[CSSEntry] = []
+        for src, dist in css_map:
+            src_path = Path(src)
+            if not src_path.is_absolute():
+                src_path = Path(settings.BASE_DIR) / src_path
+
+            dist_path = Path(staticfile_path) / dist
+
+            # Derive name from source filename without extension
+            name = Path(src).stem
+
+            entries.append(
+                CSSEntry(
+                    name=name,
+                    src_css=src_path,
+                    dist_css=dist_path,
+                    dist_css_base=str(dist),
+                )
+            )
+
+        # Multi-file mode never overwrites default config
+        return entries, False
+
+    # Single-file mode (existing behavior)
     dist_css_base = getattr(settings, "TAILWIND_CLI_DIST_CSS", "css/tailwind.css")
     if not dist_css_base:
         raise ValueError(
             "TAILWIND_CLI_DIST_CSS must not be None. Either remove the setting or provide a valid CSS path."
         )
 
-    first_staticfile_dir: str | tuple[str, str] = settings.STATICFILES_DIRS[0]
-    staticfile_path: str
-    if isinstance(first_staticfile_dir, tuple):
-        # Handle prefixed staticfile dir
-        staticfile_path = first_staticfile_dir[1]
-    else:
-        staticfile_path = first_staticfile_dir
     dist_css = Path(staticfile_path) / dist_css_base
 
     # Resolve source CSS path
@@ -377,7 +510,15 @@ def _resolve_css_paths() -> tuple[Path, str, Path, bool]:
     if not src_css.is_absolute():
         src_css = Path(settings.BASE_DIR) / src_css
 
-    return dist_css, dist_css_base, src_css, overwrite_default_config
+    # Create single entry with default name
+    entry = CSSEntry(
+        name="tailwind",
+        src_css=src_css,
+        dist_css=dist_css,
+        dist_css_base=str(dist_css_base),
+    )
+
+    return [entry], overwrite_default_config
 
 
 def _get_repository_settings(*, use_daisy_ui: bool) -> tuple[str, str]:
@@ -438,7 +579,7 @@ def get_config() -> Config:
 
     # Resolve paths
     cli_path = _resolve_cli_path(platform_info, version_str, asset_name)
-    dist_css, dist_css_base, src_css, overwrite_default_config = _resolve_css_paths()
+    css_entries, overwrite_default_config = _resolve_css_paths()
 
     # Build download URL
     download_url = (
@@ -451,9 +592,7 @@ def get_config() -> Config:
         version=version,
         cli_path=cli_path,
         download_url=download_url,
-        dist_css=dist_css,
-        dist_css_base=dist_css_base,
-        src_css=src_css,
+        css_entries=css_entries,
         overwrite_default_config=overwrite_default_config,
         automatic_download=automatic_download,
         use_daisy_ui=use_daisy_ui,

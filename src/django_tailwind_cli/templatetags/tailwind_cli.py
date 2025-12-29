@@ -20,54 +20,93 @@ Usage:
     </html>
     ```
 
+    With multiple CSS entry points (TAILWIND_CLI_CSS_MAP):
+
+    ```html
+    {% load tailwind_cli %}
+    <head>
+        <!-- Include all CSS files -->
+        {% tailwind_css %}
+
+        <!-- Or include a specific CSS file by name -->
+        {% tailwind_css "admin" %}
+    </head>
+    ```
+
 Available template tags:
-    - tailwind_css: Includes the Tailwind CSS file with appropriate cache busting
+    - tailwind_css: Includes the Tailwind CSS file(s) with appropriate cache busting
 """
 
 from django import template
 from django.conf import settings
 
+from django_tailwind_cli.config import get_config
+
 register = template.Library()
 
 
 @register.inclusion_tag("tailwind_cli/tailwind_css.html")  # type: ignore
-def tailwind_css() -> dict[str, bool | str]:
-    """Include Tailwind CSS file in templates with debug-aware cache handling.
+def tailwind_css(name: str | None = None) -> dict[str, bool | list[str]]:
+    """Include Tailwind CSS file(s) in templates with debug-aware cache handling.
 
-    This template tag automatically includes the Tailwind CSS file in your templates.
+    This template tag automatically includes the Tailwind CSS file(s) in your templates.
     It handles different behavior for development vs production:
 
     - **Development mode (DEBUG=True):** Includes CSS without cache headers for instant updates
     - **Production mode (DEBUG=False):** Includes CSS with cache-friendly headers
 
-    The CSS file path is determined by the TAILWIND_CLI_DIST_CSS setting, with a sensible
-    default of 'css/tailwind.css' relative to STATICFILES_DIRS[0].
+    Args:
+        name: Optional name of specific CSS entry to include (for multi-file mode).
+              If None, includes all CSS files (works for both single and multi-file modes).
 
     Returns:
         dict: Template context containing:
             - debug (bool): Whether Django is in debug mode
-            - tailwind_dist_css (str): Path to the CSS file relative to static files
+            - tailwind_css_files (list[str]): List of CSS file paths relative to static files
 
     Example:
         ```html
         {% load tailwind_cli %}
         <head>
+            <!-- Include all CSS files -->
             {% tailwind_css %}
+
+            <!-- Include specific CSS file (multi-file mode) -->
+            {% tailwind_css "admin" %}
         </head>
         ```
 
-        This renders to:
+        Single-file mode renders to:
         ```html
-        <!-- In development -->
         <link rel="stylesheet" href="/static/css/tailwind.css">
+        ```
 
-        <!-- In production -->
-        <link rel="stylesheet" href="/static/css/tailwind.css" media="screen">
+        Multi-file mode (all files) renders to:
+        ```html
+        <link rel="stylesheet" href="/static/admin.output.css">
+        <link rel="stylesheet" href="/static/web.output.css">
         ```
 
     Configuration:
-        - TAILWIND_CLI_DIST_CSS: Custom CSS file path (default: 'css/tailwind.css')
+        - TAILWIND_CLI_DIST_CSS: Single CSS file path (default: 'css/tailwind.css')
+        - TAILWIND_CLI_CSS_MAP: List of (source, destination) tuples for multiple CSS files
         - DEBUG: Controls cache behavior and development features
     """
-    dist_css_base = getattr(settings, "TAILWIND_CLI_DIST_CSS", "css/tailwind.css")
-    return {"debug": settings.DEBUG, "tailwind_dist_css": str(dist_css_base)}
+    config = get_config()
+
+    if name:
+        # Specific file requested - find matching entry
+        for entry in config.css_entries:
+            if entry.name == name:
+                return {
+                    "debug": settings.DEBUG,
+                    "tailwind_css_files": [entry.dist_css_base],
+                }
+        # Name not found - return empty list
+        return {"debug": settings.DEBUG, "tailwind_css_files": []}
+    else:
+        # All files
+        return {
+            "debug": settings.DEBUG,
+            "tailwind_css_files": [entry.dist_css_base for entry in config.css_entries],
+        }

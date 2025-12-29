@@ -178,6 +178,66 @@ class TestBuildWorkflowIntegration:
             call_command("tailwind", "build", "--force")
             mock_subprocess.assert_called_once()
 
+    def test_build_with_multiple_css_entries(self, settings: LazySettings, tmp_path: Path):
+        """Test build command processes all CSS entries from CSS_MAP."""
+        settings.BASE_DIR = tmp_path
+        settings.TAILWIND_CLI_PATH = tmp_path / ".django_tailwind_cli"
+        settings.STATICFILES_DIRS = (tmp_path / "assets",)
+        settings.TAILWIND_CLI_VERSION = "4.1.3"
+
+        # Configure multiple CSS entries
+        settings.TAILWIND_CLI_CSS_MAP = [
+            ("admin.css", "admin.output.css"),
+            ("web.css", "web.output.css"),
+        ]
+        # Remove single-file settings to avoid conflict
+        if hasattr(settings, "TAILWIND_CLI_SRC_CSS"):
+            delattr(settings, "TAILWIND_CLI_SRC_CSS")
+        if hasattr(settings, "TAILWIND_CLI_DIST_CSS"):
+            delattr(settings, "TAILWIND_CLI_DIST_CSS")
+
+        # Create source CSS files
+        (tmp_path / "admin.css").write_text('@import "tailwindcss";')
+        (tmp_path / "web.css").write_text('@import "tailwindcss";')
+
+        with (
+            patch("django_tailwind_cli.utils.http.download_with_progress") as mock_download,
+            patch("subprocess.run") as mock_subprocess,
+        ):
+
+            def mock_download_func(
+                url: str,
+                filepath: Path,
+                timeout: int = 30,
+                progress_callback: Callable[[int, int, float], None] | None = None,
+            ) -> None:
+                filepath.parent.mkdir(parents=True, exist_ok=True)
+                filepath.write_bytes(b"fake-cli-binary")
+                filepath.chmod(0o755)
+
+            mock_download.side_effect = mock_download_func
+            mock_subprocess.return_value = Mock(returncode=0, stdout="", stderr="")
+
+            call_command("tailwind", "build", "--force")
+
+            # Verify subprocess was called twice (once per CSS entry)
+            assert mock_subprocess.call_count == 2
+
+            # Verify correct arguments for each entry
+            calls = mock_subprocess.call_args_list
+            call_args_0 = calls[0][0][0]
+            call_args_1 = calls[1][0][0]
+
+            # First call should be for admin.css
+            assert "admin.css" in str(call_args_0)
+            assert "admin.output.css" in str(call_args_0)
+            assert "--minify" in call_args_0
+
+            # Second call should be for web.css
+            assert "web.css" in str(call_args_1)
+            assert "web.output.css" in str(call_args_1)
+            assert "--minify" in call_args_1
+
 
 class TestWatchModeIntegration:
     """Test watch mode functionality and process management."""
@@ -216,6 +276,71 @@ class TestWatchModeIntegration:
             assert "--input" in call_args
             assert "--output" in call_args
             assert "--minify" not in call_args  # Watch mode shouldn't minify
+
+    def test_watch_with_multiple_css_entries(self, settings: LazySettings, tmp_path: Path):
+        """Test watch command starts multiple processes for CSS_MAP entries."""
+        settings.BASE_DIR = tmp_path
+        settings.TAILWIND_CLI_PATH = tmp_path / ".django_tailwind_cli"
+        settings.STATICFILES_DIRS = (tmp_path / "assets",)
+        settings.TAILWIND_CLI_VERSION = "4.1.3"
+
+        # Configure multiple CSS entries
+        settings.TAILWIND_CLI_CSS_MAP = [
+            ("admin.css", "admin.output.css"),
+            ("web.css", "web.output.css"),
+        ]
+        # Remove single-file settings to avoid conflict
+        if hasattr(settings, "TAILWIND_CLI_SRC_CSS"):
+            delattr(settings, "TAILWIND_CLI_SRC_CSS")
+        if hasattr(settings, "TAILWIND_CLI_DIST_CSS"):
+            delattr(settings, "TAILWIND_CLI_DIST_CSS")
+
+        # Create source CSS files
+        (tmp_path / "admin.css").write_text('@import "tailwindcss";')
+        (tmp_path / "web.css").write_text('@import "tailwindcss";')
+
+        with (
+            patch("django_tailwind_cli.utils.http.download_with_progress") as mock_download,
+            patch("subprocess.Popen") as mock_popen,
+        ):
+
+            def mock_download_func(
+                url: str,
+                filepath: Path,
+                timeout: int = 30,
+                progress_callback: Callable[[int, int, float], None] | None = None,
+            ) -> None:
+                filepath.parent.mkdir(parents=True, exist_ok=True)
+                filepath.write_bytes(b"fake-cli-binary")
+                filepath.chmod(0o755)
+
+            mock_download.side_effect = mock_download_func
+
+            # Mock Popen to simulate running processes that exit immediately
+            mock_process = Mock()
+            mock_process.poll.return_value = 0  # Process already exited
+            mock_process.wait.return_value = 0
+            mock_popen.return_value = mock_process
+
+            call_command("tailwind", "watch")
+
+            # Verify Popen was called twice (once per CSS entry)
+            assert mock_popen.call_count == 2
+
+            # Verify correct arguments for each entry
+            calls = mock_popen.call_args_list
+            call_args_0 = calls[0][0][0]
+            call_args_1 = calls[1][0][0]
+
+            # First call should be for admin.css with --watch flag
+            assert "admin.css" in str(call_args_0)
+            assert "admin.output.css" in str(call_args_0)
+            assert "--watch" in call_args_0
+
+            # Second call should be for web.css with --watch flag
+            assert "web.css" in str(call_args_1)
+            assert "web.output.css" in str(call_args_1)
+            assert "--watch" in call_args_1
 
     def test_watch_keyboard_interrupt_handling(
         self, settings: LazySettings, tmp_path: Path, capsys: CaptureFixture[str]

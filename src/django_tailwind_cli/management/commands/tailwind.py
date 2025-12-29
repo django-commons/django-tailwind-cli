@@ -19,7 +19,7 @@ from django.core.management.base import CommandError
 from django.template.utils import get_app_template_dirs
 from django_typer.management import Typer
 
-from django_tailwind_cli.config import get_config
+from django_tailwind_cli.config import Config, get_config
 
 app = Typer(  # pyright: ignore[reportUnknownVariableType]
     name="tailwind",
@@ -183,10 +183,10 @@ def build(
         help="Show detailed build information and diagnostics.",
     ),
 ) -> None:
-    """Build a minified production-ready CSS file.
+    """Build minified production-ready CSS file(s).
 
-    This command processes your Tailwind CSS input file and generates an optimized
-    production CSS file with only the styles actually used in your templates.
+    This command processes your Tailwind CSS input file(s) and generates optimized
+    production CSS file(s) with only the styles actually used in your templates.
 
     \b
     The build process:
@@ -208,52 +208,68 @@ def build(
 
     \b
     Output location:
-        The CSS file is saved to: STATICFILES_DIRS[0]/css/tailwind.css
+        Single-file mode: STATICFILES_DIRS[0]/css/tailwind.css
         (configurable via TAILWIND_CLI_DIST_CSS setting)
+
+        Multi-file mode: Each entry in TAILWIND_CLI_CSS_MAP
     """
     start_time = time.time()
     config = get_config()
 
     if verbose:
         typer.secho("🏗️  Starting Tailwind CSS build process...", fg=typer.colors.CYAN)
-        typer.secho(f"   • Source CSS: {config.src_css}", fg=typer.colors.BLUE)
-        typer.secho(f"   • Output CSS: {config.dist_css}", fg=typer.colors.BLUE)
+        typer.secho(f"   • CSS entries: {len(config.css_entries)}", fg=typer.colors.BLUE)
+        for entry in config.css_entries:
+            typer.secho(f"   • [{entry.name}] {entry.src_css} -> {entry.dist_css}", fg=typer.colors.BLUE)
         typer.secho(f"   • CLI Path: {config.cli_path}", fg=typer.colors.BLUE)
         typer.secho(f"   • Version: {config.version_str}", fg=typer.colors.BLUE)
         typer.secho(f"   • DaisyUI: {'enabled' if config.use_daisy_ui else 'disabled'}", fg=typer.colors.BLUE)
 
     _setup_tailwind_environment_with_verbose(verbose=verbose)
 
-    # Check if rebuild is necessary (unless forced)
-    if not force and not _should_rebuild_css(config.src_css, config.dist_css):
+    # Build each CSS entry
+    entries_built = 0
+    entries_skipped = 0
+
+    for entry in config.css_entries:
+        # Check if rebuild is necessary (unless forced)
+        if not force and not _should_rebuild_css(entry.src_css, entry.dist_css):
+            entries_skipped += 1
+            if verbose:
+                typer.secho(f"⏭️  [{entry.name}] Build skipped: output is up-to-date", fg=typer.colors.YELLOW)
+                if entry.src_css.exists() and entry.dist_css.exists():
+                    src_mtime = entry.src_css.stat().st_mtime
+                    dist_mtime = entry.dist_css.stat().st_mtime
+                    typer.secho(f"   • Source modified: {time.ctime(src_mtime)}", fg=typer.colors.BLUE)
+                    typer.secho(f"   • Output modified: {time.ctime(dist_mtime)}", fg=typer.colors.BLUE)
+            continue
+
         if verbose:
-            typer.secho("⏭️  Build skipped: output is up-to-date", fg=typer.colors.YELLOW)
-            if config.src_css.exists() and config.dist_css.exists():
-                src_mtime = config.src_css.stat().st_mtime
-                dist_mtime = config.dist_css.stat().st_mtime
-                typer.secho(f"   • Source modified: {time.ctime(src_mtime)}", fg=typer.colors.BLUE)
-                typer.secho(f"   • Output modified: {time.ctime(dist_mtime)}", fg=typer.colors.BLUE)
+            build_cmd = config.get_build_cmd(entry)
+            typer.secho(f"⚡ [{entry.name}] Executing Tailwind CSS build command...", fg=typer.colors.CYAN)
+            typer.secho(f"   • Command: {' '.join(build_cmd)}", fg=typer.colors.BLUE)
+
+        _execute_tailwind_command(
+            config.get_build_cmd(entry),
+            success_message=f"Built production stylesheet '{entry.dist_css}'.",
+            error_message=f"Failed to build production stylesheet '{entry.name}'",
+            verbose=verbose,
+        )
+        entries_built += 1
+
+    # Summary
+    if entries_skipped > 0 and entries_built == 0:
         typer.secho(
-            f"Production stylesheet '{config.dist_css}' is up to date. Use --force to rebuild.",
+            f"All {entries_skipped} stylesheet(s) are up to date. Use --force to rebuild.",
             fg=typer.colors.CYAN,
         )
-        return
-
-    if verbose:
-        typer.secho("⚡ Executing Tailwind CSS build command...", fg=typer.colors.CYAN)
-        typer.secho(f"   • Command: {' '.join(config.build_cmd)}", fg=typer.colors.BLUE)
-
-    _execute_tailwind_command(
-        config.build_cmd,
-        success_message=f"Built production stylesheet '{config.dist_css}'.",
-        error_message="Failed to build production stylesheet",
-        verbose=verbose,
-    )
-
-    if verbose:
+    elif verbose:
         end_time = time.time()
         build_duration = end_time - start_time
-        typer.secho(f"✅ Build completed in {build_duration:.3f}s", fg=typer.colors.GREEN)
+        typer.secho(
+            f"✅ Build completed in {build_duration:.3f}s ({entries_built} built, {entries_skipped} skipped)",
+            fg=typer.colors.GREEN,
+        )
 
 
 @handle_command_errors
@@ -302,24 +318,30 @@ def watch(
 
     if verbose:
         typer.secho("👀 Starting Tailwind CSS watch mode...", fg=typer.colors.CYAN)
-        typer.secho(f"   • Source CSS: {config.src_css}", fg=typer.colors.BLUE)
-        typer.secho(f"   • Output CSS: {config.dist_css}", fg=typer.colors.BLUE)
+        typer.secho(f"   • CSS entries: {len(config.css_entries)}", fg=typer.colors.BLUE)
+        for entry in config.css_entries:
+            typer.secho(f"   • [{entry.name}] {entry.src_css} -> {entry.dist_css}", fg=typer.colors.BLUE)
         typer.secho(f"   • CLI Path: {config.cli_path}", fg=typer.colors.BLUE)
         typer.secho(f"   • Version: {config.version_str}", fg=typer.colors.BLUE)
-        typer.secho(f"   • Command: {' '.join(config.watch_cmd)}", fg=typer.colors.BLUE)
 
     _setup_tailwind_environment_with_verbose(verbose=verbose)
 
     if verbose:
         typer.secho("🔄 Starting file watcher...", fg=typer.colors.CYAN)
 
-    _execute_tailwind_command(
-        config.watch_cmd,
-        success_message="Stopped watching for changes.",
-        error_message="Failed to start in watch mode",
-        capture_output=True,
-        verbose=verbose,
-    )
+    if len(config.css_entries) == 1:
+        # Single entry - use existing simple approach
+        _execute_tailwind_command(
+            config.watch_cmd,
+            success_message="Stopped watching for changes.",
+            error_message="Failed to start in watch mode",
+            capture_output=True,
+            verbose=verbose,
+        )
+    else:
+        # Multiple entries - use multi-process manager
+        manager = MultiWatchProcessManager()
+        manager.start_watch_processes(config, verbose=verbose)
 
 
 @app.command(name="list_templates")
@@ -553,11 +575,14 @@ def show_config():
     cli_exists = "✅" if config.cli_path.exists() else "❌"
     typer.secho(f"   CLI Binary: {config.cli_path} {cli_exists}", fg=typer.colors.GREEN)
 
-    src_exists = "✅" if config.src_css.exists() else "❌"
-    typer.secho(f"   Source CSS: {config.src_css} {src_exists}", fg=typer.colors.GREEN)
-
-    dist_exists = "✅" if config.dist_css.exists() else "❌"
-    typer.secho(f"   Output CSS: {config.dist_css} {dist_exists}", fg=typer.colors.GREEN)
+    # CSS Entries
+    typer.secho(f"\n📄 CSS Entries ({len(config.css_entries)}):", fg=typer.colors.YELLOW, bold=True)
+    for entry in config.css_entries:
+        src_exists = "✅" if entry.src_css.exists() else "❌"
+        dist_exists = "✅" if entry.dist_css.exists() else "❌"
+        typer.secho(f"   [{entry.name}]", fg=typer.colors.CYAN)
+        typer.secho(f"      Source: {entry.src_css} {src_exists}", fg=typer.colors.GREEN)
+        typer.secho(f"      Output: {entry.dist_css} {dist_exists}", fg=typer.colors.GREEN)
 
     # Django Settings
     typer.secho("\n⚙️ Django Settings:", fg=typer.colors.YELLOW, bold=True)
@@ -571,13 +596,18 @@ def show_config():
     if cli_path_setting:
         typer.secho(f"   TAILWIND_CLI_PATH: {cli_path_setting}", fg=typer.colors.GREEN)
 
-    src_css_setting = getattr(settings, "TAILWIND_CLI_SRC_CSS", None)
-    if src_css_setting:
-        typer.secho(f"   TAILWIND_CLI_SRC_CSS: {src_css_setting}", fg=typer.colors.GREEN)
+    # Show CSS settings based on mode
+    css_map_setting = getattr(settings, "TAILWIND_CLI_CSS_MAP", None)
+    if css_map_setting:
+        typer.secho(f"   TAILWIND_CLI_CSS_MAP: {css_map_setting}", fg=typer.colors.GREEN)
+    else:
+        src_css_setting = getattr(settings, "TAILWIND_CLI_SRC_CSS", None)
+        if src_css_setting:
+            typer.secho(f"   TAILWIND_CLI_SRC_CSS: {src_css_setting}", fg=typer.colors.GREEN)
 
-    dist_css_setting = getattr(settings, "TAILWIND_CLI_DIST_CSS", None)
-    if dist_css_setting:
-        typer.secho(f"   TAILWIND_CLI_DIST_CSS: {dist_css_setting}", fg=typer.colors.GREEN)
+        dist_css_setting = getattr(settings, "TAILWIND_CLI_DIST_CSS", None)
+        if dist_css_setting:
+            typer.secho(f"   TAILWIND_CLI_DIST_CSS: {dist_css_setting}", fg=typer.colors.GREEN)
 
     # Platform information
     from django_tailwind_cli.config import get_platform_info
@@ -594,14 +624,15 @@ def show_config():
 
     # Status summary
     typer.secho("\n📊 Status Summary:", fg=typer.colors.YELLOW, bold=True)
-    all_files_exist = config.cli_path.exists() and config.src_css.exists()
-    if all_files_exist:
+    cli_exists = config.cli_path.exists()
+    all_src_exist = all(entry.src_css.exists() for entry in config.css_entries)
+    if cli_exists and all_src_exist:
         typer.secho("   ✅ Ready to build CSS", fg=typer.colors.GREEN)
     else:
         typer.secho("   ⚠️  Setup required", fg=typer.colors.YELLOW)
-        if not config.cli_path.exists():
+        if not cli_exists:
             typer.secho("      • Run: python manage.py tailwind download_cli", fg=typer.colors.BLUE)
-        if not config.src_css.exists():
+        if not all_src_exist:
             typer.secho("      • Run: python manage.py tailwind build", fg=typer.colors.BLUE)
 
 
@@ -1275,6 +1306,84 @@ class ProcessManager:
                     pass
 
         self.processes.clear()
+
+
+class MultiWatchProcessManager:
+    """Manages multiple Tailwind watch processes for multi-file mode."""
+
+    def __init__(self) -> None:
+        self.processes: list[subprocess.Popen[str]] = []
+        self.shutdown_requested = False
+
+    def start_watch_processes(self, config: Config, *, verbose: bool = False) -> None:
+        """Start watch processes for all CSS entries.
+
+        Args:
+            config: Configuration object with css_entries.
+            verbose: Whether to show detailed information.
+        """
+        # Set up signal handlers for graceful shutdown
+        signal.signal(signal.SIGINT, self._signal_handler)
+        signal.signal(signal.SIGTERM, self._signal_handler)
+
+        try:
+            for entry in config.css_entries:
+                watch_cmd = config.get_watch_cmd(entry)
+                if verbose:
+                    typer.secho(f"🚀 Starting watch for '{entry.name}'...", fg=typer.colors.CYAN)
+                    typer.secho(f"   • Command: {' '.join(watch_cmd)}", fg=typer.colors.BLUE)
+
+                process = subprocess.Popen(
+                    watch_cmd,
+                    cwd=settings.BASE_DIR,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    bufsize=1,
+                )
+                self.processes.append(process)
+                typer.secho(f"Watching '{entry.name}': {entry.src_css}", fg=typer.colors.GREEN)
+
+            self._monitor_processes()
+        except Exception as e:
+            typer.secho(f"Error starting watch processes: {e}", fg=typer.colors.RED)
+            self._cleanup_processes()
+            raise
+
+    def _signal_handler(self, _signum: int, _frame: FrameType | None) -> None:
+        """Handle shutdown signals gracefully."""
+        typer.secho("\nShutdown signal received, stopping watch processes...", fg=typer.colors.YELLOW)
+        self.shutdown_requested = True
+        self._cleanup_processes()
+
+    def _monitor_processes(self) -> None:
+        """Monitor all watch processes."""
+        while not self.shutdown_requested and any(p.poll() is None for p in self.processes):
+            time.sleep(0.5)
+
+            for i, process in enumerate(self.processes):
+                if process.poll() is not None and process.returncode != 0:
+                    typer.secho(f"Watch process {i} exited with code {process.returncode}", fg=typer.colors.RED)
+                    self.shutdown_requested = True
+                    break
+
+        self._cleanup_processes()
+
+    def _cleanup_processes(self) -> None:
+        """Clean up all watch processes."""
+        for process in self.processes:
+            if process.poll() is None:
+                try:
+                    process.terminate()
+                    try:
+                        process.wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        process.kill()
+                        process.wait()
+                except (OSError, subprocess.SubprocessError):
+                    pass
+        self.processes.clear()
+        typer.secho("Stopped watching for changes.", fg=typer.colors.GREEN)
 
 
 def _download_cli_with_progress(url: str, filepath: Path) -> None:

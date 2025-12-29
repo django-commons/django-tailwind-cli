@@ -1,8 +1,9 @@
 {% load static %}
-
+{% for css_file in tailwind_css_files %}
 {% if debug %}
-    <link rel="stylesheet" href="{% static tailwind_dist_css %}">
+<link rel="stylesheet" href="{% static css_file %}">
 {% else %}
-    <link rel="preload" href="{% static tailwind_dist_css %}" as="style">
-    <link rel="stylesheet" href="{% static tailwind_dist_css %}">
+<link rel="preload" href="{% static css_file %}" as="style">
+<link rel="stylesheet" href="{% static css_file %}">
 {% endif %}
+{% endfor %}

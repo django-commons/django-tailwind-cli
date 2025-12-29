@@ -390,3 +390,122 @@ def test_daisy_ui_support(
     assert r_version_str == test_version
     assert isinstance(r_version, Version)
     assert str(r_version) == test_version
+
+
+def test_css_map_creates_multiple_entries(settings: SettingsWrapper):
+    settings.TAILWIND_CLI_CSS_MAP = [
+        ("admin.css", "admin.output.css"),
+        ("web.css", "web.output.css"),
+    ]
+    c = get_config()
+    assert len(c.css_entries) == 2
+    assert c.css_entries[0].name == "admin"
+    assert c.css_entries[1].name == "web"
+    assert str(c.css_entries[0].dist_css).endswith("admin.output.css")
+    assert str(c.css_entries[1].dist_css).endswith("web.output.css")
+
+
+def test_css_map_backward_compatibility_properties(settings: SettingsWrapper):
+    settings.TAILWIND_CLI_CSS_MAP = [
+        ("admin.css", "admin.output.css"),
+        ("web.css", "web.output.css"),
+    ]
+    c = get_config()
+    assert str(c.src_css).endswith("admin.css")
+    assert str(c.dist_css).endswith("admin.output.css")
+    assert c.dist_css_base == "admin.output.css"
+
+
+def test_css_map_get_build_cmd(settings: SettingsWrapper):
+    settings.TAILWIND_CLI_CSS_MAP = [
+        ("admin.css", "admin.output.css"),
+        ("web.css", "web.output.css"),
+    ]
+    c = get_config()
+    for entry in c.css_entries:
+        cmd = c.get_build_cmd(entry)
+        assert "--input" in cmd
+        assert "--output" in cmd
+        assert "--minify" in cmd
+        assert str(entry.src_css) in cmd
+        assert str(entry.dist_css) in cmd
+
+
+def test_css_map_get_watch_cmd(settings: SettingsWrapper):
+    settings.TAILWIND_CLI_CSS_MAP = [
+        ("admin.css", "admin.output.css"),
+        ("web.css", "web.output.css"),
+    ]
+    c = get_config()
+    for entry in c.css_entries:
+        cmd = c.get_watch_cmd(entry)
+        assert "--input" in cmd
+        assert "--output" in cmd
+        assert "--watch" in cmd
+        assert str(entry.src_css) in cmd
+        assert str(entry.dist_css) in cmd
+
+
+def test_css_map_mutual_exclusivity_with_src_css(settings: SettingsWrapper):
+    settings.TAILWIND_CLI_CSS_MAP = [("a.css", "b.css")]
+    settings.TAILWIND_CLI_SRC_CSS = "source.css"
+    with pytest.raises(ValueError, match="Cannot use TAILWIND_CLI_CSS_MAP together"):
+        get_config()
+
+
+def test_css_map_mutual_exclusivity_with_dist_css(settings: SettingsWrapper):
+    settings.TAILWIND_CLI_CSS_MAP = [("a.css", "b.css")]
+    settings.TAILWIND_CLI_DIST_CSS = "output.css"
+    with pytest.raises(ValueError, match="Cannot use TAILWIND_CLI_CSS_MAP together"):
+        get_config()
+
+
+def test_css_map_invalid_format_not_list(settings: SettingsWrapper):
+    settings.TAILWIND_CLI_CSS_MAP = "invalid"
+    with pytest.raises(ValueError, match="must be a list or tuple"):
+        get_config()
+
+
+def test_css_map_invalid_entry_format(settings: SettingsWrapper):
+    settings.TAILWIND_CLI_CSS_MAP = [("only_one",)]
+    with pytest.raises(ValueError, match="must be a .* pair"):
+        get_config()
+
+
+def test_css_map_empty_source(settings: SettingsWrapper):
+    settings.TAILWIND_CLI_CSS_MAP = [("", "output.css")]
+    with pytest.raises(ValueError, match="empty source or destination"):
+        get_config()
+
+
+def test_css_map_empty_destination(settings: SettingsWrapper):
+    settings.TAILWIND_CLI_CSS_MAP = [("source.css", "")]
+    with pytest.raises(ValueError, match="empty source or destination"):
+        get_config()
+
+
+def test_css_map_duplicate_names(settings: SettingsWrapper):
+    settings.TAILWIND_CLI_CSS_MAP = [
+        ("admin.css", "admin1.output.css"),
+        ("admin.css", "admin2.output.css"),
+    ]
+    with pytest.raises(ValueError, match="duplicate entry name"):
+        get_config()
+
+
+def test_css_map_single_file_still_works(settings: SettingsWrapper):
+    settings.TAILWIND_CLI_SRC_CSS = "my/source.css"
+    settings.TAILWIND_CLI_DIST_CSS = "my/output.css"
+    c = get_config()
+    assert len(c.css_entries) == 1
+    assert c.css_entries[0].name == "tailwind"
+    assert c.src_css == c.css_entries[0].src_css
+    assert c.dist_css == c.css_entries[0].dist_css
+
+
+def test_css_map_overwrite_default_config_false(settings: SettingsWrapper):
+    settings.TAILWIND_CLI_CSS_MAP = [
+        ("admin.css", "admin.output.css"),
+    ]
+    c = get_config()
+    assert c.overwrite_default_config is False

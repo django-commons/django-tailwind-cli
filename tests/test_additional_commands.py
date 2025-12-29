@@ -95,8 +95,9 @@ class TestConfigCommand:
         captured = capsys.readouterr()
 
         assert "CLI Binary:" in captured.out
-        assert "Source CSS:" in captured.out
-        assert "Output CSS:" in captured.out
+        assert "CSS Entries" in captured.out
+        assert "Source:" in captured.out
+        assert "Output:" in captured.out
         assert "✅" in captured.out  # At least one file exists
         assert "❌" in captured.out  # Some files don't exist
 
