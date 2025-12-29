@@ -1,5 +1,10 @@
 # Changelog
 
+## 4.5.1 (2025-12-29)
+
+### 🐛 Bug Fixes
+- **Help output**: Fixed crash when running `tailwind` or `tailwind --help` due to typer/rich markup conflict
+
 ## 4.5.0 (2025-12-29)
 
 ### 🎯 New Features
