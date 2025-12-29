@@ -25,6 +25,7 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
 html_theme = "furo"
+html_title = "django-tailwind-cli"
 html_static_path = []
 
 html_theme_options = {
