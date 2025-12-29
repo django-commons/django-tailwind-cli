@@ -1,2 +1,5 @@
-mkdocs-material
-markdown-callouts
+sphinx>=8.0
+myst-parser>=4.0
+sphinx-copybutton
+sphinx-autobuild
+furo

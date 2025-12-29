@@ -43,6 +43,7 @@ repos:
     rev: 0.15.4
     hooks:
       - id: uv-secure
+        exclude: ^docs/
 
   - repo: https://github.com/RobertCraigie/pyright-python
     rev: v1.1.407

@@ -41,7 +41,7 @@ VENV_DIRNAME := ".venv"
 
 # serve docs during development
 @serve-docs: check_uv
-    uvx  --with markdown-callouts --with mkdocs-material mkdocs serve
+    cd docs && uvx --from sphinx-autobuild --with sphinx --with myst-parser --with sphinx-copybutton --with furo sphinx-autobuild . _build/html
 
 # clean up temporary files and directories
 @clean:
@@ -50,6 +50,7 @@ VENV_DIRNAME := ".venv"
     rm -rf .coverage
     rm -rf .pytest_cache/
     rm -rf site/
+    rm -rf docs/_build/
     rm -rf dist/
     rm -rf build/
     rm -rf .tox/

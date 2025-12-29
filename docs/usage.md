@@ -1,17 +1,16 @@
----
-hide:
-  - navigation
----
-
 # Usage
 
-!!! question "Do I have to install the Tailwind CLI?"
+:::{admonition} Do I have to install the Tailwind CLI?
+:class: tip
 
-    **No.** The management commands of this library handle the download and installation of the Tailwind CLI. You don't have to deal with this. But you can configure the installation location and the version of the CLI you want to use. Take a look at the [settings](settings.md) section.
+**No.** The management commands of this library handle the download and installation of the Tailwind CLI. You don't have to deal with this. But you can configure the installation location and the version of the CLI you want to use. Take a look at the [settings](settings.md) section.
+:::
 
-!!! question "Do I have to create my own `css/source.css` for Tailwind 4.x?"
+:::{admonition} Do I have to create my own `css/source.css` for Tailwind 4.x?
+:class: tip
 
-    **No.** The management commands also take care of this step. If no `css/source.css` is present in your project, a new one with sane defaults will be created. Afterwards this file will be used and be customized by you. The default location for the file is first folder from the `STATICFILES_DIRS` of your project, but you can change this. Take a look at the [settings](settings.md) section.
+**No.** The management commands also take care of this step. If no `css/source.css` is present in your project, a new one with sane defaults will be created. Afterwards this file will be used and be customized by you. The default location for the file is first folder from the `STATICFILES_DIRS` of your project, but you can change this. Take a look at the [settings](settings.md) section.
+:::
 
 ## Management commands
 
@@ -27,7 +26,7 @@ Run `python manage.py tailwind watch` to just start a tailwind watcher process i
 
 Run `python manage.py tailwind runserver` to start the classic Django debug server in parallel to a tailwind watcher process.
 
-```shell
+```text
 Usage: manage.py tailwind runserver
            [OPTIONS] [ADDRPORT]
 
@@ -153,32 +152,6 @@ web:
 tailwind-sidecar:
   command: python manage.py tailwind watch
   tty: true
-```
-
-## Use with daisyUI
-
-If you plan to use [daisyUI](https://daisyui.com), there is an easy way to solve this with this library.
-
-```python
-TAILWIND_CLI_USE_DAISY_UI = True
-```
-
-Setting this, the library switches from using the default TailwindCSS CLI to the one provided by [Andris Dobičinaitis](https://github.com/dobicinaitis) and his [tailwind-cli-extra](https://github.com/dobicinaitis/tailwind-cli-extra) project. It also causes the library to create a proper default config that activates the daisyUI plugin.
-
-But of course you can do it manually, too. Just configure a repository where the library should pull the CLI from and activate the daisyUI support.
-
-```python
-TAILWIND_CLI_SRC_REPO = "dobicinaitis/tailwind-cli-extra"
-TAILWIND_CLI_ASSET_NAME = "tailwindcss-extra"
-TAILWIND_CLI_USE_DAISY_UI = True
-```
-
-Or provide your custom configuration, too.
-
-```python
-TAILWIND_CLI_SRC_REPO = "dobicinaitis/tailwind-cli-extra"
-TAILWIND_CLI_ASSET_NAME = "tailwindcss-extra"
-TAILWIND_CLI_SRC_CSS = "etc/source.css"
 ```
 
 ## Use with WhiteNoise

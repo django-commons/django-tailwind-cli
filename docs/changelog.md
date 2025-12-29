@@ -1,6 +1,2 @@
----
-hide:
-  - navigation
----
-
---8<-- "CHANGELOG.md"
+```{include} ../CHANGELOG.md
+```

@@ -6,6 +6,8 @@
 - **Django support**: Dropped support for Django 5.1 (now supporting Django 4.2 LTS, 5.2, and 6.0 only)
 - **Pre-commit hooks**: Updated uv-secure (0.15.4) and pyright (1.1.407)
 - **Security**: Updated Django and Werkzeug to fix security vulnerabilities
+- **Documentation**: Migrated from MkDocs to Sphinx with myst-parser and Furo theme
+- **Documentation**: Added Advanced Configuration and Development Workflow pages
 
 ### 🛠️ Developer Experience
 - **Cleanup command**: Added `just clean` target to remove temporary files and build artifacts

@@ -1,11 +1,6 @@
----
-hide:
-  - navigation
----
-
 # Template Tags
 
-### `{% tailwind_css %}`
+## `{% tailwind_css %}`
 
 Put this template tag in the head of your base template. It includes the `link`-tags to load the CSS stylesheets.
 

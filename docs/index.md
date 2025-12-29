@@ -1,6 +1,15 @@
----
-hide:
-  - navigation
----
+```{include} ../README.md
+```
 
---8<-- "README.md"
+```{toctree}
+:maxdepth: 2
+:hidden:
+
+installation
+usage
+settings
+development
+template_tags
+base_template
+changelog
+```

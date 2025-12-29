@@ -1,21 +1,20 @@
 # django-tailwind-cli
 
-![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/django-commons/django-tailwind-cli/test.yml?style=flat-square)
-[![PyPI](https://img.shields.io/pypi/v/django-tailwind-cli.svg?style=flat-square)](https://pypi.org/project/django-tailwind-cli/)
-[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
-[![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
-![GitHub](https://img.shields.io/github/license/django-commons/django-tailwind-cli?style=flat-square)
-![Django Versions](https://img.shields.io/pypi/frameworkversions/django/django-tailwind-cli)
-![Python Versions](https://img.shields.io/pypi/pyversions/django-tailwind-cli)
-[![Downloads](https://static.pepy.tech/badge/django-tailwind-cli)](https://pepy.tech/project/django-tailwind-cli)
-[![Downloads / Month](https://pepy.tech/badge/django-tailwind-cli/month)](<https://pepy.tech/project/django-tailwind-cli>)
+<p style="display: flex; gap: 4px; flex-wrap: wrap; align-items: flex-start; line-height: 1;">
+<img style="height: auto;" alt="GitHub Workflow Status" src="https://img.shields.io/github/actions/workflow/status/django-commons/django-tailwind-cli/test.yml">
+<a style="display: inline-block;" href="https://pypi.org/project/django-tailwind-cli/"><img style="height: auto;" alt="PyPI" src="https://img.shields.io/pypi/v/django-tailwind-cli.svg"></a>
+<a style="display: inline-block;" href="https://github.com/astral-sh/ruff"><img style="height: auto;" alt="Ruff" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json"></a>
+<a style="display: inline-block;" href="https://github.com/astral-sh/uv"><img style="height: auto;" alt="uv" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json"></a>
+<img style="height: auto;" alt="GitHub" src="https://img.shields.io/github/license/django-commons/django-tailwind-cli">
+<img style="height: auto;" alt="Django Versions" src="https://img.shields.io/pypi/frameworkversions/django/django-tailwind-cli">
+<img style="height: auto;" alt="Python Versions" src="https://img.shields.io/pypi/pyversions/django-tailwind-cli">
+<a style="display: inline-block;" href="https://pepy.tech/project/django-tailwind-cli"><img style="height: auto;" alt="Downloads" src="https://static.pepy.tech/badge/django-tailwind-cli"></a>
+<a style="display: inline-block;" href="https://pepy.tech/project/django-tailwind-cli"><img style="height: auto;" alt="Downloads / Month" src="https://pepy.tech/badge/django-tailwind-cli/month"></a>
+</p>
 
 **The simplest way to integrate Tailwind CSS with Django** ⚡
 
 No Node.js required! This library provides seamless [Tailwind CSS](https://tailwindcss.com) integration for Django using the standalone [Tailwind CSS CLI](https://tailwindcss.com/blog/standalone-cli). Inspired by the [Tailwind integration for Phoenix](https://github.com/phoenixframework/tailwind), it eliminates the need for Node.js in your Django development workflow.
-
-> [!WARNING]
-> **Version Compatibility:** 4.2.x+ supports Tailwind CSS 4.x only. For Tailwind CSS 3.x, use version 2.21.1.
 
 ## ✨ Why django-tailwind-cli?
 
@@ -148,14 +147,14 @@ Start adding Tailwind classes to your templates:
 
 ### 🛠️ Management Commands
 
-| Command | Purpose | Example |
-|---------|---------|---------|
-| `setup` | Interactive setup guide | `python manage.py tailwind setup` |
-| `build` | Production CSS build | `python manage.py tailwind build` |
-| `watch` | Development file watcher | `python manage.py tailwind watch` |
-| `runserver` | Combined server + watcher | `python manage.py tailwind runserver` |
-| `config` | Show current configuration | `python manage.py tailwind config` |
-| `troubleshoot` | Debug common issues | `python manage.py tailwind troubleshoot` |
+| Command        | Purpose                    | Example                                  |
+| -------------- | -------------------------- | ---------------------------------------- |
+| `setup`        | Interactive setup guide    | `python manage.py tailwind setup`        |
+| `build`        | Production CSS build       | `python manage.py tailwind build`        |
+| `watch`        | Development file watcher   | `python manage.py tailwind watch`        |
+| `runserver`    | Combined server + watcher  | `python manage.py tailwind runserver`    |
+| `config`       | Show current configuration | `python manage.py tailwind config`       |
+| `troubleshoot` | Debug common issues        | `python manage.py tailwind troubleshoot` |
 
 ## 📋 Requirements
 
