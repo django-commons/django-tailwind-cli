@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 4.5.0 (2025-12-29)
 
 ### 🎯 New Features
 - **Multiple CSS entry points**: Added `TAILWIND_CLI_CSS_MAP` setting for compiling multiple CSS files in a single project (e.g., separate admin and frontend styles)
