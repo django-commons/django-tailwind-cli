@@ -11,7 +11,6 @@
 - **Pre-commit hooks**: Updated uv-secure (0.15.4) and pyright (1.1.407)
 - **Security**: Updated Django and Werkzeug to fix security vulnerabilities
 - **Documentation**: Migrated from MkDocs to Sphinx with myst-parser and Furo theme
-- **Documentation**: Added Advanced Configuration and Development Workflow pages
 - **Template tag consistency**: Template tag now uses Config class for consistent validation
 - **Test coverage**: Added integration tests for multi-file build and watch commands
 

@@ -29,14 +29,6 @@ html_title = "django-tailwind-cli"
 html_static_path = []
 
 html_theme_options = {
-    "light_css_variables": {
-        "color-brand-primary": "#000000",
-        "color-brand-content": "#000000",
-    },
-    "dark_css_variables": {
-        "color-brand-primary": "#ffffff",
-        "color-brand-content": "#ffffff",
-    },
     "source_repository": "https://github.com/django-commons/django-tailwind-cli",
     "source_branch": "main",
     "source_directory": "docs/",
