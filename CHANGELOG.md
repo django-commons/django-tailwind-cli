@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### 🔧 Technical Improvements
+- **Django support**: Dropped support for Django 5.1 (now supporting Django 4.2 LTS, 5.2, and 6.0 only)
+- **Pre-commit hooks**: Updated uv-secure (0.15.4) and pyright (1.1.407)
+- **Security**: Updated Django and Werkzeug to fix security vulnerabilities
+
 ### 🛠️ Developer Experience
 - **Cleanup command**: Added `just clean` target to remove temporary files and build artifacts
 
