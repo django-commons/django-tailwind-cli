@@ -28,7 +28,6 @@ app = Typer(  # pyright: ignore[reportUnknownVariableType]
 This command provides seamless integration between Django and Tailwind CSS,
 allowing you to build, watch, and serve your Tailwind styles without Node.js.
 
-\b
 Examples:
   python manage.py tailwind setup          # Interactive setup guide (start here!)
   python manage.py tailwind build          # Build production CSS
@@ -41,9 +40,9 @@ Examples:
   python manage.py tailwind troubleshoot   # Troubleshooting guide
   python manage.py tailwind optimize       # Performance optimization tips
 
-\b
 For more information about a specific command, use:
   python manage.py tailwind COMMAND --help""",
+    rich_markup_mode="markdown",
 )  # type: ignore
 
 
