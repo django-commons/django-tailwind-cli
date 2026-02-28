@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### 🛠️ Developer Experience
+- **Gitignore cleanup**: Trimmed `.gitignore` to project-relevant entries only
+
 ## 4.5.1 (2025-12-29)
 
 ### 🐛 Bug Fixes
