@@ -10,7 +10,7 @@ from unittest.mock import Mock
 
 import pytest
 from django.conf import LazySettings
-from django.core.management import CommandError, call_command
+from django.core.management import CommandError, call_command  # pyright: ignore[reportUnknownVariableType]
 from pytest import CaptureFixture
 from pytest_mock import MockerFixture
 
@@ -49,10 +49,9 @@ class TestFastCommands:
         with pytest.raises(CommandError, match="No such command 'not_a_valid_command'"):
             call_command("tailwind", "not_a_valid_command")
 
-    @pytest.mark.parametrize("use_daisy_ui", [True, False])
-    def test_create_src_css_if_non_exists(self, settings: LazySettings, use_daisy_ui: bool):
-        """Test CSS source file creation."""
-        settings.TAILWIND_CLI_USE_DAISY_UI = use_daisy_ui
+    def test_create_src_css_if_non_exists_default(self, settings: LazySettings):
+        """Test default CSS source file creation."""
+        settings.TAILWIND_CLI_USE_DAISY_UI = False
         c = get_config()
         assert c.src_css is not None
         assert not c.src_css.exists()
@@ -60,8 +59,99 @@ class TestFastCommands:
         call_command("tailwind", "build")
 
         assert c.src_css.exists()
-        expected_content = DAISY_UI_SOURCE_CSS if use_daisy_ui else DEFAULT_SOURCE_CSS
-        assert expected_content == c.src_css.read_text()
+        assert DEFAULT_SOURCE_CSS == c.src_css.read_text()
+
+    def test_create_src_css_if_non_exists_daisyui(self, settings: LazySettings, mocker: MockerFixture):
+        """Test DaisyUI CSS source file creation with standalone approach."""
+        settings.TAILWIND_CLI_USE_DAISY_UI = True
+        settings.TAILWIND_CLI_DAISY_UI_VERSION = "5.0.3"
+
+        # Mock DaisyUI file downloads
+        mocker.patch(
+            "django_tailwind_cli.management.commands.tailwind._download_daisyui_files",
+        )
+
+        c = get_config()
+        assert c.src_css is not None
+        assert not c.src_css.exists()
+
+        call_command("tailwind", "build")
+
+        assert c.src_css.exists()
+        assert DAISY_UI_SOURCE_CSS == c.src_css.read_text()
+        # Verify the new DaisyUI CSS references local .mjs files
+        content = c.src_css.read_text()
+        assert '@plugin "./daisyui.mjs"' in content
+        assert '@plugin "./daisyui-theme.mjs"' in content
+
+    def test_download_daisyui_files(self, settings: LazySettings, mocker: MockerFixture, tmp_path: Path):
+        """Test that DaisyUI .mjs files are downloaded during setup."""
+        settings.TAILWIND_CLI_USE_DAISY_UI = True
+        settings.TAILWIND_CLI_DAISY_UI_VERSION = "5.0.3"
+        settings.TAILWIND_CLI_SRC_CSS = tmp_path / "source.css"
+
+        mock_download = mocker.patch("django_tailwind_cli.utils.http.download_with_progress")
+
+        def fake_download(url: str, filepath: Path, **kwargs: object) -> None:
+            filepath.parent.mkdir(parents=True, exist_ok=True)
+            filepath.write_bytes(b"fake mjs content")
+
+        mock_download.side_effect = fake_download
+
+        call_command("tailwind", "build")
+
+        # Verify download was called for both .mjs files
+        download_calls = mock_download.call_args_list
+        daisyui_urls = [call[0][0] for call in download_calls if "daisyui" in call[0][0]]
+        assert len(daisyui_urls) == 2
+        assert any("daisyui.mjs" in url for url in daisyui_urls)
+        assert any("daisyui-theme.mjs" in url for url in daisyui_urls)
+
+    def test_download_daisyui_files_skips_existing(self, settings: LazySettings, mocker: MockerFixture, tmp_path: Path):
+        """Test that DaisyUI files are not re-downloaded when version matches."""
+        settings.TAILWIND_CLI_USE_DAISY_UI = True
+        settings.TAILWIND_CLI_DAISY_UI_VERSION = "5.0.3"
+        settings.TAILWIND_CLI_SRC_CSS = tmp_path / "source.css"
+
+        # Create existing marker file with matching version
+        (tmp_path / ".daisyui_version").write_text("5.0.3")
+        # Create existing .mjs files
+        (tmp_path / "daisyui.mjs").write_bytes(b"existing")
+        (tmp_path / "daisyui-theme.mjs").write_bytes(b"existing")
+
+        mock_download = mocker.patch("django_tailwind_cli.utils.http.download_with_progress")
+
+        def fake_download(url: str, filepath: Path, **kwargs: object) -> None:
+            filepath.parent.mkdir(parents=True, exist_ok=True)
+            filepath.write_bytes(b"fake")
+
+        mock_download.side_effect = fake_download
+
+        call_command("tailwind", "build")
+
+        # download_with_progress should NOT be called for daisyui files
+        for call in mock_download.call_args_list:
+            assert "daisyui" not in call[0][0]
+
+    def test_daisyui_migration_warning(
+        self, settings: LazySettings, mocker: MockerFixture, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ):
+        """Test that a warning is shown when source CSS contains old fork-style @plugin syntax."""
+        settings.TAILWIND_CLI_USE_DAISY_UI = True
+        settings.TAILWIND_CLI_DAISY_UI_VERSION = "5.0.3"
+        settings.TAILWIND_CLI_SRC_CSS = tmp_path / "custom.css"
+
+        # Create source CSS with old fork-style syntax
+        (tmp_path / "custom.css").write_text('@import "tailwindcss";\n@plugin "daisyui";\n')
+
+        mocker.patch(
+            "django_tailwind_cli.management.commands.tailwind._download_daisyui_files",
+        )
+
+        call_command("tailwind", "build")
+
+        captured = capsys.readouterr()
+        assert '@plugin "daisyui"' in captured.out or "migration" in captured.out.lower()
 
     def test_download_cli_basic(self):
         """Test basic CLI download functionality."""

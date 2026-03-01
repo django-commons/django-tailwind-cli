@@ -10,7 +10,7 @@ from collections.abc import Callable
 
 import pytest
 from django.conf import LazySettings
-from django.core.management import CommandError, call_command
+from django.core.management import CommandError, call_command  # pyright: ignore[reportUnknownVariableType]
 from pytest import CaptureFixture
 from pytest_mock import MockerFixture
 
@@ -68,12 +68,15 @@ class TestConfigCommand:
         assert "Auto Download: Yes" in captured.out
 
     def test_config_command_with_daisy_ui(self, settings: LazySettings, capsys: CaptureFixture[str]):
-        """Test config command shows correct DaisyUI status when enabled."""
+        """Test config command shows DaisyUI status and version when enabled."""
         settings.TAILWIND_CLI_USE_DAISY_UI = True
+        settings.TAILWIND_CLI_DAISY_UI_VERSION = "5.0.3"
+
         call_command("tailwind", "config")
         captured = capsys.readouterr()
 
         assert "DaisyUI Enabled: Yes" in captured.out
+        assert "5.0.3" in captured.out
 
     def test_config_command_with_auto_download_disabled(self, settings: LazySettings, capsys: CaptureFixture[str]):
         """Test config command shows correct auto download status when disabled."""

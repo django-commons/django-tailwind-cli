@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### 🎯 New Features
+- **DaisyUI standalone support**: Replaced the `tailwind-cli-extra` fork with the official DaisyUI standalone approach — two `.mjs` plugin files are auto-downloaded alongside the standard Tailwind CLI
+- **DaisyUI version pinning**: New `TAILWIND_CLI_DAISY_UI_VERSION` setting to pin a specific DaisyUI version (default: `latest`)
+
 ### 🛠️ Developer Experience
 - **Gitignore cleanup**: Trimmed `.gitignore` to project-relevant entries only
 

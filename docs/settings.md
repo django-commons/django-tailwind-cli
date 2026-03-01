@@ -113,20 +113,26 @@ with the `{% tailwind_css %}` template tag to include specific CSS files.
 
 **Default**: `False`
 
-This switch determines what content is written to `TAILWIND_CLI_SRC_CSS` if it is automatically created by the library.
+Enables [DaisyUI](https://daisyui.com) support using the official standalone approach. When enabled, the library automatically downloads the DaisyUI standalone plugin files (`daisyui.mjs` and `daisyui-theme.mjs`) from the official DaisyUI releases and places them next to your source CSS file. The standard Tailwind CSS CLI is used — no third-party fork needed.
 
-The default is:
+If `TAILWIND_CLI_USE_DAISY_UI = True` is set, the auto-generated source CSS contains:
 ```css
 @import "tailwindcss";
+@source not "./daisyui{,*}.mjs";
+@plugin "./daisyui.mjs";
+@plugin "./daisyui-theme.mjs";
 ```
 
-If `TAILWIND_CLI_USE_DAISY_UI = True` is put into the `settings.py` of your project, this is the output:
-```css
-@import "tailwindcss";
-@plugin "daisyui";
-```
+### TAILWIND_CLI_DAISY_UI_VERSION
 
-This switch can also be used as a shortcut to activate daisyUI and change `TAILWIND_CLI_SRC_REPO` and `TAILWIND_CLI_ASSET_NAME` as described above to fetch [tailwind-cli-extra](https://github.com/dobicinaitis/tailwind-cli-extra/releases/latest/).
+**Default**: `"latest"`
+
+Controls the version of DaisyUI to download when `TAILWIND_CLI_USE_DAISY_UI = True`. Works like `TAILWIND_CLI_VERSION` — set to `"latest"` to auto-detect the newest release, or pin to a specific version.
+
+For example:
+```python
+TAILWIND_CLI_DAISY_UI_VERSION = "5.0.3"
+```
 
 ## Configuration Patterns
 
@@ -192,21 +198,19 @@ If you plan to use [daisyUI](https://daisyui.com), there is an easy way to solve
 TAILWIND_CLI_USE_DAISY_UI = True
 ```
 
-Setting this, the library switches from using the default TailwindCSS CLI to the one provided by [Andris Dobičinaitis](https://github.com/dobicinaitis) and his [tailwind-cli-extra](https://github.com/dobicinaitis/tailwind-cli-extra) project. It also causes the library to create a proper default config that activates the daisyUI plugin.
+This uses the official DaisyUI standalone approach: two `.mjs` plugin files (`daisyui.mjs` and `daisyui-theme.mjs`) are automatically downloaded from the [DaisyUI releases](https://github.com/saadeghi/daisyui/releases/) and placed next to your source CSS file. The standard Tailwind CSS CLI is used — no third-party fork needed.
 
-But of course you can do it manually, too. Just configure a repository where the library should pull the CLI from and activate the daisyUI support.
+To pin a specific DaisyUI version:
 
 ```python
-TAILWIND_CLI_SRC_REPO = "dobicinaitis/tailwind-cli-extra"
-TAILWIND_CLI_ASSET_NAME = "tailwindcss-extra"
 TAILWIND_CLI_USE_DAISY_UI = True
+TAILWIND_CLI_DAISY_UI_VERSION = "5.0.3"
 ```
 
-Or provide your custom configuration, too.
+For custom CSS with theme configuration, create your own source CSS file:
 
 ```python
-TAILWIND_CLI_SRC_REPO = "dobicinaitis/tailwind-cli-extra"
-TAILWIND_CLI_ASSET_NAME = "tailwindcss-extra"
+TAILWIND_CLI_USE_DAISY_UI = True
 TAILWIND_CLI_SRC_CSS = "src/styles/daisyui.css"
 ```
 
@@ -214,13 +218,22 @@ Example content of `src/styles/daisyui.css` with theme configuration:
 
 ```css
 @import "tailwindcss";
+@source not "./daisyui{,*}.mjs";
 
-@plugin "daisyui" {
+@plugin "./daisyui.mjs";
+@plugin "./daisyui-theme.mjs" {
   themes: nord --default, abyss --prefersdark, cupcake, dracula;
 }
 ```
 
 For more configuration options, see the [DaisyUI Configuration Documentation](https://daisyui.com/docs/config/).
+
+:::{note}
+If you are migrating from a previous version that used the `tailwind-cli-extra` fork, update your source CSS:
+- Replace `@plugin "daisyui";` with `@plugin "./daisyui.mjs";` and `@plugin "./daisyui-theme.mjs";`
+- Add `@source not "./daisyui{,*}.mjs";` to exclude the plugin files from scanning
+- You can remove any `TAILWIND_CLI_SRC_REPO` or `TAILWIND_CLI_ASSET_NAME` overrides
+:::
 
 ### Multiple CSS Entry Points
 

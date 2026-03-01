@@ -27,6 +27,6 @@ class DjangoTailwindCliConfig(AppConfig):
         verbose_name: Human-readable name for Django admin and introspection
     """
 
-    default_auto_field = "django.db.models.BigAutoField"
+    default_auto_field = "django.db.models.BigAutoField"  # pyright: ignore[reportAssignmentType]
     name = "django_tailwind_cli"
     verbose_name = "Django Tailwind CLI"

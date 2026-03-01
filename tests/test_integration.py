@@ -15,7 +15,7 @@ from unittest.mock import Mock, patch
 import pytest
 from django.conf import LazySettings
 from django_tailwind_cli.utils import http
-from django.core.management import call_command
+from django.core.management import call_command  # pyright: ignore[reportUnknownVariableType]
 from pytest import CaptureFixture
 
 from django_tailwind_cli.config import get_config
@@ -111,12 +111,13 @@ class TestBuildWorkflowIntegration:
             assert settings.TAILWIND_CLI_SRC_CSS.read_text() == custom_css
 
     def test_build_with_daisy_ui_integration(self, settings: LazySettings, tmp_path: Path):
-        """Test build workflow with DaisyUI enabled."""
+        """Test build workflow with DaisyUI enabled uses standalone approach."""
         settings.BASE_DIR = tmp_path
         settings.TAILWIND_CLI_PATH = tmp_path / ".django_tailwind_cli"
         settings.TAILWIND_CLI_SRC_CSS = tmp_path / "source.css"
         settings.STATICFILES_DIRS = (tmp_path / "assets",)
         settings.TAILWIND_CLI_USE_DAISY_UI = True
+        settings.TAILWIND_CLI_DAISY_UI_VERSION = "5.0.3"
         settings.TAILWIND_CLI_VERSION = "4.1.3"
 
         with (
@@ -139,10 +140,18 @@ class TestBuildWorkflowIntegration:
 
             call_command("tailwind", "build")
 
-            # Verify DaisyUI CSS template was used
+            # Verify DaisyUI CSS template was used with standalone approach
             config = get_config()
             assert config.src_css.read_text() == DAISY_UI_SOURCE_CSS
             assert config.use_daisy_ui is True
+
+            # Verify standard Tailwind CLI is used (not the fork)
+            assert "tailwindcss-extra" not in str(config.cli_path)
+            assert "tailwindlabs/tailwindcss" in config.download_url
+
+            # Verify DaisyUI .mjs files were downloaded
+            daisyui_download_calls = [call for call in mock_download.call_args_list if "daisyui" in call[0][0]]
+            assert len(daisyui_download_calls) == 2
 
     def test_build_force_rebuild_workflow(self, settings: LazySettings, tmp_path: Path):
         """Test force rebuild bypasses optimization checks."""

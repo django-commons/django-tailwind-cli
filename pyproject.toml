@@ -58,6 +58,7 @@ typeCheckingMode = "strict"
 venvPath = ".venv"
 venv = "."
 reportPrivateUsage = "warning"
+reportMissingTypeStubs = false
 
 [tool.pyright.defineConstant]
 TYPE_CHECKING = true

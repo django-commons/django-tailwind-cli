@@ -16,7 +16,7 @@ from django_tailwind_cli.utils import http
 import typer
 from django.conf import settings
 from django.core.management.base import CommandError
-from django.template.utils import get_app_template_dirs
+from django.template.utils import get_app_template_dirs  # pyright: ignore[reportUnknownVariableType]
 from django_typer.management import Typer
 
 from django_tailwind_cli.config import Config, get_config
@@ -443,12 +443,12 @@ def list_templates(
         typer.secho("🔍 Starting enhanced template discovery...", fg=typer.colors.CYAN)
 
     # Scan app template directories
-    app_template_dirs = get_app_template_dirs("templates")
+    app_template_dirs: tuple[Path, ...] = get_app_template_dirs("templates")  # pyright: ignore[reportUnknownVariableType]
     if verbose:
         typer.secho(f"📱 Found {len(app_template_dirs)} app template directories", fg=typer.colors.BLUE)
 
-    for app_template_dir in app_template_dirs:
-        _list_template_files_enhanced(app_template_dir, "app")
+    for app_template_dir in app_template_dirs:  # pyright: ignore[reportUnknownVariableType]
+        _list_template_files_enhanced(app_template_dir, "app")  # pyright: ignore[reportUnknownArgumentType]
 
     # Scan global template directories
     global_template_dirs: list[str] = settings.TEMPLATES[0]["DIRS"] if settings.TEMPLATES else []
@@ -567,6 +567,8 @@ def show_config():
     typer.secho("\n📦 Version Information:", fg=typer.colors.YELLOW, bold=True)
     typer.secho(f"   Tailwind CSS Version: {config.version_str}", fg=typer.colors.GREEN)
     typer.secho(f"   DaisyUI Enabled: {'Yes' if config.use_daisy_ui else 'No'}", fg=typer.colors.GREEN)
+    if config.use_daisy_ui and config.daisy_ui_version:
+        typer.secho(f"   DaisyUI Version: {config.daisy_ui_version}", fg=typer.colors.GREEN)
     typer.secho(f"   Auto Download: {'Yes' if config.automatic_download else 'No'}", fg=typer.colors.GREEN)
 
     # Path information
@@ -1410,11 +1412,59 @@ def _download_cli_with_progress(url: str, filepath: Path) -> None:
         raise CommandError(f"Failed to download Tailwind CSS CLI: {e}") from e
 
 
+def _download_daisyui_files(*, verbose: bool = False) -> None:
+    """Download DaisyUI standalone .mjs files if needed.
+
+    Downloads daisyui.mjs and daisyui-theme.mjs to the source CSS directory.
+    Skips download if files exist and version matches (checked via .daisyui_version marker).
+    """
+    c = get_config()
+    if not c.use_daisy_ui or not c.daisy_ui_download_urls:
+        return
+
+    # Check version marker to skip if already up to date
+    src_css_dir = c.css_entries[0].src_css.parent
+    marker_file = src_css_dir / ".daisyui_version"
+
+    if marker_file.exists() and marker_file.read_text().strip() == c.daisy_ui_version:
+        # Check all files exist
+        all_exist = all(dest.exists() for _url, dest in c.daisy_ui_download_urls)
+        if all_exist:
+            if verbose:
+                typer.secho(
+                    f"✅ DaisyUI {c.daisy_ui_version} files are up-to-date",
+                    fg=typer.colors.GREEN,
+                )
+            return
+
+    if verbose:
+        typer.secho(f"📥 Downloading DaisyUI {c.daisy_ui_version} standalone files...", fg=typer.colors.CYAN)
+
+    src_css_dir.mkdir(parents=True, exist_ok=True)
+
+    for url, dest_path in c.daisy_ui_download_urls:
+        if verbose:
+            typer.secho(f"   • {url} -> {dest_path}", fg=typer.colors.BLUE)
+        try:
+            http.download_with_progress(url, dest_path, timeout=30)
+        except http.RequestError as e:
+            raise CommandError(f"Failed to download DaisyUI file from {url}: {e}") from e
+
+    # Write version marker
+    marker_file.write_text(c.daisy_ui_version)
+
+    typer.secho(
+        f"Downloaded DaisyUI {c.daisy_ui_version} files to '{src_css_dir}'.",
+        fg=typer.colors.GREEN,
+    )
+
+
 def _setup_tailwind_environment_with_verbose(*, verbose: bool = False) -> None:
     """Common setup for all Tailwind commands with verbose logging."""
     if verbose:
         typer.secho("⚙️  Setting up Tailwind environment...", fg=typer.colors.CYAN)
     _download_cli_with_verbose(verbose=verbose)
+    _download_daisyui_files(verbose=verbose)
     _create_standard_config_with_verbose(verbose=verbose)
 
 
@@ -1646,7 +1696,12 @@ def _download_cli_with_verbose(*, verbose: bool = False, force_download: bool = 
 
 
 DEFAULT_SOURCE_CSS = '@import "tailwindcss";\n'
-DAISY_UI_SOURCE_CSS = '@import "tailwindcss";\n@plugin "daisyui";\n'
+DAISY_UI_SOURCE_CSS = (
+    '@import "tailwindcss";\n'
+    '@source not "./daisyui{,*}.mjs";\n'
+    '@plugin "./daisyui.mjs";\n'
+    '@plugin "./daisyui-theme.mjs";\n'
+)
 
 
 def _create_standard_config_with_verbose(*, verbose: bool = False) -> None:
@@ -1702,8 +1757,41 @@ def _create_standard_config_with_verbose(*, verbose: bool = False) -> None:
             f"Created Tailwind Source CSS at '{c.src_css}'",
             fg=typer.colors.GREEN,
         )
-    elif verbose:
-        typer.secho("⏭️  Source CSS file is up-to-date, no changes needed", fg=typer.colors.GREEN)
+    else:
+        # Check for old fork-style DaisyUI syntax in existing custom CSS
+        if c.use_daisy_ui and c.src_css.exists():
+            try:
+                existing_content = c.src_css.read_text()
+                if '@plugin "daisyui"' in existing_content and '@plugin "./daisyui.mjs"' not in existing_content:
+                    typer.secho(
+                        "\n⚠️  Migration required: Your source CSS uses the old DaisyUI plugin syntax.",
+                        fg=typer.colors.YELLOW,
+                    )
+                    typer.secho(
+                        '   Replace: @plugin "daisyui";',
+                        fg=typer.colors.RED,
+                    )
+                    typer.secho(
+                        "   With:",
+                        fg=typer.colors.GREEN,
+                    )
+                    typer.secho(
+                        '     @source not "./daisyui{,*}.mjs";',
+                        fg=typer.colors.GREEN,
+                    )
+                    typer.secho(
+                        '     @plugin "./daisyui.mjs";',
+                        fg=typer.colors.GREEN,
+                    )
+                    typer.secho(
+                        '     @plugin "./daisyui-theme.mjs";',
+                        fg=typer.colors.GREEN,
+                    )
+            except (OSError, UnicodeDecodeError):
+                pass
+
+        if verbose:
+            typer.secho("⏭️  Source CSS file is up-to-date, no changes needed", fg=typer.colors.GREEN)
 
 
 def get_runserver_options(

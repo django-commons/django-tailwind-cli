@@ -91,7 +91,7 @@ import os
 import platform
 import tempfile
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import NamedTuple
 
@@ -121,6 +121,8 @@ class Config:
     overwrite_default_config: bool = True
     automatic_download: bool = True
     use_daisy_ui: bool = False
+    daisy_ui_version: str = ""
+    daisy_ui_download_urls: list[tuple[str, Path]] = field(default_factory=lambda: [])
 
     # Backward compatibility properties
     @property
@@ -362,13 +364,8 @@ def get_version() -> tuple[str, Version]:
         ValueError: If the TAILWIND_CLI_SRC_REPO setting is None when the version is set to
         "latest".
     """
-    use_daisy_ui = getattr(settings, "TAILWIND_CLI_USE_DAISY_UI", False)
     version_str = getattr(settings, "TAILWIND_CLI_VERSION", "latest")
-    repo_url = getattr(
-        settings,
-        "TAILWIND_CLI_SRC_REPO",
-        "tailwindlabs/tailwindcss" if not use_daisy_ui else "dobicinaitis/tailwind-cli-extra",
-    )
+    repo_url = getattr(settings, "TAILWIND_CLI_SRC_REPO", "tailwindlabs/tailwindcss")
     if not repo_url:
         raise ValueError("TAILWIND_CLI_SRC_REPO must not be None.")
 
@@ -521,11 +518,8 @@ def _resolve_css_paths() -> tuple[list[CSSEntry], bool]:
     return [entry], overwrite_default_config
 
 
-def _get_repository_settings(*, use_daisy_ui: bool) -> tuple[str, str]:
-    """Get repository URL and asset name based on DaisyUI setting.
-
-    Args:
-        use_daisy_ui: Whether DaisyUI support is enabled.
+def _get_repository_settings() -> tuple[str, str]:
+    """Get repository URL and asset name.
 
     Returns:
         tuple: (repo_url, asset_name)
@@ -533,15 +527,8 @@ def _get_repository_settings(*, use_daisy_ui: bool) -> tuple[str, str]:
     Raises:
         ValueError: If TAILWIND_CLI_ASSET_NAME is None.
     """
-    if use_daisy_ui:
-        default_repo = "dobicinaitis/tailwind-cli-extra"
-        default_asset = "tailwindcss-extra"
-    else:
-        default_repo = "tailwindlabs/tailwindcss"
-        default_asset = "tailwindcss"
-
-    repo_url = getattr(settings, "TAILWIND_CLI_SRC_REPO", default_repo)
-    asset_name = getattr(settings, "TAILWIND_CLI_ASSET_NAME", default_asset)
+    repo_url = getattr(settings, "TAILWIND_CLI_SRC_REPO", "tailwindlabs/tailwindcss")
+    asset_name = getattr(settings, "TAILWIND_CLI_ASSET_NAME", "tailwindcss")
 
     # Validate asset name
     if not asset_name:
@@ -550,6 +537,65 @@ def _get_repository_settings(*, use_daisy_ui: bool) -> tuple[str, str]:
         )
 
     return repo_url, asset_name
+
+
+def _resolve_daisy_ui_version(version_setting: str) -> str:
+    """Resolve the DaisyUI version string.
+
+    Args:
+        version_setting: Version from settings ('latest' or a pinned version like '5.0.3').
+
+    Returns:
+        Resolved version string (e.g., '5.0.3').
+    """
+    if version_setting != "latest":
+        return version_setting
+
+    # Try cache first
+    daisy_repo = "saadeghi/daisyui"
+    cached = _load_cached_version(daisy_repo)
+    if cached:
+        return cached.version_str
+
+    # Fetch latest version from GitHub
+    timeout = getattr(settings, "TAILWIND_CLI_REQUEST_TIMEOUT", 10)
+    try:
+        success, location = http.fetch_redirect_location(
+            f"https://github.com/{daisy_repo}/releases/latest/", timeout=timeout
+        )
+        if success and location:
+            version_str = location.rstrip("/").split("/")[-1].replace("v", "")
+            _save_cached_version(daisy_repo, version_str)
+            return version_str
+    except (http.RequestError, ValueError):
+        pass
+
+    # Fallback
+    return "5.0.3"
+
+
+def _resolve_daisy_ui_config(css_entries: list[CSSEntry]) -> tuple[str, list[tuple[str, Path]]]:
+    """Resolve DaisyUI configuration: version and download URLs.
+
+    Args:
+        css_entries: List of CSS entries to determine download destination.
+
+    Returns:
+        Tuple of (daisy_ui_version, list of (download_url, destination_path)).
+    """
+    version_setting = getattr(settings, "TAILWIND_CLI_DAISY_UI_VERSION", "latest")
+    version = _resolve_daisy_ui_version(version_setting)
+
+    # DaisyUI files go next to the first source CSS file
+    src_css_dir = css_entries[0].src_css.parent
+
+    base_url = f"https://github.com/saadeghi/daisyui/releases/download/v{version}"
+    download_urls: list[tuple[str, Path]] = [
+        (f"{base_url}/daisyui.mjs", src_css_dir / "daisyui.mjs"),
+        (f"{base_url}/daisyui-theme.mjs", src_css_dir / "daisyui-theme.mjs"),
+    ]
+
+    return version, download_urls
 
 
 def get_config() -> Config:
@@ -575,7 +621,7 @@ def get_config() -> Config:
     version_str, version = get_version()
 
     # Get repository and asset settings
-    repo_url, asset_name = _get_repository_settings(use_daisy_ui=use_daisy_ui)
+    repo_url, asset_name = _get_repository_settings()
 
     # Resolve paths
     cli_path = _resolve_cli_path(platform_info, version_str, asset_name)
@@ -587,6 +633,12 @@ def get_config() -> Config:
         f"{asset_name}-{platform_info.system}-{platform_info.machine}{platform_info.extension}"
     )
 
+    # Resolve DaisyUI configuration
+    daisy_ui_version = ""
+    daisy_ui_download_urls: list[tuple[str, Path]] = []
+    if use_daisy_ui:
+        daisy_ui_version, daisy_ui_download_urls = _resolve_daisy_ui_config(css_entries)
+
     return Config(
         version_str=version_str,
         version=version,
@@ -596,4 +648,6 @@ def get_config() -> Config:
         overwrite_default_config=overwrite_default_config,
         automatic_download=automatic_download,
         use_daisy_ui=use_daisy_ui,
+        daisy_ui_version=daisy_ui_version,
+        daisy_ui_download_urls=daisy_ui_download_urls,
     )
