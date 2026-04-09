@@ -42,6 +42,14 @@ In case you want to use the new behaviour, it is highly recommended to also set 
 
 Enable or disable the automatic downloading of the official CLI to your machine.
 
+### TAILWIND_CLI_AUTOMATIC_MINIFY
+
+**Default**: `True`
+
+Controls whether `python manage.py tailwind build` passes `--minify` to the Tailwind CLI. Set to `False` if your asset pipeline already minifies CSS (for example when using `django-compressor` or a CDN transform) so you don't minify twice.
+
+This setting only changes the default; the `build` command also accepts an explicit `--minify` / `--no-minify` flag which takes precedence.
+
 ### TAILWIND_CLI_SRC_REPO
 
 **Default**: `"tailwindlabs/tailwindcss"`

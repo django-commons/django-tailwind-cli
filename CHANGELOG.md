@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### 🎯 New Features
+- **Configurable minification**: New `TAILWIND_CLI_AUTOMATIC_MINIFY` setting and `--minify` / `--no-minify` flag on `tailwind build` for projects whose asset pipelines already minify CSS. Defaults preserve existing behavior.
+
 ### 🛠️ Developer Experience
 - **Gitignore cleanup**: Trimmed `.gitignore` to project-relevant entries only
 
