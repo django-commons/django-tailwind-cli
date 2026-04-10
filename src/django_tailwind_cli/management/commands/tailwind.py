@@ -181,8 +181,16 @@ def build(
         "-v",
         help="Show detailed build information and diagnostics.",
     ),
+    minify: bool | None = typer.Option(
+        None,
+        "--minify/--no-minify",
+        help=(
+            "Produce a minified stylesheet. Defaults to the value of the "
+            "TAILWIND_CLI_AUTOMATIC_MINIFY Django setting (True if unset)."
+        ),
+    ),
 ) -> None:
-    """Build minified production-ready CSS file(s).
+    """Build production-ready CSS file(s).
 
     This command processes your Tailwind CSS input file(s) and generates optimized
     production CSS file(s) with only the styles actually used in your templates.
@@ -215,6 +223,9 @@ def build(
     start_time = time.time()
     config = get_config()
 
+    if minify is None:
+        minify = getattr(settings, "TAILWIND_CLI_AUTOMATIC_MINIFY", True)
+
     if verbose:
         typer.secho("🏗️  Starting Tailwind CSS build process...", fg=typer.colors.CYAN)
         typer.secho(f"   • CSS entries: {len(config.css_entries)}", fg=typer.colors.BLUE)
@@ -244,12 +255,12 @@ def build(
             continue
 
         if verbose:
-            build_cmd = config.get_build_cmd(entry)
+            build_cmd = config.get_build_cmd(entry, minify=minify)
             typer.secho(f"⚡ [{entry.name}] Executing Tailwind CSS build command...", fg=typer.colors.CYAN)
             typer.secho(f"   • Command: {' '.join(build_cmd)}", fg=typer.colors.BLUE)
 
         _execute_tailwind_command(
-            config.get_build_cmd(entry),
+            config.get_build_cmd(entry, minify=minify),
             success_message=f"Built production stylesheet '{entry.dist_css}'.",
             error_message=f"Failed to build production stylesheet '{entry.name}'",
             verbose=verbose,

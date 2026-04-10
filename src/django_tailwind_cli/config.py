@@ -149,16 +149,18 @@ class Config:
             "--watch",
         ]
 
-    def get_build_cmd(self, entry: CSSEntry) -> list[str]:
+    def get_build_cmd(self, entry: CSSEntry, *, minify: bool = True) -> list[str]:
         """Generate build command for a specific CSS entry."""
-        return [
+        cmd = [
             str(self.cli_path),
             "--input",
             str(entry.src_css),
             "--output",
             str(entry.dist_css),
-            "--minify",
         ]
+        if minify:
+            cmd.append("--minify")
+        return cmd
 
     @property
     def watch_cmd(self) -> list[str]:

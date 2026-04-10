@@ -135,6 +135,45 @@ class TestSubprocessCommands:
         assert self.mock_subprocess_run.call_count >= 1
 
     @pytest.mark.timeout(5)
+    def test_build_minifies_by_default(self):
+        """Build command includes --minify by default."""
+        call_command("tailwind", "build")
+        cmd = self.mock_subprocess_run.call_args_list[-1].args[0]
+        assert "--minify" in cmd
+
+    @pytest.mark.timeout(5)
+    def test_build_respects_automatic_minify_setting_true(self, settings: LazySettings):
+        """TAILWIND_CLI_AUTOMATIC_MINIFY=True explicitly set still minifies."""
+        settings.TAILWIND_CLI_AUTOMATIC_MINIFY = True
+        call_command("tailwind", "build")
+        cmd = self.mock_subprocess_run.call_args_list[-1].args[0]
+        assert "--minify" in cmd
+
+    @pytest.mark.timeout(5)
+    def test_build_respects_automatic_minify_setting(self, settings: LazySettings):
+        """TAILWIND_CLI_AUTOMATIC_MINIFY=False disables minification."""
+        settings.TAILWIND_CLI_AUTOMATIC_MINIFY = False
+        call_command("tailwind", "build")
+        cmd = self.mock_subprocess_run.call_args_list[-1].args[0]
+        assert "--minify" not in cmd
+
+    @pytest.mark.timeout(5)
+    def test_build_no_minify_flag_overrides_setting(self, settings: LazySettings):
+        """--no-minify CLI flag overrides the setting."""
+        settings.TAILWIND_CLI_AUTOMATIC_MINIFY = True
+        call_command("tailwind", "build", "--no-minify")
+        cmd = self.mock_subprocess_run.call_args_list[-1].args[0]
+        assert "--minify" not in cmd
+
+    @pytest.mark.timeout(5)
+    def test_build_minify_flag_overrides_setting(self, settings: LazySettings):
+        """--minify CLI flag overrides TAILWIND_CLI_AUTOMATIC_MINIFY=False."""
+        settings.TAILWIND_CLI_AUTOMATIC_MINIFY = False
+        call_command("tailwind", "build", "--minify")
+        cmd = self.mock_subprocess_run.call_args_list[-1].args[0]
+        assert "--minify" in cmd
+
+    @pytest.mark.timeout(5)
     def test_build_with_keyboard_interrupt(self, capsys: CaptureFixture[str]):
         """Test build command handling of KeyboardInterrupt."""
         self.mock_subprocess_run.side_effect = KeyboardInterrupt

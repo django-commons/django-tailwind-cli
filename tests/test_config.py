@@ -431,6 +431,15 @@ def test_css_map_get_build_cmd(settings: SettingsWrapper):
         assert str(entry.dist_css) in cmd
 
 
+def test_get_build_cmd_without_minify(settings: SettingsWrapper):
+    settings.TAILWIND_CLI_CSS_MAP = [("admin.css", "admin.output.css")]
+    c = get_config()
+    cmd = c.get_build_cmd(c.css_entries[0], minify=False)
+    assert "--minify" not in cmd
+    assert "--input" in cmd
+    assert "--output" in cmd
+
+
 def test_css_map_get_watch_cmd(settings: SettingsWrapper):
     settings.TAILWIND_CLI_CSS_MAP = [
         ("admin.css", "admin.output.css"),
