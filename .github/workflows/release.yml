@@ -64,6 +64,10 @@ jobs:
       id-token: write  # IMPORTANT: mandatory for sigstore
 
     steps:
+    - name: Checkout repository at tag
+      uses: actions/checkout@v6
+      with:
+        ref: ${{ github.ref_name }}
     - name: Download all the dists
       uses: actions/download-artifact@v8
       with:
@@ -75,6 +79,22 @@ jobs:
         inputs: >-
           ./dist/*.tar.gz
           ./dist/*.whl
+    - name: Extract changelog for this version
+      run: |
+        VERSION="${{ github.ref_name }}"
+        VERSION="${VERSION#v}"
+        awk "
+          /^## ${VERSION}/ { found=1; next }
+          found && /^## / { exit }
+          found { print }
+        " CHANGELOG.md > release-notes.md
+        if [[ ! -s release-notes.md ]]; then
+          echo "::error::No changelog section found for version ${VERSION}."
+          echo "::error::Did you forget to rename '## Unreleased' in CHANGELOG.md before tagging?"
+          exit 1
+        fi
+        echo "--- Extracted release notes ---"
+        cat release-notes.md
     - name: Create GitHub Release
       env:
         GITHUB_TOKEN: ${{ github.token }}
@@ -82,7 +102,7 @@ jobs:
         gh release create
         '${{ github.ref_name }}'
         --repo '${{ github.repository }}'
-        --notes ""
+        --notes-file release-notes.md
     - name: Upload artifact signatures to GitHub Release
       env:
         GITHUB_TOKEN: ${{ github.token }}
