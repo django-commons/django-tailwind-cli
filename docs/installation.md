@@ -69,6 +69,17 @@
 
 ## Optional steps
 
+### Use a system-installed Tailwind CSS CLI
+
+By default, `django-tailwind-cli` downloads the Tailwind CSS CLI binary on first use and caches it inside your project. If you already have `tailwindcss` installed through [Homebrew](https://formulae.brew.sh/formula/tailwindcss) or another package manager, you can tell the library to use that binary instead and skip the download:
+
+```python
+# settings.py
+TAILWIND_CLI_USE_SYSTEM_BINARY = True
+```
+
+See [`TAILWIND_CLI_USE_SYSTEM_BINARY`](settings.md#tailwind_cli_use_system_binary) for details.
+
 ### Install `django-browser-reload`
 
 If you enjoy automatic reloading during development. Install the [django-browser-reload](https://github.com/adamchainz/django-browser-reload) app. The following installation steps are taken from the README of the project.

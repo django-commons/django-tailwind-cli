@@ -583,7 +583,8 @@ def show_config():
     # Path information
     typer.secho("\n📁 File Paths:", fg=typer.colors.YELLOW, bold=True)
     cli_exists = "✅" if config.cli_path.exists() else "❌"
-    typer.secho(f"   CLI Binary: {config.cli_path} {cli_exists}", fg=typer.colors.GREEN)
+    origin = "system binary" if config.uses_system_binary else "managed download"
+    typer.secho(f"   CLI Binary: {config.cli_path} {cli_exists} ({origin})", fg=typer.colors.GREEN)
 
     # CSS Entries
     typer.secho(f"\n📄 CSS Entries ({len(config.css_entries)}):", fg=typer.colors.YELLOW, bold=True)
@@ -605,6 +606,12 @@ def show_config():
     cli_path_setting = getattr(settings, "TAILWIND_CLI_PATH", None)
     if cli_path_setting:
         typer.secho(f"   TAILWIND_CLI_PATH: {cli_path_setting}", fg=typer.colors.GREEN)
+
+    if getattr(settings, "TAILWIND_CLI_USE_SYSTEM_BINARY", False):
+        typer.secho("   TAILWIND_CLI_USE_SYSTEM_BINARY: True", fg=typer.colors.GREEN)
+        system_binary_name = getattr(settings, "TAILWIND_CLI_SYSTEM_BINARY_NAME", None)
+        if system_binary_name:
+            typer.secho(f"   TAILWIND_CLI_SYSTEM_BINARY_NAME: {system_binary_name}", fg=typer.colors.GREEN)
 
     # Show CSS settings based on mode
     css_map_setting = getattr(settings, "TAILWIND_CLI_CSS_MAP", None)
@@ -1057,6 +1064,15 @@ def show_performance_tips():
 def remove_cli():
     """Remove the Tailwind CSS CLI."""
     c = get_config()
+
+    if c.uses_system_binary:
+        typer.secho(
+            f"Refusing to remove system Tailwind CSS CLI at '{c.cli_path}'. "
+            "It was installed outside of django-tailwind-cli (e.g. via Homebrew) and must be "
+            "uninstalled the same way.",
+            fg=typer.colors.YELLOW,
+        )
+        return
 
     if c.cli_path.exists():
         c.cli_path.unlink()
@@ -1612,6 +1628,16 @@ def _download_cli_with_verbose(*, verbose: bool = False, force_download: bool = 
         typer.secho(f"   • Version: {c.version_str}", fg=typer.colors.BLUE)
         typer.secho(f"   • Download URL: {c.download_url}", fg=typer.colors.BLUE)
         typer.secho(f"   • Automatic download: {c.automatic_download}", fg=typer.colors.BLUE)
+
+    # System-binary mode: the CLI lives on PATH, never download it.
+    if c.uses_system_binary:
+        if verbose:
+            typer.secho("✅ Using system Tailwind CSS CLI — download skipped", fg=typer.colors.GREEN)
+        typer.secho(
+            f"Using system Tailwind CSS CLI at '{c.cli_path}'.",
+            fg=typer.colors.GREEN,
+        )
+        return
 
     if not force_download and not c.automatic_download:
         if not _check_file_exists_cached(c.cli_path):

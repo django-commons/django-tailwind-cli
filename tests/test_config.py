@@ -2,6 +2,7 @@
 from pathlib import Path
 
 import pytest
+from _pytest.recwarn import WarningsChecker
 from pytest_django.fixtures import SettingsWrapper
 from pytest_mock import MockerFixture
 
@@ -518,3 +519,281 @@ def test_css_map_overwrite_default_config_false(settings: SettingsWrapper):
     ]
     c = get_config()
     assert c.overwrite_default_config is False
+
+
+# System binary support ---------------------------------------------------------------------------
+
+
+def test_system_binary_happy_path(settings: SettingsWrapper, mocker: MockerFixture):
+    """System binary resolved via shutil.which when USE_SYSTEM_BINARY is True."""
+    settings.TAILWIND_CLI_USE_SYSTEM_BINARY = True
+    mocker.patch("shutil.which", return_value="/opt/homebrew/bin/tailwindcss")
+    # Avoid real subprocess calls during version detection
+    mocker.patch("django_tailwind_cli.config.detect_binary_version", return_value=None)
+
+    c = get_config()
+
+    assert c.uses_system_binary is True
+    assert c.cli_path == Path("/opt/homebrew/bin/tailwindcss")
+    # Auto-download is implicitly disabled in system-binary mode
+    assert c.automatic_download is False
+
+
+def test_system_binary_uses_shutil_which_with_default_name(settings: SettingsWrapper, mocker: MockerFixture):
+    """The default binary name is 'tailwindcss'."""
+    settings.TAILWIND_CLI_USE_SYSTEM_BINARY = True
+    which_mock = mocker.patch("shutil.which", return_value="/usr/local/bin/tailwindcss")
+    mocker.patch("django_tailwind_cli.config.detect_binary_version", return_value=None)
+
+    get_config()
+
+    which_mock.assert_called_once_with("tailwindcss")
+
+
+def test_system_binary_custom_name(settings: SettingsWrapper, mocker: MockerFixture):
+    """TAILWIND_CLI_SYSTEM_BINARY_NAME overrides the lookup name."""
+    settings.TAILWIND_CLI_USE_SYSTEM_BINARY = True
+    settings.TAILWIND_CLI_SYSTEM_BINARY_NAME = "tailwindcss-extra"
+    which_mock = mocker.patch("shutil.which", return_value="/opt/homebrew/bin/tailwindcss-extra")
+    mocker.patch("django_tailwind_cli.config.detect_binary_version", return_value=None)
+
+    c = get_config()
+
+    which_mock.assert_called_once_with("tailwindcss-extra")
+    assert c.cli_path == Path("/opt/homebrew/bin/tailwindcss-extra")
+
+
+def test_system_binary_daisyui_default_name(settings: SettingsWrapper, mocker: MockerFixture):
+    """When DaisyUI is enabled, the default system binary name is tailwindcss-extra."""
+    settings.TAILWIND_CLI_USE_SYSTEM_BINARY = True
+    settings.TAILWIND_CLI_USE_DAISY_UI = True
+    which_mock = mocker.patch("shutil.which", return_value="/opt/homebrew/bin/tailwindcss-extra")
+    mocker.patch("django_tailwind_cli.config.detect_binary_version", return_value=None)
+
+    get_config()
+
+    which_mock.assert_called_once_with("tailwindcss-extra")
+
+
+def test_system_binary_not_found(settings: SettingsWrapper, mocker: MockerFixture):
+    """A clear error is raised when the system binary cannot be located."""
+    settings.TAILWIND_CLI_USE_SYSTEM_BINARY = True
+    mocker.patch("shutil.which", return_value=None)
+
+    with pytest.raises(ValueError, match="TAILWIND_CLI_USE_SYSTEM_BINARY"):
+        get_config()
+
+
+def test_system_binary_not_found_error_mentions_binary_name(settings: SettingsWrapper, mocker: MockerFixture):
+    """The error message includes the binary name that was searched for."""
+    settings.TAILWIND_CLI_USE_SYSTEM_BINARY = True
+    settings.TAILWIND_CLI_SYSTEM_BINARY_NAME = "tailwindcss-extra"
+    mocker.patch("shutil.which", return_value=None)
+
+    with pytest.raises(ValueError, match="tailwindcss-extra"):
+        get_config()
+
+
+def test_system_binary_mutually_exclusive_with_cli_path(
+    settings: SettingsWrapper, mocker: MockerFixture, tmp_path: Path
+):
+    """Combining TAILWIND_CLI_USE_SYSTEM_BINARY with TAILWIND_CLI_PATH raises."""
+    settings.TAILWIND_CLI_USE_SYSTEM_BINARY = True
+    settings.TAILWIND_CLI_PATH = str(tmp_path / "tailwindcss")
+    mocker.patch("shutil.which", return_value="/opt/homebrew/bin/tailwindcss")
+
+    with pytest.raises(
+        ValueError,
+        match="Cannot use TAILWIND_CLI_USE_SYSTEM_BINARY together with TAILWIND_CLI_PATH",
+    ):
+        get_config()
+
+
+def test_system_binary_system_binary_name_without_flag_is_ignored(settings: SettingsWrapper):
+    """Setting TAILWIND_CLI_SYSTEM_BINARY_NAME alone does not enable system mode."""
+    settings.TAILWIND_CLI_SYSTEM_BINARY_NAME = "tailwindcss"
+    c = get_config()
+    assert c.uses_system_binary is False
+    # Falls back to the normal download path
+    assert ".django_tailwind_cli/tailwindcss" in str(c.cli_path)
+
+
+def test_system_binary_empty_name_raises(settings: SettingsWrapper):
+    """An empty TAILWIND_CLI_SYSTEM_BINARY_NAME is rejected."""
+    settings.TAILWIND_CLI_USE_SYSTEM_BINARY = True
+    settings.TAILWIND_CLI_SYSTEM_BINARY_NAME = ""
+
+    with pytest.raises(ValueError, match="TAILWIND_CLI_SYSTEM_BINARY_NAME"):
+        get_config()
+
+
+def test_system_binary_version_match_no_warning(
+    settings: SettingsWrapper, mocker: MockerFixture, recwarn: WarningsChecker
+):
+    """When system binary version matches TAILWIND_CLI_VERSION, no warning is emitted."""
+    from semver import Version
+
+    settings.TAILWIND_CLI_VERSION = "4.1.3"
+    settings.TAILWIND_CLI_USE_SYSTEM_BINARY = True
+    mocker.patch("shutil.which", return_value="/opt/homebrew/bin/tailwindcss")
+    mocker.patch(
+        "django_tailwind_cli.config.detect_binary_version",
+        return_value=Version.parse("4.1.3"),
+    )
+
+    get_config()
+
+    assert len(recwarn) == 0
+
+
+def test_system_binary_version_mismatch_warns(settings: SettingsWrapper, mocker: MockerFixture):
+    """Version mismatch with explicit TAILWIND_CLI_VERSION emits a warning."""
+    from semver import Version
+
+    settings.TAILWIND_CLI_VERSION = "4.1.3"
+    settings.TAILWIND_CLI_USE_SYSTEM_BINARY = True
+    mocker.patch("shutil.which", return_value="/opt/homebrew/bin/tailwindcss")
+    mocker.patch(
+        "django_tailwind_cli.config.detect_binary_version",
+        return_value=Version.parse("4.2.0"),
+    )
+
+    with pytest.warns(UserWarning, match="4.1.3.*4.2.0"):
+        get_config()
+
+
+def test_system_binary_version_mismatch_with_latest_no_warning(
+    settings: SettingsWrapper, mocker: MockerFixture, recwarn: WarningsChecker
+):
+    """When TAILWIND_CLI_VERSION is 'latest', version mismatch does not warn."""
+    from semver import Version
+
+    settings.TAILWIND_CLI_VERSION = "latest"
+    settings.TAILWIND_CLI_USE_SYSTEM_BINARY = True
+    mocker.patch("shutil.which", return_value="/opt/homebrew/bin/tailwindcss")
+    mocker.patch(
+        "django_tailwind_cli.config.detect_binary_version",
+        return_value=Version.parse("4.2.0"),
+    )
+
+    get_config()
+
+    # Filter out unrelated warnings (e.g. deprecation warnings from deps)
+    user_warnings = [w for w in recwarn.list if issubclass(w.category, UserWarning)]
+    assert len(user_warnings) == 0
+
+
+def test_system_binary_version_detection_failure_no_warning(
+    settings: SettingsWrapper, mocker: MockerFixture, recwarn: WarningsChecker
+):
+    """If version detection fails (subprocess error), no warning is emitted."""
+    settings.TAILWIND_CLI_VERSION = "4.1.3"
+    settings.TAILWIND_CLI_USE_SYSTEM_BINARY = True
+    mocker.patch("shutil.which", return_value="/opt/homebrew/bin/tailwindcss")
+    mocker.patch("django_tailwind_cli.config.detect_binary_version", return_value=None)
+
+    get_config()
+
+    user_warnings = [w for w in recwarn.list if issubclass(w.category, UserWarning)]
+    assert len(user_warnings) == 0
+
+
+# detect_binary_version helper --------------------------------------------------------------------
+
+
+def test_detect_binary_version_parses_help_output(mocker: MockerFixture, tmp_path: Path):
+    """detect_binary_version parses the version from tailwindcss --help output."""
+    from django_tailwind_cli.config import detect_binary_version
+
+    binary = tmp_path / "tailwindcss"
+    binary.touch()
+
+    # Clear lru_cache so previous tests don't leak
+    detect_binary_version.cache_clear()
+
+    mock_run = mocker.patch("subprocess.run")
+    mock_run.return_value = mocker.Mock(
+        returncode=0,
+        stdout="≈ tailwindcss v4.1.3\n\nUsage:\n  tailwindcss [options]\n",
+        stderr="",
+    )
+
+    version = detect_binary_version(binary)
+
+    assert version is not None
+    assert str(version) == "4.1.3"
+    mock_run.assert_called_once()
+    # Verify --help was used, not --version
+    assert "--help" in mock_run.call_args[0][0]
+
+
+def test_detect_binary_version_handles_subprocess_failure(mocker: MockerFixture, tmp_path: Path):
+    """detect_binary_version returns None when subprocess raises."""
+    import subprocess
+
+    from django_tailwind_cli.config import detect_binary_version
+
+    binary = tmp_path / "tailwindcss-fail"
+    binary.touch()
+
+    detect_binary_version.cache_clear()
+
+    mocker.patch(
+        "subprocess.run",
+        side_effect=subprocess.SubprocessError("boom"),
+    )
+
+    assert detect_binary_version(binary) is None
+
+
+def test_detect_binary_version_handles_timeout(mocker: MockerFixture, tmp_path: Path):
+    """detect_binary_version returns None when subprocess times out."""
+    import subprocess
+
+    from django_tailwind_cli.config import detect_binary_version
+
+    binary = tmp_path / "tailwindcss-timeout"
+    binary.touch()
+
+    detect_binary_version.cache_clear()
+
+    mocker.patch(
+        "subprocess.run",
+        side_effect=subprocess.TimeoutExpired(cmd="tailwindcss", timeout=5),
+    )
+
+    assert detect_binary_version(binary) is None
+
+
+def test_detect_binary_version_handles_unparseable_output(mocker: MockerFixture, tmp_path: Path):
+    """detect_binary_version returns None when version pattern is missing."""
+    from django_tailwind_cli.config import detect_binary_version
+
+    binary = tmp_path / "tailwindcss-weird"
+    binary.touch()
+
+    detect_binary_version.cache_clear()
+
+    mock_run = mocker.patch("subprocess.run")
+    mock_run.return_value = mocker.Mock(
+        returncode=0,
+        stdout="Welcome to a totally different tool\n",
+        stderr="",
+    )
+
+    assert detect_binary_version(binary) is None
+
+
+def test_detect_binary_version_handles_nonzero_exit(mocker: MockerFixture, tmp_path: Path):
+    """detect_binary_version returns None when the subprocess exits non-zero."""
+    from django_tailwind_cli.config import detect_binary_version
+
+    binary = tmp_path / "tailwindcss-crash"
+    binary.touch()
+
+    detect_binary_version.cache_clear()
+
+    mock_run = mocker.patch("subprocess.run")
+    mock_run.return_value = mocker.Mock(returncode=1, stdout="", stderr="crash")
+
+    assert detect_binary_version(binary) is None

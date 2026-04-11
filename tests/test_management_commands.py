@@ -91,6 +91,69 @@ class TestFastCommands:
         assert not c.cli_path.exists()
 
 
+class TestSystemBinaryMode:
+    """Tests for TAILWIND_CLI_USE_SYSTEM_BINARY behaviour at the command layer."""
+
+    @pytest.fixture(autouse=True)
+    def setup_system_binary(
+        self,
+        settings: LazySettings,
+        tmp_path: Path,
+        mocker: MockerFixture,
+    ):
+        settings.BASE_DIR = tmp_path
+        settings.TAILWIND_CLI_USE_SYSTEM_BINARY = True
+        settings.TAILWIND_CLI_SRC_CSS = tmp_path / "source.css"
+        settings.STATICFILES_DIRS = (tmp_path / "assets",)
+
+        # Create a fake "system binary" and have shutil.which return it
+        fake_binary = tmp_path / "bin" / "tailwindcss"
+        fake_binary.parent.mkdir(parents=True, exist_ok=True)
+        fake_binary.write_text("#!/bin/sh\nexit 0\n")
+        fake_binary.chmod(0o755)
+        mocker.patch("shutil.which", return_value=str(fake_binary))
+
+        # Mock subprocess so no real commands run
+        mocker.patch("subprocess.run")
+        mocker.patch("django_tailwind_cli.config.detect_binary_version", return_value=None)
+
+        # Mock the download function — if it gets called, the test has regressed
+        self.mock_download = mocker.patch("django_tailwind_cli.utils.http.download_with_progress")
+        self.fake_binary = fake_binary
+
+    def test_download_cli_is_skipped_in_system_mode(self, capsys: CaptureFixture[str]):
+        """download_cli should not hit the network when using a system binary."""
+        call_command("tailwind", "download_cli")
+
+        # No download happened
+        self.mock_download.assert_not_called()
+        # User gets a friendly message instead
+        captured = capsys.readouterr()
+        assert "system" in captured.out.lower()
+
+    def test_build_skips_download_in_system_mode(self):
+        """tailwind build should not trigger a download in system binary mode."""
+        call_command("tailwind", "build")
+
+        self.mock_download.assert_not_called()
+
+    def test_remove_cli_refuses_system_binary(self, capsys: CaptureFixture[str]):
+        """remove_cli must not delete a system-installed binary."""
+        call_command("tailwind", "remove_cli")
+
+        # The binary must still exist — we did not install it and must not remove it.
+        assert self.fake_binary.exists()
+        captured = capsys.readouterr()
+        assert "system" in captured.out.lower()
+
+    def test_config_command_reports_system_binary_origin(self, capsys: CaptureFixture[str]):
+        """`tailwind config` should indicate that a system binary is in use."""
+        call_command("tailwind", "config")
+
+        captured = capsys.readouterr()
+        assert "system binary" in captured.out.lower()
+
+
 class TestSubprocessCommands:
     """Tests for commands that involve subprocess calls - with better mocking."""
 

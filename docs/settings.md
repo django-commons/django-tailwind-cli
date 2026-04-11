@@ -42,6 +42,39 @@ In case you want to use the new behaviour, it is highly recommended to also set 
 
 Enable or disable the automatic downloading of the official CLI to your machine.
 
+### TAILWIND_CLI_USE_SYSTEM_BINARY
+
+**Default**: `False`
+
+If set to `True`, the library uses a Tailwind CSS CLI that is already installed on your system's `PATH` (for example via [Homebrew](https://formulae.brew.sh/formula/tailwindcss) or a system package manager) instead of downloading its own copy. The binary is resolved with Python's `shutil.which()`, so it works on any platform as long as the executable is reachable via `PATH`.
+
+When enabled:
+
+- The automatic download is skipped entirely — no network calls, no files created under `TAILWIND_CLI_PATH`.
+- `python manage.py tailwind remove_cli` refuses to delete the binary (since the library did not install it).
+- If `TAILWIND_CLI_VERSION` is pinned to a specific version and the system binary reports a different version, a warning is emitted so you can reconcile the discrepancy. No warning is issued when `TAILWIND_CLI_VERSION = "latest"`.
+
+```python
+# settings.py
+TAILWIND_CLI_USE_SYSTEM_BINARY = True
+```
+
+:::{warning}
+`TAILWIND_CLI_USE_SYSTEM_BINARY` is **mutually exclusive** with `TAILWIND_CLI_PATH`. Use one or the other.
+:::
+
+### TAILWIND_CLI_SYSTEM_BINARY_NAME
+
+**Default**: `"tailwindcss"` (or `"tailwindcss-extra"` when `TAILWIND_CLI_USE_DAISY_UI = True`)
+
+Overrides the executable name that is looked up on `PATH` when `TAILWIND_CLI_USE_SYSTEM_BINARY = True`. You rarely need to set this — the default picks the right name automatically.
+
+```python
+# settings.py
+TAILWIND_CLI_USE_SYSTEM_BINARY = True
+TAILWIND_CLI_SYSTEM_BINARY_NAME = "my-tailwindcss"  # optional
+```
+
 ### TAILWIND_CLI_AUTOMATIC_MINIFY
 
 **Default**: `True`
@@ -284,6 +317,21 @@ In your templates, include all CSS files or filter by name:
 ```
 
 The `build` command processes all entries, and the `watch` command monitors all source files simultaneously.
+
+### Using a Homebrew-installed Tailwind CSS CLI
+
+If you have already installed `tailwindcss` through [Homebrew](https://formulae.brew.sh/formula/tailwindcss) (or any other package manager that puts it on your `PATH`), you can skip the automatic download entirely:
+
+```bash
+brew install tailwindcss
+```
+
+```python
+# settings.py
+TAILWIND_CLI_USE_SYSTEM_BINARY = True
+```
+
+That's it — the library resolves `tailwindcss` via `PATH` on every invocation and runs your builds against that binary. Pairs well with `TAILWIND_CLI_VERSION = "latest"` so you don't have to update two places when Homebrew bumps the version.
 
 ### Staging Environment
 

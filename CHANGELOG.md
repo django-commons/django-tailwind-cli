@@ -4,6 +4,7 @@
 
 ### 🎯 New Features
 - **Configurable minification**: New `TAILWIND_CLI_AUTOMATIC_MINIFY` setting and `--minify` / `--no-minify` flag on `tailwind build` for projects whose asset pipelines already minify CSS. Defaults preserve existing behavior.
+- **System binary support**: New `TAILWIND_CLI_USE_SYSTEM_BINARY` setting lets `django-tailwind-cli` use a Tailwind CSS CLI that is already installed on `PATH` (e.g. via Homebrew), skipping the auto-download. Pairs with optional `TAILWIND_CLI_SYSTEM_BINARY_NAME` override. Emits a warning if the installed binary's version differs from an explicitly pinned `TAILWIND_CLI_VERSION`.
 
 ### 🛠️ Developer Experience
 - **Gitignore cleanup**: Trimmed `.gitignore` to project-relevant entries only

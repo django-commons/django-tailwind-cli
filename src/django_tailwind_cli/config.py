@@ -55,6 +55,17 @@ Configuration Settings:
             Default: True
             Example: TAILWIND_CLI_AUTOMATIC_DOWNLOAD = False
 
+        TAILWIND_CLI_USE_SYSTEM_BINARY (optional): Use a CLI on PATH
+            Default: False
+            Example: TAILWIND_CLI_USE_SYSTEM_BINARY = True
+            Note: Mutually exclusive with TAILWIND_CLI_PATH. When enabled,
+                  the binary is resolved via shutil.which() and the
+                  automatic download is skipped.
+
+        TAILWIND_CLI_SYSTEM_BINARY_NAME (optional): Name for PATH lookup
+            Default: "tailwindcss" (or "tailwindcss-extra" with DaisyUI)
+            Example: TAILWIND_CLI_SYSTEM_BINARY_NAME = "my-tailwindcss"
+
         TAILWIND_CLI_REQUEST_TIMEOUT (optional): Network request timeout
             Default: 10 (seconds)
             Example: TAILWIND_CLI_REQUEST_TIMEOUT = 30
@@ -87,10 +98,15 @@ Examples of complete settings configuration:
     ]
 """
 
+import functools
 import os
 import platform
+import re
+import shutil
+import subprocess
 import tempfile
 import time
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
 from typing import NamedTuple
@@ -121,6 +137,7 @@ class Config:
     overwrite_default_config: bool = True
     automatic_download: bool = True
     use_daisy_ui: bool = False
+    uses_system_binary: bool = False
 
     # Backward compatibility properties
     @property
@@ -222,8 +239,34 @@ def _validate_required_settings() -> None:
             "TAILWIND_CLI_SRC_REPO must not be empty. Either remove the setting or provide a valid repository URL."
         )
 
+    # Validate system-binary settings
+    _validate_system_binary_settings()
+
     # Validate mutual exclusivity of CSS settings
     _validate_css_settings()
+
+
+def _validate_system_binary_settings() -> None:
+    """Validate TAILWIND_CLI_USE_SYSTEM_BINARY and friends.
+
+    Raises:
+        ValueError: If configuration is inconsistent or invalid.
+    """
+    use_system_binary = getattr(settings, "TAILWIND_CLI_USE_SYSTEM_BINARY", False)
+    binary_name = getattr(settings, "TAILWIND_CLI_SYSTEM_BINARY_NAME", None)
+
+    if binary_name is not None and not binary_name:
+        raise ValueError(
+            "TAILWIND_CLI_SYSTEM_BINARY_NAME must not be empty. "
+            "Either remove the setting or provide a valid binary name."
+        )
+
+    if use_system_binary and getattr(settings, "TAILWIND_CLI_PATH", None):
+        raise ValueError(
+            "Cannot use TAILWIND_CLI_USE_SYSTEM_BINARY together with TAILWIND_CLI_PATH. "
+            "Choose one: either point TAILWIND_CLI_PATH at a specific binary, or set "
+            "TAILWIND_CLI_USE_SYSTEM_BINARY = True to look up the binary on PATH."
+        )
 
 
 def _validate_css_settings() -> None:
@@ -407,6 +450,90 @@ def get_version() -> tuple[str, Version]:
         return version_str, Version.parse(version_str)
 
 
+_VERSION_PATTERN = re.compile(r"tailwindcss v(\d+\.\d+\.\d+)")
+
+
+@functools.cache
+def detect_binary_version(cli_path: Path) -> Version | None:
+    """Detect the version of a Tailwind CSS CLI binary.
+
+    Runs ``<cli_path> --help`` and parses the version from the first line of
+    stdout. Returns None on any failure (timeout, non-zero exit, unparseable
+    output) — callers are expected to treat None as "unknown" and skip any
+    version comparisons rather than raising.
+
+    Note: ``--version`` is intentionally not used because the Tailwind CLI
+    interprets unknown flags as a build invocation, which would run a full
+    CSS build instead of reporting the version.
+
+    Args:
+        cli_path: Path to the CLI binary.
+
+    Returns:
+        Parsed Version on success, None on any failure.
+    """
+    try:
+        result = subprocess.run(
+            [str(cli_path), "--help"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+    if result.returncode != 0:
+        return None
+
+    match = _VERSION_PATTERN.search(result.stdout)
+    if not match:
+        return None
+
+    try:
+        return Version.parse(match.group(1))
+    except ValueError:
+        return None
+
+
+def _resolve_system_binary(binary_name: str) -> Path:
+    """Resolve a binary on the user's PATH.
+
+    Args:
+        binary_name: Name of the executable to look up (e.g. "tailwindcss").
+
+    Returns:
+        Absolute path to the binary.
+
+    Raises:
+        ValueError: If the binary cannot be found on PATH.
+    """
+    found = shutil.which(binary_name)
+    if not found:
+        raise ValueError(
+            f"TAILWIND_CLI_USE_SYSTEM_BINARY is enabled, but the binary {binary_name!r} "
+            "could not be found on PATH. Install it (e.g. 'brew install tailwindcss') "
+            "or disable TAILWIND_CLI_USE_SYSTEM_BINARY to use the automatic download instead."
+        )
+    return Path(found)
+
+
+def _get_system_binary_name(*, use_daisy_ui: bool) -> str:
+    """Return the system binary name to look up via shutil.which.
+
+    Args:
+        use_daisy_ui: Whether DaisyUI support is enabled.
+
+    Returns:
+        Binary name — honours the explicit TAILWIND_CLI_SYSTEM_BINARY_NAME
+        override if set, otherwise picks a DaisyUI-aware default.
+    """
+    override = getattr(settings, "TAILWIND_CLI_SYSTEM_BINARY_NAME", None)
+    if override:
+        return override
+    return "tailwindcss-extra" if use_daisy_ui else "tailwindcss"
+
+
 def _resolve_cli_path(platform_info: PlatformInfo, version_str: str, asset_name: str) -> Path:
     """Resolve the CLI executable path.
 
@@ -569,6 +696,7 @@ def get_config() -> Config:
     # Get basic settings
     use_daisy_ui = getattr(settings, "TAILWIND_CLI_USE_DAISY_UI", False)
     automatic_download = getattr(settings, "TAILWIND_CLI_AUTOMATIC_DOWNLOAD", True)
+    uses_system_binary = bool(getattr(settings, "TAILWIND_CLI_USE_SYSTEM_BINARY", False))
 
     # Get platform information
     platform_info = get_platform_info()
@@ -580,7 +708,15 @@ def get_config() -> Config:
     repo_url, asset_name = _get_repository_settings(use_daisy_ui=use_daisy_ui)
 
     # Resolve paths
-    cli_path = _resolve_cli_path(platform_info, version_str, asset_name)
+    if uses_system_binary:
+        binary_name = _get_system_binary_name(use_daisy_ui=use_daisy_ui)
+        cli_path = _resolve_system_binary(binary_name)
+        # System binary mode implies auto-download is off — we never downloaded it.
+        automatic_download = False
+        _maybe_warn_version_mismatch(cli_path, version_str)
+    else:
+        cli_path = _resolve_cli_path(platform_info, version_str, asset_name)
+
     css_entries, overwrite_default_config = _resolve_css_paths()
 
     # Build download URL
@@ -598,4 +734,37 @@ def get_config() -> Config:
         overwrite_default_config=overwrite_default_config,
         automatic_download=automatic_download,
         use_daisy_ui=use_daisy_ui,
+        uses_system_binary=uses_system_binary,
+    )
+
+
+def _maybe_warn_version_mismatch(cli_path: Path, configured_version: str) -> None:
+    """Warn when the system binary reports a different version than configured.
+
+    No warning is emitted when:
+    - TAILWIND_CLI_VERSION is 'latest' (user has no explicit expectation).
+    - Version detection fails (subprocess error, unparseable output).
+    - The versions match.
+
+    Args:
+        cli_path: Path to the system binary.
+        configured_version: Version string as resolved by get_version().
+    """
+    # When the user set VERSION='latest', they accepted whatever is installed.
+    if getattr(settings, "TAILWIND_CLI_VERSION", "latest") == "latest":
+        return
+
+    detected = detect_binary_version(cli_path)
+    if detected is None:
+        return
+
+    if str(detected) == configured_version:
+        return
+
+    warnings.warn(
+        f"TAILWIND_CLI_VERSION is set to {configured_version}, but the system binary at "
+        f"{cli_path} reports version {detected}. Using the system binary anyway — "
+        "update TAILWIND_CLI_VERSION or your installed binary to silence this warning.",
+        UserWarning,
+        stacklevel=2,
     )
