@@ -42,11 +42,11 @@ python manage.py runserver          # Terminal 2: Django server
    {% endblock %}
    ```
 
-2. **Verify Template Scanning**
+2. **Declare template sources**
 
-   ```bash
-   python manage.py tailwind list_templates --verbose
-   ```
+   Make sure your Tailwind CSS input file contains `@source` directives for the
+   template directories you want scanned. Tailwind CSS 4.x relies on these
+   directives exclusively — there is no external template-listing command.
 
 3. **Build and Test**
 
@@ -125,11 +125,10 @@ python manage.py runserver          # Terminal 2: Django server
    python manage.py tailwind config
    ```
 
-2. **Verify Template Scanning:**
+2. **Verify Template Sources:**
 
-   ```bash
-   python manage.py tailwind list_templates --verbose
-   ```
+   Open your Tailwind CSS input file and confirm that every template directory
+   you expect to be scanned is referenced by an `@source` directive.
 
 3. **Test CLI Functionality:**
 

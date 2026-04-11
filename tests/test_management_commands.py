@@ -364,24 +364,6 @@ class TestTemplateScanning:
 
         mocker.patch("django_tailwind_cli.utils.http.download_with_progress", side_effect=mock_download)
 
-    @pytest.mark.timeout(10)  # Template scanning can be slower
-    def test_list_templates_basic(self, capsys: CaptureFixture[str]):
-        """Test basic template listing functionality."""
-        call_command("tailwind", "list_templates")
-        captured = capsys.readouterr()
-
-        # Should contain some template paths
-        assert "templates/" in captured.out or "No templates found" in captured.out
-
-    @pytest.mark.timeout(10)
-    def test_list_templates_with_verbose(self, capsys: CaptureFixture[str]):
-        """Test verbose template listing."""
-        call_command("tailwind", "list_templates", "--verbose")
-        captured = capsys.readouterr()
-
-        # Verbose mode should show additional information
-        assert len(captured.out) > 0
-
 
 # Configuration to run tests with appropriate markers
 pytestmark = [

@@ -74,10 +74,6 @@ Options:
   --help                          Show this message and exit.
 ```
 
-### list_templates
-
-Run `python manage.py tailwind list_templates` to find all templates in your django project. This is handy for a setup where you dynamically build the list of files being analyzed by tailwindcss.
-
 ### download_cli
 
 Run `python manage.py tailwind download_cli` to just download the CLI. This commands downloads the correct version of the CLI for your platform and stores it in the path configured by the `TAILWIND_CLI_PATH` setting.

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### 💥 Breaking Changes
+- **Removed `list_templates` command**: Tailwind CSS 4.x handles template discovery via `@source` directives in your CSS source file, making this command redundant. If you need to enumerate templates programmatically, use Django's `django.template.utils.get_app_template_dirs()` directly.
+
 ### 🎯 New Features
 - **Configurable minification**: New `TAILWIND_CLI_AUTOMATIC_MINIFY` setting and `--minify` / `--no-minify` flag on `tailwind build` for projects whose asset pipelines already minify CSS. Defaults preserve existing behavior.
 - **System binary support**: New `TAILWIND_CLI_USE_SYSTEM_BINARY` setting lets `django-tailwind-cli` use a Tailwind CSS CLI that is already installed on `PATH` (e.g. via Homebrew), skipping the auto-download. Pairs with optional `TAILWIND_CLI_SYSTEM_BINARY_NAME` override. Emits a warning if the installed binary's version differs from an explicitly pinned `TAILWIND_CLI_VERSION`.

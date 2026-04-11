@@ -16,7 +16,6 @@ from django_tailwind_cli.utils import http
 import typer
 from django.conf import settings
 from django.core.management.base import CommandError
-from django.template.utils import get_app_template_dirs
 from django_typer.management import Typer
 
 from django_tailwind_cli.config import Config, get_config
@@ -35,7 +34,6 @@ Examples:
   python manage.py tailwind watch          # Watch for changes during development
   python manage.py tailwind runserver      # Run Django with Tailwind watch mode
   python manage.py tailwind download_cli   # Download Tailwind CLI binary
-  python manage.py tailwind list_templates # List all Django templates
   python manage.py tailwind config         # Show current configuration
   python manage.py tailwind troubleshoot   # Troubleshooting guide
   python manage.py tailwind optimize       # Performance optimization tips
@@ -353,150 +351,6 @@ def watch(
         # Multiple entries - use multi-process manager
         manager = MultiWatchProcessManager()
         manager.start_watch_processes(config, verbose=verbose)
-
-
-@app.command(name="list_templates")
-def list_templates(
-    *,
-    verbose: bool = typer.Option(
-        False,
-        "--verbose",
-        "-v",
-        help="Show detailed scanning information and performance metrics.",
-    ),
-):
-    """List all Django template files in your project.
-
-    This command scans your entire Django project to find all template files
-    that Tailwind CSS will process for class names. Understanding which templates
-    are scanned helps optimize your Tailwind configuration.
-
-    \b
-    Scanned locations:
-    1. App template directories (APP_NAME/templates/)
-    2. Global template directories (TEMPLATES[0]['DIRS'])
-    3. All subdirectories within these locations
-
-    \b
-    File types scanned:
-    - *.html - HTML templates
-    - *.py - Python files (may contain Tailwind classes in strings)
-    - *.js - JavaScript files
-    - *.vue, *.jsx - If using frontend frameworks
-
-    \b
-    Examples:
-        # List all template files
-        python manage.py tailwind list_templates
-
-        # Show detailed scan information
-        python manage.py tailwind list_templates --verbose
-
-    \b
-    Verbose mode shows:
-        - Directories being scanned
-        - Number of templates per directory
-        - Any permission or access errors
-        - Total scan time and statistics
-
-    \b
-    Use this to:
-        - Verify Tailwind is scanning the right files
-        - Debug missing styles (file might not be scanned)
-        - Optimize build performance (remove unnecessary paths)
-    """
-    start_time = time.time()
-    template_files: list[str] = []
-    scanned_dirs: list[str] = []
-    error_dirs: list[tuple[str, str]] = []
-
-    def _list_template_files_enhanced(td: str | Path, source: str) -> int:
-        """Enhanced template file discovery with error handling."""
-        td_path = Path(td)
-        if not td_path.exists():
-            error_msg = f"Directory does not exist: {td_path}"
-            error_dirs.append((str(td_path), error_msg))
-            if verbose:
-                typer.secho(f"⚠️  {error_msg}", fg=typer.colors.YELLOW)
-            return 0
-
-        if not td_path.is_dir():
-            error_msg = f"Path is not a directory: {td_path}"
-            error_dirs.append((str(td_path), error_msg))
-            if verbose:
-                typer.secho(f"⚠️  {error_msg}", fg=typer.colors.YELLOW)
-            return 0
-
-        scanned_dirs.append(f"{td_path} ({source})")
-        files_found = 0
-
-        try:
-            for d, _, filenames in os.walk(str(td_path)):
-                for filename in filenames:
-                    if filename.endswith(".html") or filename.endswith(".txt"):
-                        full_path = os.path.join(d, filename)
-                        template_files.append(full_path)
-                        files_found += 1
-                        if verbose:
-                            typer.secho(f"✓ Found: {full_path}", fg=typer.colors.GREEN)
-
-            if verbose:
-                typer.secho(f"📁 Scanned {source}: {td_path} ({files_found} templates)", fg=typer.colors.BLUE)
-
-        except (OSError, PermissionError) as e:
-            error_msg = f"Cannot scan directory {td_path}: {e}"
-            error_dirs.append((str(td_path), error_msg))
-            if verbose:
-                typer.secho(f"❌ {error_msg}", fg=typer.colors.RED)
-
-        return files_found
-
-    if verbose:
-        typer.secho("🔍 Starting enhanced template discovery...", fg=typer.colors.CYAN)
-
-    # Scan app template directories
-    app_template_dirs = get_app_template_dirs("templates")
-    if verbose:
-        typer.secho(f"📱 Found {len(app_template_dirs)} app template directories", fg=typer.colors.BLUE)
-
-    for app_template_dir in app_template_dirs:
-        _list_template_files_enhanced(app_template_dir, "app")
-
-    # Scan global template directories
-    global_template_dirs: list[str] = settings.TEMPLATES[0]["DIRS"] if settings.TEMPLATES else []
-    if verbose:
-        typer.secho(f"🌐 Found {len(global_template_dirs)} global template directories", fg=typer.colors.BLUE)
-
-    template_dir: str
-    for template_dir in global_template_dirs:
-        _list_template_files_enhanced(template_dir, "global")
-
-    # Performance metrics
-    end_time = time.time()
-    scan_duration = end_time - start_time
-
-    if verbose:
-        typer.secho("\n📊 Template Discovery Summary:", fg=typer.colors.CYAN)
-        typer.secho(f"   • Total templates found: {len(template_files)}", fg=typer.colors.GREEN)
-        typer.secho(f"   • Directories scanned: {len(scanned_dirs)}", fg=typer.colors.BLUE)
-        typer.secho(f"   • Scan duration: {scan_duration:.3f}s", fg=typer.colors.BLUE)
-
-        if error_dirs:
-            typer.secho(f"   • Errors encountered: {len(error_dirs)}", fg=typer.colors.YELLOW)
-            for error_path, error_msg in error_dirs:
-                typer.secho(f"     - {error_path}: {error_msg}", fg=typer.colors.YELLOW)
-
-        typer.secho("\n📂 Scanned Directories:", fg=typer.colors.CYAN)
-        for scanned_dir in scanned_dirs:
-            typer.secho(f"   • {scanned_dir}", fg=typer.colors.BLUE)
-
-        typer.secho(f"\n📄 Template Files ({len(template_files)} found):", fg=typer.colors.CYAN)
-
-    # Output template files (always shown)
-    if template_files:
-        typer.echo("\n".join(template_files))
-    elif verbose:
-        typer.secho("No template files found!", fg=typer.colors.YELLOW)
 
 
 @handle_command_errors
@@ -928,8 +782,7 @@ def troubleshoot():
     typer.secho("\n❓ Issue 7: Tailwind classes not working", fg=typer.colors.YELLOW, bold=True)
     typer.secho("   Symptoms: Classes in HTML don't produce styles", fg=typer.colors.BLUE)
     typer.secho("   Solutions:", fg=typer.colors.GREEN)
-    typer.secho("   1. Ensure templates are being scanned:", fg=typer.colors.WHITE)
-    typer.secho("      python manage.py tailwind list_templates", fg=typer.colors.GREEN)
+    typer.secho("   1. Ensure templates are covered by @source directives in your CSS", fg=typer.colors.WHITE)
     typer.secho("   2. Check if using Tailwind CSS 4.x syntax:", fg=typer.colors.WHITE)
     typer.secho("      Some v3 classes may have changed", fg=typer.colors.BLUE)
     typer.secho("   3. Verify class names are correct (no typos)", fg=typer.colors.WHITE)
@@ -939,10 +792,9 @@ def troubleshoot():
     # Diagnostic commands
     typer.secho("\n🔧 Diagnostic Commands", fg=typer.colors.CYAN, bold=True)
     typer.secho("   Run these to gather information:", fg=typer.colors.BLUE)
-    typer.secho("   python manage.py tailwind config         # Show configuration", fg=typer.colors.GREEN)
-    typer.secho("   python manage.py tailwind list_templates # List scanned files", fg=typer.colors.GREEN)
+    typer.secho("   python manage.py tailwind config          # Show configuration", fg=typer.colors.GREEN)
     typer.secho("   python manage.py tailwind build --verbose # Detailed build info", fg=typer.colors.GREEN)
-    typer.secho("   python manage.py tailwind setup          # Interactive setup", fg=typer.colors.GREEN)
+    typer.secho("   python manage.py tailwind setup           # Interactive setup", fg=typer.colors.GREEN)
 
     # Getting more help
     typer.secho("\n💬 Need More Help?", fg=typer.colors.CYAN, bold=True)
@@ -1006,7 +858,7 @@ def show_performance_tips():
     # Template Optimization
     typer.secho("\n📄 Template Scanning", fg=typer.colors.YELLOW, bold=True)
     typer.secho("   Optimize template discovery:", fg=typer.colors.BLUE)
-    typer.secho("   • Check scanned templates: python manage.py tailwind list_templates", fg=typer.colors.GREEN)
+    typer.secho("   • Declare template sources with @source directives in your CSS", fg=typer.colors.GREEN)
     typer.secho("   • Organize templates in app-specific directories", fg=typer.colors.GREEN)
     typer.secho("   • Avoid deeply nested template hierarchies", fg=typer.colors.GREEN)
     typer.secho("   • Use standard Django template patterns", fg=typer.colors.GREEN)
@@ -1050,7 +902,6 @@ def show_performance_tips():
     typer.secho("\n📊 Performance Monitoring", fg=typer.colors.YELLOW, bold=True)
     typer.secho("   Monitor and measure performance:", fg=typer.colors.BLUE)
     typer.secho("   • Build times: python manage.py tailwind build --verbose", fg=typer.colors.GREEN)
-    typer.secho("   • Template scanning: python manage.py tailwind list_templates --verbose", fg=typer.colors.GREEN)
     typer.secho("   • Configuration check: python manage.py tailwind config", fg=typer.colors.GREEN)
     typer.secho("   • File watching logs: python manage.py tailwind watch --verbose", fg=typer.colors.GREEN)
 

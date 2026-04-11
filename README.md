@@ -130,7 +130,6 @@ Start adding Tailwind classes to your templates:
 ### 🔧 Development Tools
 - **Interactive setup** - `python manage.py tailwind setup`
 - **Configuration viewer** - `python manage.py tailwind config`
-- **Template scanner** - `python manage.py tailwind list_templates`
 - **Troubleshooting guide** - `python manage.py tailwind troubleshoot`
 
 ### 🎨 Styling Features
@@ -212,14 +211,14 @@ python manage.py tailwind setup
 ```
 
 **Missing templates?**
-```bash
-python manage.py tailwind list_templates --verbose
-```
+Make sure every template directory is covered by an `@source` directive in your
+Tailwind CSS input file — Tailwind CSS 4.x discovers templates exclusively
+through those directives.
 
 ### Performance Tips
 
 1. **Use file watching:** `python manage.py tailwind runserver` for automatic rebuilds
-2. **Check template scanning:** Ensure all template directories are included
+2. **Declare template sources explicitly:** Use `@source` directives in your CSS so Tailwind only scans what you need
 3. **Optimize builds:** Use `--force` only when necessary
 4. **Monitor file changes:** Use `--verbose` for detailed logging
 

@@ -714,16 +714,3 @@ class TestVerboseLoggingIntegration:
             captured = capsys.readouterr()
             assert "👀 Starting Tailwind CSS watch mode..." in captured.out
             assert "🔄 Starting file watcher..." in captured.out
-
-    def test_list_templates_verbose_logging(self, settings: LazySettings, tmp_path: Path, capsys: CaptureFixture[str]):
-        """Test verbose logging in list_templates command."""
-        settings.BASE_DIR = tmp_path
-        settings.STATICFILES_DIRS = (tmp_path / "assets",)
-
-        call_command("tailwind", "list_templates", "--verbose")
-
-        captured = capsys.readouterr()
-        assert "🔍 Starting enhanced template discovery..." in captured.out
-        assert "📊 Template Discovery Summary:" in captured.out
-        assert "Total templates found:" in captured.out
-        assert "Scan duration:" in captured.out
