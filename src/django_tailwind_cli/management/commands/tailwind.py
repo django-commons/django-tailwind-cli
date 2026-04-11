@@ -968,162 +968,57 @@ def remove_cli():
         typer.secho(f"Tailwind CSS CLI not found at '{c.cli_path}'.", fg=typer.colors.RED)
 
 
-@app.command()
+@app.command(
+    context_settings={
+        "ignore_unknown_options": True,
+        "allow_extra_args": True,
+    },
+)
 def runserver(
-    addrport: str | None = typer.Argument(
-        None,
-        help="Optional port number, or ipaddr:port",
-    ),
+    ctx: typer.Context,
     *,
-    use_ipv6: bool = typer.Option(
-        False,
-        "--ipv6",
-        "-6",
-        help="Tells Django to use an IPv6 address.",
-    ),
-    no_threading: bool = typer.Option(
-        False,
-        "--nothreading",
-        help="Tells Django to NOT use threading.",
-    ),
-    no_static: bool = typer.Option(
-        False,
-        "--nostatic",
-        help="Tells Django to NOT automatically serve static files at STATIC_URL.",
-    ),
-    no_reloader: bool = typer.Option(
-        False,
-        "--noreload",
-        help="Tells Django to NOT use the auto-reloader.",
-    ),
-    skip_checks: bool = typer.Option(
-        False,
-        "--skip-checks",
-        help="Skip system checks.",
-    ),
-    pdb: bool = typer.Option(
-        False,
-        "--pdb",
-        help="Drop into pdb shell at the start of any view. (Requires django-extensions.)",
-    ),
-    ipdb: bool = typer.Option(
-        False,
-        "--ipdb",
-        help="Drop into ipdb shell at the start of any view. (Requires django-extensions.)",
-    ),
-    pm: bool = typer.Option(
-        False,
-        "--pm",
-        help="Drop into (i)pdb shell if an exception is raised in a view. (Requires django-extensions.)",
-    ),
-    print_sql: bool = typer.Option(
-        False,
-        "--print-sql",
-        help="Print SQL queries as they're executed. (Requires django-extensions.)",
-    ),
-    print_sql_location: bool = typer.Option(
-        False,
-        "--print-sql-location",
-        help="Show location in code where SQL query generated from. (Requires django-extensions.)",
-    ),
-    cert_file: str | None = typer.Option(
-        None,
-        help=(
-            "SSL .crt file path. If not provided path from --key-file will be selected. "
-            "Either --cert-file or --key-file must be provided to use SSL. "
-            "(Requires django-extensions.)"
-        ),
-    ),
-    key_file: str | None = typer.Option(
-        None,
-        help=(
-            "SSL .key file path. If not provided path from --cert-file will be "
-            "selected. Either --cert-file or --key-file must be provided to use SSL. "
-            "(Requires django-extensions.)"
-        ),
-    ),
     force_default_runserver: bool = typer.Option(
         False,
-        help=("Force the use of the default runserver command even if django-extensions is installed. "),
+        help="Force vanilla runserver even if django-extensions is installed.",
     ),
 ):
     """Run Django development server with Tailwind CSS watch mode.
 
-    This command combines 'tailwind watch' and Django's runserver, providing a
-    complete development environment in a single terminal. It automatically:
-    - Starts Tailwind CSS in watch mode to rebuild styles on changes
-    - Runs Django's development server
-    - Manages both processes with proper signal handling
+    Combines `tailwind watch` and Django's runserver in one terminal, with
+    signal-clean shutdown of both processes on Ctrl+C. If `django-extensions`
+    plus `werkzeug` are installed, `runserver_plus` is used by default — pass
+    `--force-default-runserver` to opt out.
 
     \b
-    Features:
-    - Automatic process management (both stop cleanly with Ctrl+C)
-    - Live CSS updates as you edit templates and styles
-    - Support for django-extensions runserver_plus (if installed)
-    - All standard runserver options are supported
+    All positional arguments and options other than `--force-default-runserver`
+    are forwarded verbatim to the underlying server command. That means every
+    runserver / runserver_plus flag is supported, including ones this wrapper
+    does not know about:
 
     \b
-    Examples:
-        # Run on default port (8000)
         python manage.py tailwind runserver
-
-        # Run on custom port
         python manage.py tailwind runserver 8080
-
-        # Run on specific IP and port
-        python manage.py tailwind runserver 0.0.0.0:8000
-
-        # Run with django-extensions features
-        python manage.py tailwind runserver --print-sql
-
-        # Force default runserver (ignore django-extensions)
-        python manage.py tailwind runserver --force-default-runserver
+        python manage.py tailwind runserver 0.0.0.0:8000 --noreload
+        python manage.py tailwind runserver --print-sql --ipdb
+        python manage.py tailwind runserver --extra-file .env --reloader-interval 5
 
     \b
-    Tips:
-        - This replaces the need to run 'tailwind watch' and 'runserver' separately
-        - Both processes are managed together - Ctrl+C stops both cleanly
-        - Check console output for both Tailwind build status and Django logs
+    For the full list of forwarded flags, see:
+        python manage.py runserver --help
+        python manage.py runserver_plus --help   (with django-extensions)
     """
-    if (
+    use_plus = (
         importlib.util.find_spec("django_extensions")
         and importlib.util.find_spec("werkzeug")
         and not force_default_runserver
-    ):
-        server_command = "runserver_plus"
-        runserver_options = get_runserver_options(
-            addrport=addrport,
-            use_ipv6=use_ipv6,
-            no_threading=no_threading,
-            no_static=no_static,
-            no_reloader=no_reloader,
-            skip_checks=skip_checks,
-            pdb=pdb,
-            ipdb=ipdb,
-            pm=pm,
-            print_sql=print_sql,
-            print_sql_location=print_sql_location,
-            cert_file=cert_file,
-            key_file=key_file,
-        )
-    else:
-        server_command = "runserver"
-        runserver_options = get_runserver_options(
-            addrport=addrport,
-            use_ipv6=use_ipv6,
-            no_threading=no_threading,
-            no_static=no_static,
-            no_reloader=no_reloader,
-            skip_checks=skip_checks,
-        )
+    )
+    server_command = "runserver_plus" if use_plus else "runserver"
 
-    # Prepare commands for concurrent execution
     watch_cmd = [sys.executable, "manage.py", "tailwind", "watch"]
-    debug_server_cmd = [sys.executable, "manage.py", server_command] + runserver_options
+    server_cmd = [sys.executable, "manage.py", server_command, *ctx.args]
 
-    # Use improved process manager
     process_manager = ProcessManager()
-    process_manager.start_concurrent_processes(watch_cmd, debug_server_cmd)
+    process_manager.start_concurrent_processes(watch_cmd, server_cmd)
 
 
 # PROCESS MANAGEMENT FUNCTIONS -------------------------------------------------------------------
@@ -1714,51 +1609,3 @@ def _create_standard_config_with_verbose(*, verbose: bool = False) -> None:
         )
     elif verbose:
         typer.secho("⏭️  Source CSS file is up-to-date, no changes needed", fg=typer.colors.GREEN)
-
-
-def get_runserver_options(
-    *,
-    addrport: str | None = None,
-    use_ipv6: bool = False,
-    no_threading: bool = False,
-    no_static: bool = False,
-    no_reloader: bool = False,
-    skip_checks: bool = False,
-    pdb: bool = False,
-    ipdb: bool = False,
-    pm: bool = False,
-    print_sql: bool = False,
-    print_sql_location: bool = False,
-    cert_file: str | None = None,
-    key_file: str | None = None,
-) -> list[str]:
-    options: list[str] = []
-
-    if use_ipv6:
-        options.append("--ipv6")
-    if no_threading:
-        options.append("--nothreading")
-    if no_static:
-        options.append("--nostatic")
-    if no_reloader:
-        options.append("--noreload")
-    if skip_checks:
-        options.append("--skip-checks")
-    if pdb:
-        options.append("--pdb")
-    if ipdb:
-        options.append("--ipdb")
-    if pm:
-        options.append("--pm")
-    if print_sql:
-        options.append("--print-sql")
-    if print_sql_location:
-        options.append("--print-sql-location")
-    if cert_file:
-        options.append(f"--cert-file={cert_file}")
-    if key_file:
-        options.append(f"--key-file={key_file}")
-    if addrport:
-        options.append(addrport)
-
-    return options

@@ -350,6 +350,54 @@ class TestProcessManagementCommands:
         # Verify the command was processed
         self.mock_process_manager.assert_called_once()
 
+    @pytest.mark.timeout(3)
+    def test_runserver_forwards_unknown_flags_in_argv_order(self):
+        """Unknown flags and positional args are forwarded verbatim to the underlying command."""
+        self.mock_find_spec.return_value = None  # plain runserver branch
+
+        call_command("tailwind", "runserver", "8080", "--noreload", "--nothreading")
+
+        mock_instance = self.mock_process_manager.return_value
+        mock_instance.start_concurrent_processes.assert_called_once()
+        watch_cmd, server_cmd = mock_instance.start_concurrent_processes.call_args.args
+        # Watch cmd is unchanged
+        assert watch_cmd[-3:] == ["manage.py", "tailwind", "watch"]
+        # Server cmd ends with the runserver target followed by the user's argv in order
+        assert server_cmd[-4:] == ["runserver", "8080", "--noreload", "--nothreading"]
+
+    @pytest.mark.timeout(3)
+    def test_runserver_picks_runserver_plus_when_extensions_installed(self):
+        """With django-extensions + werkzeug available, runserver_plus is selected."""
+
+        def mock_find_spec(name: str) -> object | None:
+            return Mock() if name in ["django_extensions", "werkzeug"] else None
+
+        self.mock_find_spec.side_effect = mock_find_spec
+
+        call_command("tailwind", "runserver")
+
+        mock_instance = self.mock_process_manager.return_value
+        _, server_cmd = mock_instance.start_concurrent_processes.call_args.args
+        # server_cmd: [python, "manage.py", "runserver_plus", ...]
+        assert server_cmd[2] == "runserver_plus"
+
+    @pytest.mark.timeout(3)
+    def test_runserver_respects_force_default_runserver(self):
+        """--force-default-runserver pins the command to plain runserver even with extensions."""
+
+        def mock_find_spec(name: str) -> object | None:
+            return Mock() if name in ["django_extensions", "werkzeug"] else None
+
+        self.mock_find_spec.side_effect = mock_find_spec
+
+        call_command("tailwind", "runserver", "--force-default-runserver")
+
+        mock_instance = self.mock_process_manager.return_value
+        _, server_cmd = mock_instance.start_concurrent_processes.call_args.args
+        assert server_cmd[2] == "runserver"
+        # The tailwind-specific flag is never forwarded to Django
+        assert "--force-default-runserver" not in server_cmd
+
 
 class TestTemplateScanning:
     """Tests for template scanning with optimized filesystem operations."""

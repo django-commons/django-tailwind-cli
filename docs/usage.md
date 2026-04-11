@@ -32,54 +32,32 @@ python manage.py tailwind watch --noreload
 
 ### runserver
 
-Run `python manage.py tailwind runserver` to start the classic Django debug server in parallel to a tailwind watcher process.
+Run `python manage.py tailwind runserver` to start the Django debug server in parallel to a tailwind watcher process. If `django-extensions` plus `werkzeug` are installed, `runserver_plus` is used automatically; otherwise the vanilla `runserver` command runs.
 
-```text
-Usage: manage.py tailwind runserver
-           [OPTIONS] [ADDRPORT]
+This command is a transparent passthrough wrapper: **every** positional argument and option other than the tailwind-specific `--force-default-runserver` is forwarded verbatim to the underlying server command. That includes flags the wrapper itself does not know about (e.g. `runserver_plus`'s `--extra-file`, `--reloader-interval`, `--browser`, `--exclude-pattern`, …).
 
-  Run the development server with Tailwind CSS CLI in watch mode.
+For the exhaustive list of forwarded flags, run:
 
-  If django-extensions is installed along with this library, this command runs
-  the runserver_plus command from django-extensions. Otherwise it runs the
-  default runserver command.
+```bash
+python manage.py runserver --help
+python manage.py runserver_plus --help   # with django-extensions
+```
 
-Arguments:
-  [ADDRPORT]  Optional port number, or ipaddr:port
+Examples:
 
-Options:
-  -6, --ipv6                      Tells Django to use an IPv6 address.
-  --nothreading                   Tells Django to NOT use threading.
-  --nostatic                      Tells Django to NOT automatically serve
-                                  static files at STATIC_URL.
-  --noreload                      Tells Django to NOT use the auto-reloader.
-  --skip-checks                   Skip system checks.
-  --pdb                           Drop into pdb shell at the start of any
-                                  view. (Requires django-extensions.)
-  --ipdb                          Drop into ipdb shell at the start of any
-                                  view. (Requires django-extensions.)
-  --pm                            Drop into (i)pdb shell if an exception is
-                                  raised in a view. (Requires django-
-                                  extensions.)
-  --print-sql                     Print SQL queries as they're executed.
-                                  (Requires django-extensions.)
-  --print-sql-location            Show location in code where SQL query
-                                  generated from. (Requires django-
-                                  extensions.)
-  --cert-file TEXT                SSL .crt file path. If not provided path
-                                  from --key-file will be selected. Either
-                                  --cert-file or --key-file must be provided
-                                  to use SSL. (Requires django-extensions.)
-  --key-file TEXT                 SSL .key file path. If not provided path
-                                  from --cert-file will be selected. Either
-                                  --cert-file or --key-file must be provided
-                                  to use SSL. (Requires django-extensions.)
-  --force-default-runserver / --no-force-default-runserver
-                                  Force the use of the default runserver
-                                  command even if django-extensions is
-                                  installed.   [default: no-force-default-
-                                  runserver]
-  --help                          Show this message and exit.
+```bash
+# Default port (8000)
+python manage.py tailwind runserver
+
+# Custom port
+python manage.py tailwind runserver 8080
+
+# Forward arbitrary runserver / runserver_plus flags
+python manage.py tailwind runserver 0.0.0.0:8000 --noreload
+python manage.py tailwind runserver --print-sql --ipdb
+
+# Pin to vanilla runserver even with django-extensions installed
+python manage.py tailwind runserver --force-default-runserver
 ```
 
 ### download_cli

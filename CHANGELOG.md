@@ -22,6 +22,7 @@
 - **Type checking**: Switched from `pyright` to `basedpyright` in pre-commit, added `django-stubs` as a dev dependency, and resolved a latent pre-existing baseline so the type checker runs clean on all files.
 - **Pre-commit hooks**: Bumped all hooks to their latest releases (pre-commit-hooks 6.0.0, ruff 0.15.10, pyupgrade 3.21.2, django-upgrade 1.30.0, djade 1.9.0, uv-secure 0.17.1).
 - **Test coverage**: Raised `config.py` to 100% and `http.py` from 67% to 100%, covering the previously-untested download body (chunked writes with progress callbacks), 200/redirect responses, HTTP 4xx/5xx paths, generic `URLError` branches, and the `NoRedirectHandler` redirect methods.
+- **`tailwind runserver` is now a transparent passthrough wrapper**. Instead of declaring every `runserver` / `runserver_plus` flag by hand, the command forwards all unknown options to the underlying Django command. This removes ~120 lines of duplication, fixes the silent gap where several `runserver_plus` flags (`--extra-file`, `--reloader-interval`, `--browser`, …) were not exposed, and stays in sync with future upstream changes automatically. Existing invocations keep working unchanged; the reduced output of `tailwind runserver --help` now points users at `runserver --help` for the full flag list.
 
 ## 4.5.1 (2025-12-29)
 
