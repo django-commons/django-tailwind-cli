@@ -8,6 +8,9 @@
 ### 🛠️ Developer Experience
 - **Gitignore cleanup**: Trimmed `.gitignore` to project-relevant entries only
 
+### 🐛 Bug Fixes
+- **Tox matrix**: Django 4.2/5.2/6.0 factors in `tox.ini` were ignored because `uv sync --locked` reinstalled Django from `uv.lock` after tox's `deps`. The matrix now excludes Django from the sync and installs the factor-specific version via `commands_pre`, so `just test-all` actually covers all supported Django versions.
+
 ## 4.5.1 (2025-12-29)
 
 ### 🐛 Bug Fixes
