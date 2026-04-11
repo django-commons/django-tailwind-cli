@@ -6,23 +6,29 @@
 **No.** The management commands of this library handle the download and installation of the Tailwind CLI. You don't have to deal with this. But you can configure the installation location and the version of the CLI you want to use. Take a look at the [settings](settings.md) section.
 :::
 
-:::{admonition} Do I have to create my own `css/source.css` for Tailwind 4.x?
+:::{admonition} Do I have to create my own `source.css` for Tailwind 4.x?
 :class: tip
 
-**No.** The management commands also take care of this step. If no `css/source.css` is present in your project, a new one with sane defaults will be created. Afterwards this file will be used and be customized by you. The default location for the file is first folder from the `STATICFILES_DIRS` of your project, but you can change this. Take a look at the [settings](settings.md) section.
+**No.** The management commands also take care of this step. If no source CSS file is present yet, one with sane defaults is created at `<BASE_DIR>/.django_tailwind_cli/source.css`. You can point at a hand-written file instead by setting [`TAILWIND_CLI_SRC_CSS`](settings.md#tailwind_cli_src_css) in your Django settings — the library leaves your file alone in that case.
+:::
+
+:::{admonition} Is `.django_tailwind_cli/` safe to commit?
+:class: tip
+
+**No, and you don't have to do anything.** On first use the library writes a `.gitignore` containing `*` into the managed directory, so the downloaded CLI binary and the auto-generated `source.css` are silently ignored by Git — no entry in your project-level `.gitignore` needed.
 :::
 
 ## Management commands
 
 ### build
 
-Run `python manage.py tailwind build` to create an optimized production built of the stylesheet. Afterwards you are ready to deploy. Take care the this command is run before `python manage.py collectstatic` in your build process.
+Run `python manage.py tailwind build` to create an optimized production build of the stylesheet. Afterwards you are ready to deploy. Make sure this command runs before `python manage.py collectstatic` in your build process.
 
 ### watch
 
-Run `python manage.py tailwind watch` to just start a tailwind watcher process if you prefer to start your debug server in a seperate shell or prefer a different solution than runserver or runserver_plus.
+Run `python manage.py tailwind watch` to start a Tailwind watcher process on its own — useful if you prefer to run your debug server in a separate shell or use a workflow other than `runserver` / `runserver_plus`.
 
-By default the watch command runs under Django's own auto-reloader (the same one `runserver` uses). Whenever you change a Python file — including `settings.py` — the watcher restarts its Python process, regenerates the default source CSS file (picking up freshly added `INSTALLED_APPS`), and restarts the Tailwind CLI subprocess. This pairs nicely with [`TAILWIND_CLI_AUTO_SOURCE_EXTERNAL_APPS`](settings.md#tailwind_cli_auto_source_external_apps): adding an editable-installed app and updating `INSTALLED_APPS` is enough — no manual restart needed.
+By default the watch command runs under Django's own auto-reloader (the same one `runserver` uses). Whenever you change a Python file — including `settings.py` — the watcher restarts its Python process, regenerates the default source CSS file (picking up freshly added `INSTALLED_APPS`), and respawns the Tailwind CLI subprocess. This pairs nicely with [`TAILWIND_CLI_AUTO_SOURCE_EXTERNAL_APPS`](settings.md#tailwind_cli_auto_source_external_apps): adding an editable-installed app and updating `INSTALLED_APPS` is enough — no manual restart needed.
 
 Pass `--noreload` if you want a single-process watch loop (e.g. in CI or when debugging the watcher itself):
 
@@ -114,11 +120,7 @@ Areas covered:
 
 ### remove_cli
 
-Run `python manage.py tailwind remove_cli` to remove the installed cli.
-
-### watch
-
-Run `python manage.py tailwind watch` to just start a tailwind watcher process if you prefer to start your debug server in a seperate shell or prefer a different solution than runserver or runserver_plus.
+Run `python manage.py tailwind remove_cli` to remove the installed CLI binary. This only works with the managed download; system binaries (`TAILWIND_CLI_USE_SYSTEM_BINARY = True`) are refused.
 
 ## Use with Docker Compose
 

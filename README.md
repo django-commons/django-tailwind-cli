@@ -50,8 +50,13 @@ INSTALLED_APPS = [
     "django_tailwind_cli",
 ]
 
-# Configure static files directory
+# Configure static files directory — make sure it exists on disk,
+# Django raises an error at startup if it does not.
 STATICFILES_DIRS = [BASE_DIR / "assets"]
+```
+
+```bash
+mkdir -p assets
 ```
 
 ### 3. Set up your base template
@@ -76,24 +81,22 @@ Create or update your base template (e.g., `templates/base.html`):
 </html>
 ```
 
-### 4. Interactive setup (recommended for first-time users)
+### 4. Start developing
 
 ```bash
-python manage.py tailwind setup
-```
-
-This will guide you through the complete setup process!
-
-### 5. Start developing
-
-```bash
-# Start development server with hot reload
+# Start Django's dev server with a parallel Tailwind watcher (recommended)
 python manage.py tailwind runserver
 
 # Or run build and watch separately
 python manage.py tailwind watch  # In one terminal
 python manage.py runserver       # In another terminal
 ```
+
+The watcher runs under Django's own auto-reloader, so editing `settings.py` (e.g. adding a new app) restarts it automatically and picks up the new configuration on the fly. Pass `--noreload` to opt out.
+
+First run creates a managed `<BASE_DIR>/.django_tailwind_cli/` directory for the CLI binary and an auto-generated `source.css`. The directory is automatically git-ignored — no entry in your project-level `.gitignore` needed.
+
+> **Tip:** Prefer a guided walkthrough? Run `python manage.py tailwind setup` instead for an interactive step-by-step first-time setup.
 
 ### 🎉 You're ready to go!
 
@@ -146,19 +149,21 @@ Start adding Tailwind classes to your templates:
 
 ### 🛠️ Management Commands
 
-| Command        | Purpose                    | Example                                  |
-| -------------- | -------------------------- | ---------------------------------------- |
-| `setup`        | Interactive setup guide    | `python manage.py tailwind setup`        |
-| `build`        | Production CSS build       | `python manage.py tailwind build`        |
-| `watch`        | Development file watcher   | `python manage.py tailwind watch`        |
-| `runserver`    | Combined server + watcher  | `python manage.py tailwind runserver`    |
-| `config`       | Show current configuration | `python manage.py tailwind config`       |
-| `troubleshoot` | Debug common issues        | `python manage.py tailwind troubleshoot` |
+| Command        | Purpose                                              | Example                                  |
+| -------------- | ---------------------------------------------------- | ---------------------------------------- |
+| `setup`        | Interactive first-time setup guide                   | `python manage.py tailwind setup`        |
+| `build`        | Production CSS build                                 | `python manage.py tailwind build`        |
+| `watch`        | Development file watcher (Django autoreload by default) | `python manage.py tailwind watch`    |
+| `runserver`    | Django dev server + watcher (forwards any runserver flag) | `python manage.py tailwind runserver` |
+| `config`       | Show current configuration                           | `python manage.py tailwind config`       |
+| `troubleshoot` | Debug common issues                                  | `python manage.py tailwind troubleshoot` |
+
+`tailwind runserver` is a transparent passthrough: every positional argument and option (apart from `--force-default-runserver`) is forwarded verbatim to the underlying `runserver` or `runserver_plus`. Every flag those commands accept works — including `runserver_plus`-only ones like `--extra-file`, `--reloader-interval`, and `--print-sql`.
 
 ## 📋 Requirements
 
 - **Python:** 3.10+
-- **Django:** 4.0-6.0+
+- **Django:** 4.2 LTS, 5.2, or 6.0
 - **Platform:** Windows, macOS, Linux (automatic platform detection)
 
 ## ⚙️ Configuration Examples
@@ -181,9 +186,11 @@ TAILWIND_CLI_DIST_CSS = "css/app.css"
 # Enable DaisyUI
 TAILWIND_CLI_USE_DAISY_UI = True
 
-# Custom CLI path (for CI/CD)
-TAILWIND_CLI_PATH = "/usr/local/bin/tailwindcss"
-TAILWIND_CLI_AUTOMATIC_DOWNLOAD = False
+# Use an already-installed Tailwind binary (e.g. `brew install tailwindcss`)
+TAILWIND_CLI_USE_SYSTEM_BINARY = True
+
+# Auto-inject @source directives for editable-installed external apps (opt-in)
+TAILWIND_CLI_AUTO_SOURCE_EXTERNAL_APPS = True
 ```
 
 ### Production Settings

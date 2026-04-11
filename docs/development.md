@@ -27,6 +27,10 @@ python manage.py tailwind watch     # Terminal 1: CSS watching
 python manage.py runserver          # Terminal 2: Django server
 ```
 
+`tailwind watch` (and the inner watcher spawned by `tailwind runserver`) runs under Django's auto-reloader by default. Any change to a Python file — including `settings.py` — restarts the watcher, regenerates the source CSS file, and respawns the Tailwind CLI subprocess. Pass `--noreload` to disable.
+
+`tailwind runserver` is a transparent wrapper around the underlying Django `runserver` / `runserver_plus` command: every runserver flag is forwarded verbatim. Consult `python manage.py runserver --help` (or `runserver_plus --help` with `django-extensions` installed) for the full list of available options.
+
 ## Template Development
 
 1. **Create/Edit Template**

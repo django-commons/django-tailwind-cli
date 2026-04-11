@@ -8,8 +8,8 @@
 installation
 usage
 settings
-development
 template_tags
 base_template
+development
 changelog
 ```

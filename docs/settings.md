@@ -143,13 +143,11 @@ TAILWIND_CLI_ASSET_NAME = "tailwindcss-extra"
 
 ### TAILWIND_CLI_SRC_CSS
 
-**Default**: `".django_tailwind_cli/source.css"`
+**Default**: `".django_tailwind_cli/source.css"` (relative to `BASE_DIR`, auto-created on first use)
 
-This variable can be set to a relative path and an absolute path.
+Path to the Tailwind CSS input file. The library manages the default file itself — it writes a minimal `@import "tailwindcss";` (plus `@plugin "daisyui";` if DaisyUI is enabled) into `<BASE_DIR>/.django_tailwind_cli/source.css` on first run and updates it when the auto-generated content drifts.
 
-If it is a relative path it is assumed to be relative to `settings.BASE_DIR`. If `settings.BASE_DIR` is not defined or the file doesn't exist a `ValueError` is raised.
-
-If it is an absolute path, this path is used as the input file for Tailwind CSS CLI. If the path doesn't exist, a `ValueError` is raised.
+Set this to point at a hand-written file if you need custom CSS alongside the Tailwind import. When `TAILWIND_CLI_SRC_CSS` is set, the library only creates the file if it doesn't yet exist and never overwrites it afterwards — you own it. A relative path is resolved against `settings.BASE_DIR`, an absolute path is used as-is.
 
 ### TAILWIND_CLI_DIST_CSS
 

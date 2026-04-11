@@ -35,10 +35,14 @@
    ]
    ```
 
-3. Configure the `STATICFILES_DIRS` parameter in your `settings.py` if not already configured.
+3. Configure the `STATICFILES_DIRS` parameter in your `settings.py` if not already configured, and make sure the referenced directory exists on disk — Django raises an error at startup if it doesn't.
 
    ```python
    STATICFILES_DIRS = [BASE_DIR / "assets"]
+   ```
+
+   ```shell
+   mkdir -p assets
    ```
 
 4. Add template code.
@@ -65,7 +69,11 @@
    python manage.py tailwind watch
    ```
 
-   If you only start the Tailwind CLI in watch mode, you have to start the debug server with the standard command `python manage.py runserver` seperately.
+   If you only start the Tailwind CLI in watch mode, you have to start the debug server with the standard command `python manage.py runserver` separately.
+
+   `tailwind watch` runs under Django's auto-reloader by default, so editing `settings.py` restarts the watcher and respawns the Tailwind CLI with a fresh configuration. Pass `--noreload` to disable this.
+
+6. The first run creates a managed directory at `<BASE_DIR>/.django_tailwind_cli/` for the downloaded CLI binary and the auto-generated source CSS file. This directory is automatically git-ignored via a `.gitignore` file it drops on first use — you don't need to add anything to your project-level `.gitignore`.
 
 ## Optional steps
 
