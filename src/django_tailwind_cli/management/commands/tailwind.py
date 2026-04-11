@@ -1077,7 +1077,7 @@ class ProcessManager:
 
     def _signal_handler(self, _signum: int, _frame: FrameType | None) -> None:
         """Handle shutdown signals gracefully."""
-        typer.secho("\\nShutdown signal received, stopping processes...", fg=typer.colors.YELLOW)
+        typer.secho("\nShutdown signal received, stopping processes...", fg=typer.colors.YELLOW)
         self.shutdown_requested = True
         self._cleanup_processes()
 
