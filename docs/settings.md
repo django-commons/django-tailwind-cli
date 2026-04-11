@@ -42,6 +42,38 @@ In case you want to use the new behaviour, it is highly recommended to also set 
 
 Enable or disable the automatic downloading of the official CLI to your machine.
 
+### TAILWIND_CLI_AUTO_SOURCE_EXTERNAL_APPS
+
+**Default**: `False` (opt-in)
+
+When enabled, the auto-generated default source CSS file gains one `@source` directive per installed Django app whose path lives **outside** `BASE_DIR` **and** outside every known site-packages directory. This covers exactly one real-world case: editable-installed packages that ship with their own templates, e.g. `pip install -e ../my-ui-library`.
+
+Why it matters: Tailwind CSS 4.x discovers source files by walking the current working directory tree. Apps installed as editable packages from a sibling repository sit outside that tree and are therefore invisible to Tailwind unless declared explicitly. Turning this setting on makes `django-tailwind-cli` emit the declarations for you, using absolute paths that Tailwind can follow.
+
+```python
+# settings.py
+TAILWIND_CLI_AUTO_SOURCE_EXTERNAL_APPS = True
+```
+
+With the setting enabled and an editable package `extra` installed, the auto-generated `source.css` looks like:
+
+```css
+@import "tailwindcss";
+
+/* Auto-generated: installed apps outside BASE_DIR and site-packages. */
+@source "/absolute/path/to/editable/extra";
+```
+
+:::{note}
+The directive points at the app base dir, not at a glob. Tailwind CSS 4.x walks the directory and applies its own exclusions (`.gitignore`, binaries, etc.) — this also means class names embedded in Python files (e.g. form widget `attrs={"class": "..."}` strings) are picked up automatically.
+:::
+
+:::{warning}
+This setting only affects the **auto-generated** default source CSS. If you set `TAILWIND_CLI_SRC_CSS` to point at a hand-written CSS file, that file is left untouched — add the `@source` directives yourself if you need them.
+:::
+
+The list of external apps is re-evaluated whenever the source CSS is written. When combined with the `tailwind watch` auto-reloader, installing a new app or editing `INSTALLED_APPS` automatically regenerates the declarations and triggers a Tailwind rebuild.
+
 ### TAILWIND_CLI_USE_SYSTEM_BINARY
 
 **Default**: `False`

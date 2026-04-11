@@ -22,6 +22,14 @@ Run `python manage.py tailwind build` to create an optimized production built of
 
 Run `python manage.py tailwind watch` to just start a tailwind watcher process if you prefer to start your debug server in a seperate shell or prefer a different solution than runserver or runserver_plus.
 
+By default the watch command runs under Django's own auto-reloader (the same one `runserver` uses). Whenever you change a Python file — including `settings.py` — the watcher restarts its Python process, regenerates the default source CSS file (picking up freshly added `INSTALLED_APPS`), and restarts the Tailwind CLI subprocess. This pairs nicely with [`TAILWIND_CLI_AUTO_SOURCE_EXTERNAL_APPS`](settings.md#tailwind_cli_auto_source_external_apps): adding an editable-installed app and updating `INSTALLED_APPS` is enough — no manual restart needed.
+
+Pass `--noreload` if you want a single-process watch loop (e.g. in CI or when debugging the watcher itself):
+
+```bash
+python manage.py tailwind watch --noreload
+```
+
 ### runserver
 
 Run `python manage.py tailwind runserver` to start the classic Django debug server in parallel to a tailwind watcher process.

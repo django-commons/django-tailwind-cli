@@ -55,6 +55,19 @@ Configuration Settings:
             Default: True
             Example: TAILWIND_CLI_AUTOMATIC_DOWNLOAD = False
 
+        TAILWIND_CLI_AUTO_SOURCE_EXTERNAL_APPS (optional): Auto @source
+            Default: False (opt-in)
+            Example: TAILWIND_CLI_AUTO_SOURCE_EXTERNAL_APPS = True
+            Note: When enabled AND the default source.css is auto-generated,
+                  scan INSTALLED_APPS for Django apps that live outside both
+                  BASE_DIR and site-packages (typically editable-installed
+                  user packages), and emit an @source directive for each.
+                  This makes Tailwind CSS scan templates of those apps even
+                  though they sit outside its default CWD walk. Opt-in
+                  because it inserts extra directives into the generated
+                  source.css and expands Tailwind's scan scope — users who
+                  don't need it should see no behavior change.
+
         TAILWIND_CLI_USE_SYSTEM_BINARY (optional): Use a CLI on PATH
             Default: False
             Example: TAILWIND_CLI_USE_SYSTEM_BINARY = True
@@ -138,6 +151,7 @@ class Config:
     automatic_download: bool = True
     use_daisy_ui: bool = False
     uses_system_binary: bool = False
+    auto_source_external_apps: bool = False
 
     # Backward compatibility properties
     @property
@@ -697,6 +711,7 @@ def get_config() -> Config:
     use_daisy_ui = getattr(settings, "TAILWIND_CLI_USE_DAISY_UI", False)
     automatic_download = getattr(settings, "TAILWIND_CLI_AUTOMATIC_DOWNLOAD", True)
     uses_system_binary = bool(getattr(settings, "TAILWIND_CLI_USE_SYSTEM_BINARY", False))
+    auto_source_external_apps = bool(getattr(settings, "TAILWIND_CLI_AUTO_SOURCE_EXTERNAL_APPS", False))
 
     # Get platform information
     platform_info = get_platform_info()
@@ -735,6 +750,7 @@ def get_config() -> Config:
         automatic_download=automatic_download,
         use_daisy_ui=use_daisy_ui,
         uses_system_binary=uses_system_binary,
+        auto_source_external_apps=auto_source_external_apps,
     )
 
 

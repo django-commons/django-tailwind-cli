@@ -291,6 +291,11 @@ def watch(
         "-v",
         help="Show detailed watch information and diagnostics.",
     ),
+    no_reloader: bool = typer.Option(
+        False,
+        "--noreload",
+        help="Disable auto-reload on Python file changes.",
+    ),
 ):
     """Start Tailwind CSS in watch mode for development.
 
@@ -308,12 +313,23 @@ def watch(
     - Any build errors or warnings
 
     \b
+    By default the Python process that runs the watch mode is itself
+    auto-reloaded on any .py file change (using Django's own autoreload
+    machinery — the same one runserver uses). This means that installing
+    a new Django app or editing settings.py rebuilds the source.css and
+    restarts the Tailwind CLI subprocess automatically. Pass --noreload
+    to disable this and run the watch loop in a single process.
+
+    \b
     Examples:
-        # Start watch mode
+        # Start watch mode with auto-reload
         python manage.py tailwind watch
 
         # Watch with detailed diagnostics
         python manage.py tailwind watch --verbose
+
+        # Single-process watch without auto-reload
+        python manage.py tailwind watch --noreload
 
     \b
     Tips:
@@ -322,6 +338,25 @@ def watch(
         - Or use 'python manage.py tailwind runserver' to run both together
 
     Press Ctrl+C to stop watching.
+    """
+    if no_reloader:
+        _run_watch_loop(verbose=verbose)
+        return
+
+    from django.utils import autoreload
+
+    autoreload.run_with_reloader(_run_watch_loop, verbose=verbose)  # pyright: ignore[reportUnknownMemberType]
+
+
+def _run_watch_loop(*, verbose: bool = False) -> None:
+    """Run the Tailwind CSS watch loop in the current process.
+
+    This is invoked directly by ``tailwind watch --noreload`` and as the
+    inner callable when Django's autoreload machinery spawns a child
+    process for the default (auto-reload) path. On reload the entire
+    child process is torn down and respawned, so this function starts
+    from a clean slate every time — including a fresh get_config() call
+    that picks up any INSTALLED_APPS or settings changes.
     """
     config = get_config()
 
@@ -1538,6 +1573,88 @@ DEFAULT_SOURCE_CSS = '@import "tailwindcss";\n'
 DAISY_UI_SOURCE_CSS = '@import "tailwindcss";\n@plugin "daisyui";\n'
 
 
+def _get_site_packages_paths() -> list[Path]:
+    """Return all known site-packages paths used to filter out regular installs.
+
+    We combine ``site.getsitepackages()``, ``site.getusersitepackages()`` and
+    ``sysconfig.get_paths()`` to catch every standard location — editable
+    installs of the user's own source packages live outside all of these.
+    """
+    import site
+    import sysconfig
+
+    paths: set[Path] = set()
+    for p in site.getsitepackages():
+        paths.add(Path(p).resolve())
+    try:
+        user_site = site.getusersitepackages()
+        if user_site:
+            paths.add(Path(user_site).resolve())
+    except AttributeError:  # pragma: no cover - defensive
+        pass
+    for key in ("purelib", "platlib"):
+        p = sysconfig.get_paths().get(key)
+        if p:
+            paths.add(Path(p).resolve())
+    return sorted(paths)
+
+
+def _is_under(child: Path, parent: Path) -> bool:
+    """Return True if ``child`` lies under ``parent`` in the filesystem tree."""
+    try:
+        child.relative_to(parent)
+    except ValueError:
+        return False
+    return True
+
+
+def _discover_external_app_base_dirs() -> list[Path]:
+    """Return base dirs of installed Django apps that need explicit @source.
+
+    An app is considered "external" if its path is NOT under ``BASE_DIR``
+    (Tailwind's CWD walk would not reach it) AND NOT under any known
+    site-packages directory (regular pip installs are not user-editable
+    source). This targets the editable-install case from issue #187.
+    """
+    from django.apps import apps
+
+    base_dir = Path(settings.BASE_DIR).resolve()
+    site_packages = _get_site_packages_paths()
+    external: list[Path] = []
+
+    for app_config in apps.get_app_configs():
+        app_path = Path(app_config.path).resolve()
+        if _is_under(app_path, base_dir):
+            continue
+        if any(_is_under(app_path, sp) for sp in site_packages):
+            continue
+        external.append(app_path)
+
+    return sorted(external)
+
+
+def _build_source_css_content(*, use_daisy_ui: bool, inject_external_apps: bool) -> str:
+    """Build the auto-generated source.css content.
+
+    Starts from the minimal ``@import "tailwindcss";`` (+ ``@plugin "daisyui";``
+    when DaisyUI is enabled) and appends one ``@source`` directive per
+    discovered external Django app base dir.
+    """
+    lines = ['@import "tailwindcss";']
+    if use_daisy_ui:
+        lines.append('@plugin "daisyui";')
+
+    if inject_external_apps:
+        external = _discover_external_app_base_dirs()
+        if external:
+            lines.append("")
+            lines.append("/* Auto-generated: installed apps outside BASE_DIR and site-packages. */")
+            for app_path in external:
+                lines.append(f'@source "{app_path}";')
+
+    return "\n".join(lines) + "\n"
+
+
 def _create_standard_config_with_verbose(*, verbose: bool = False) -> None:
     """Create a standard Tailwind CSS config file with optional verbose logging."""
     c = get_config()
@@ -1553,8 +1670,12 @@ def _create_standard_config_with_verbose(*, verbose: bool = False) -> None:
             typer.secho("⏭️  No source CSS path configured, skipping creation", fg=typer.colors.YELLOW)
         return
 
-    # Determine the content based on DaisyUI setting
-    content = DAISY_UI_SOURCE_CSS if c.use_daisy_ui else DEFAULT_SOURCE_CSS
+    # Build content dynamically — includes auto @source directives for
+    # external apps when TAILWIND_CLI_AUTO_SOURCE_EXTERNAL_APPS is enabled.
+    content = _build_source_css_content(
+        use_daisy_ui=c.use_daisy_ui,
+        inject_external_apps=c.auto_source_external_apps,
+    )
 
     if verbose:
         typer.secho(f"📝 Content template: {'DaisyUI' if c.use_daisy_ui else 'Default'}", fg=typer.colors.BLUE)

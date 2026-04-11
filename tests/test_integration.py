@@ -10,6 +10,7 @@ import platform
 import time
 from pathlib import Path
 from collections.abc import Callable
+from typing import Any
 from unittest.mock import Mock, patch
 
 import pytest
@@ -17,6 +18,7 @@ from django.conf import LazySettings
 from django_tailwind_cli.utils import http
 from django.core.management import call_command
 from pytest import CaptureFixture
+from pytest_mock import MockerFixture
 
 from django_tailwind_cli.config import get_config
 from django_tailwind_cli.management.commands.tailwind import (
@@ -24,6 +26,11 @@ from django_tailwind_cli.management.commands.tailwind import (
     DEFAULT_SOURCE_CSS,
     ProcessManager,
 )
+
+
+def _call_directly(func: Any, *args: Any, **kwargs: Any) -> Any:
+    """Helper that bypasses django.utils.autoreload.run_with_reloader in tests."""
+    return func(*args, **kwargs)
 
 
 class TestBuildWorkflowIntegration:
@@ -241,6 +248,18 @@ class TestBuildWorkflowIntegration:
 
 class TestWatchModeIntegration:
     """Test watch mode functionality and process management."""
+
+    @pytest.fixture(autouse=True)
+    def _bypass_autoreload(self, mocker: MockerFixture):
+        """tailwind watch wraps its loop in django.utils.autoreload.run_with_reloader.
+
+        In tests we bypass the reloader (which would fork a child process) and call
+        the inner callable directly so assertions still apply to the same process.
+        """
+        mocker.patch(
+            "django.utils.autoreload.run_with_reloader",
+            side_effect=_call_directly,
+        )
 
     def test_watch_mode_setup_and_execution(self, settings: LazySettings, tmp_path: Path):
         """Test watch mode command execution flow."""
@@ -653,6 +672,14 @@ class TestErrorRecoveryScenarios:
 
 class TestVerboseLoggingIntegration:
     """Test verbose logging across different commands."""
+
+    @pytest.fixture(autouse=True)
+    def _bypass_autoreload(self, mocker: MockerFixture):
+        """Bypass django autoreload — see TestWatchModeIntegration._bypass_autoreload."""
+        mocker.patch(
+            "django.utils.autoreload.run_with_reloader",
+            side_effect=_call_directly,
+        )
 
     def test_build_verbose_logging(self, settings: LazySettings, tmp_path: Path, capsys: CaptureFixture[str]):
         """Test verbose logging in build command."""

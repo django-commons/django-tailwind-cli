@@ -8,6 +8,8 @@
 ### 🎯 New Features
 - **Configurable minification**: New `TAILWIND_CLI_AUTOMATIC_MINIFY` setting and `--minify` / `--no-minify` flag on `tailwind build` for projects whose asset pipelines already minify CSS. Defaults preserve existing behavior.
 - **System binary support**: New `TAILWIND_CLI_USE_SYSTEM_BINARY` setting lets `django-tailwind-cli` use a Tailwind CSS CLI that is already installed on `PATH` (e.g. via Homebrew), skipping the auto-download. Pairs with optional `TAILWIND_CLI_SYSTEM_BINARY_NAME` override. Emits a warning if the installed binary's version differs from an explicitly pinned `TAILWIND_CLI_VERSION`.
+- **Auto `@source` for editable external apps** (opt-in): New `TAILWIND_CLI_AUTO_SOURCE_EXTERNAL_APPS` setting (default `False`). When enabled, the auto-generated default source CSS receives one `@source` directive per installed Django app whose path lives outside both `BASE_DIR` and site-packages — typically editable-installed packages that ship their own templates. This removes the need for fragile `@source "../../../../../..."` workarounds. Addresses [#187](https://github.com/django-commons/django-tailwind-cli/issues/187).
+- **Watch mode auto-reload**: `python manage.py tailwind watch` now runs under Django's own auto-reloader (the same machinery `runserver` uses). Changing `settings.py` or any Python file restarts the watch process, regenerates the source CSS (picking up new `INSTALLED_APPS`), and restarts the Tailwind CLI subprocess. Pass `--noreload` to disable.
 
 ### 🛠️ Developer Experience
 - **Gitignore cleanup**: Trimmed `.gitignore` to project-relevant entries only

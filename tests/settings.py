@@ -49,3 +49,10 @@ STATICFILES_DIRS = (BASE_DIR / "assets",)
 USE_TZ = True
 
 SILENCED_SYSTEM_CHECKS = ["staticfiles.W004"]
+
+# Explicit test default (also matches the library default): disable auto
+# @source injection so the generated source.css content is deterministic
+# regardless of how django_tailwind_cli itself happens to be installed in
+# the dev env (editable src/ vs. wheel). Feature tests opt back in
+# explicitly where they exercise the external-app logic.
+TAILWIND_CLI_AUTO_SOURCE_EXTERNAL_APPS = False
