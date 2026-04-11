@@ -153,6 +153,10 @@ def download_with_progress(
                         progress = (downloaded / total_size) * 100
                         progress_callback(downloaded, total_size, progress)
 
+    except RequestError:
+        # Don't re-wrap exceptions we raised ourselves (e.g. the HTTPError
+        # raised above when response.getcode() >= 400).
+        raise
     except UrllibHTTPError as e:
         raise HTTPError(f"HTTP {e.code}: {e.reason}") from e
     except URLError as e:
@@ -192,6 +196,10 @@ def get_content_sync(url: str, timeout: int = 30) -> bytes:
                 raise HTTPError(f"HTTP {response.getcode()}: {response.reason}")
             return response.read()
 
+    except RequestError:
+        # Don't re-wrap exceptions we raised ourselves (e.g. the HTTPError
+        # raised above when response.getcode() >= 400).
+        raise
     except UrllibHTTPError as e:
         raise HTTPError(f"HTTP {e.code}: {e.reason}") from e
     except URLError as e:

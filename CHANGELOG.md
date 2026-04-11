@@ -14,10 +14,12 @@
 
 ### 🐛 Bug Fixes
 - **Tox matrix**: Django 4.2/5.2/6.0 factors in `tox.ini` were ignored because `uv sync --locked` reinstalled Django from `uv.lock` after tox's `deps`. The matrix now excludes Django from the sync and installs the factor-specific version via `commands_pre`, so `just test-all` actually covers all supported Django versions.
+- **HTTP error reporting**: `download_with_progress` and `get_content_sync` now surface `HTTPError` for 4xx/5xx responses as intended. Previously the internal `HTTPError` was caught by the generic fallback handler and re-wrapped as a `RequestError("Unexpected error: …")`, hiding the real status code from callers.
 
 ### 🔧 Technical Improvements
 - **Type checking**: Switched from `pyright` to `basedpyright` in pre-commit, added `django-stubs` as a dev dependency, and resolved a latent pre-existing baseline so the type checker runs clean on all files.
 - **Pre-commit hooks**: Bumped all hooks to their latest releases (pre-commit-hooks 6.0.0, ruff 0.15.10, pyupgrade 3.21.2, django-upgrade 1.30.0, djade 1.9.0, uv-secure 0.17.1).
+- **Test coverage**: Raised `config.py` to 100% and `http.py` from 67% to 100%, covering the previously-untested download body (chunked writes with progress callbacks), 200/redirect responses, HTTP 4xx/5xx paths, generic `URLError` branches, and the `NoRedirectHandler` redirect methods.
 
 ## 4.5.1 (2025-12-29)
 

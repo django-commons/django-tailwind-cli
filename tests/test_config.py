@@ -797,3 +797,24 @@ def test_detect_binary_version_handles_nonzero_exit(mocker: MockerFixture, tmp_p
     mock_run.return_value = mocker.Mock(returncode=1, stdout="", stderr="crash")
 
     assert detect_binary_version(binary) is None
+
+
+def test_detect_binary_version_handles_semver_parse_failure(mocker: MockerFixture, tmp_path: Path):
+    """Defensive: if the regex matches but Version.parse raises, return None."""
+    from django_tailwind_cli.config import detect_binary_version
+
+    binary = tmp_path / "tailwindcss-badparse"
+    binary.touch()
+
+    detect_binary_version.cache_clear()
+
+    mock_run = mocker.patch("subprocess.run")
+    mock_run.return_value = mocker.Mock(
+        returncode=0,
+        stdout="≈ tailwindcss v1.2.3\n",
+        stderr="",
+    )
+    # Force semver.Version.parse to fail even though the regex matched.
+    mocker.patch("django_tailwind_cli.config.Version.parse", side_effect=ValueError("simulated"))
+
+    assert detect_binary_version(binary) is None
