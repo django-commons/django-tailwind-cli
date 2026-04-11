@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 4.6.0 (2026-04-11)
 
 ### 💥 Breaking Changes
 - **Removed `list_templates` command**: Tailwind CSS 4.x handles template discovery via `@source` directives in your CSS source file, making this command redundant. If you need to enumerate templates programmatically, use Django's `django.template.utils.get_app_template_dirs()` directly.
@@ -18,6 +18,8 @@
 ### 🐛 Bug Fixes
 - **Tox matrix**: Django 4.2/5.2/6.0 factors in `tox.ini` were ignored because `uv sync --locked` reinstalled Django from `uv.lock` after tox's `deps`. The matrix now excludes Django from the sync and installs the factor-specific version via `commands_pre`, so `just test-all` actually covers all supported Django versions.
 - **HTTP error reporting**: `download_with_progress` and `get_content_sync` now surface `HTTPError` for 4xx/5xx responses as intended. Previously the internal `HTTPError` was caught by the generic fallback handler and re-wrapped as a `RequestError("Unexpected error: …")`, hiding the real status code from callers.
+- **`runserver` shutdown message newline**: `ProcessManager._signal_handler` printed a literal `\n` instead of a real newline, so the Ctrl+C shutdown message got stapled onto the previous terminal output.
+- **`runserver` watch subprocess deadlock**: `ProcessManager` and `MultiWatchProcessManager` spawned the Tailwind CLI watch subprocess with a captured stdout pipe that was never read. Once the OS pipe buffer filled up (~64 KB on Linux), the watcher blocked on its next write and silently stopped rebuilding. Watch subprocesses now inherit the parent's stdout/stderr, which also means you can see rebuild progress live during `tailwind runserver`.
 
 ### 🔧 Technical Improvements
 - **Type checking**: Switched from `pyright` to `basedpyright` in pre-commit, added `django-stubs` as a dev dependency, and resolved a latent pre-existing baseline so the type checker runs clean on all files.
