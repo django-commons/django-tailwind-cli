@@ -12,6 +12,10 @@
 ### 🐛 Bug Fixes
 - **Tox matrix**: Django 4.2/5.2/6.0 factors in `tox.ini` were ignored because `uv sync --locked` reinstalled Django from `uv.lock` after tox's `deps`. The matrix now excludes Django from the sync and installs the factor-specific version via `commands_pre`, so `just test-all` actually covers all supported Django versions.
 
+### 🔧 Technical Improvements
+- **Type checking**: Switched from `pyright` to `basedpyright` in pre-commit, added `django-stubs` as a dev dependency, and resolved a latent pre-existing baseline so the type checker runs clean on all files.
+- **Pre-commit hooks**: Bumped all hooks to their latest releases (pre-commit-hooks 6.0.0, ruff 0.15.10, pyupgrade 3.21.2, django-upgrade 1.30.0, djade 1.9.0, uv-secure 0.17.1).
+
 ## 4.5.1 (2025-12-29)
 
 ### 🐛 Bug Fixes

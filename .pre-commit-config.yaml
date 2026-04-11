@@ -3,7 +3,7 @@ default_language_version:
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v6.0.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
@@ -16,36 +16,36 @@ repos:
       - id: check-json
 
   - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: "v0.12.3"
+    rev: "v0.15.10"
     hooks:
       - id: ruff
       - id: ruff-format
 
   - repo: https://github.com/asottile/pyupgrade
-    rev: v3.20.0
+    rev: v3.21.2
     hooks:
     - id: pyupgrade
       args: [--py310-plus]
 
   - repo: https://github.com/adamchainz/django-upgrade
-    rev: "1.25.0"
+    rev: "1.30.0"
     hooks:
     - id: django-upgrade
       args: [--target-version, "4.2"]
 
   - repo: https://github.com/adamchainz/djade-pre-commit
-    rev: "1.4.0"
+    rev: "1.9.0"
     hooks:
     -   id: djade
         args: [--target-version, "4.2"]
 
   - repo: https://github.com/owenlamont/uv-secure
-    rev: 0.15.4
+    rev: 0.17.1
     hooks:
       - id: uv-secure
         exclude: ^docs/
 
-  - repo: https://github.com/RobertCraigie/pyright-python
-    rev: v1.1.407
+  - repo: https://github.com/DetachHead/basedpyright-pre-commit-mirror
+    rev: 1.39.0
     hooks:
-    - id: pyright
+    - id: basedpyright

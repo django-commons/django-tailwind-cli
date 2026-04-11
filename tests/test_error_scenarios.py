@@ -450,11 +450,16 @@ class TestFileSystemErrorScenarios:
                 config.cli_path.parent.chmod(0o755)
         else:
             # On Windows, just test that the command can complete normally
-            def mock_download(url, filepath, timeout=30, progress_callback=None):
+            def mock_download_win(
+                url: str,
+                filepath: Path,
+                timeout: int = 30,
+                progress_callback: Callable[[int, int, float], None] | None = None,
+            ) -> None:
                 filepath.parent.mkdir(parents=True, exist_ok=True)
                 filepath.write_bytes(b"cli-binary")
 
-            with patch("django_tailwind_cli.utils.http.download_with_progress", side_effect=mock_download):
+            with patch("django_tailwind_cli.utils.http.download_with_progress", side_effect=mock_download_win):
                 call_command("tailwind", "download_cli")
                 config = get_config()
                 assert config.cli_path.exists()

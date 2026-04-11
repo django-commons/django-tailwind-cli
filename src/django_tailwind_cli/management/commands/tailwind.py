@@ -223,8 +223,9 @@ def build(
     start_time = time.time()
     config = get_config()
 
-    if minify is None:
-        minify = getattr(settings, "TAILWIND_CLI_AUTOMATIC_MINIFY", True)
+    effective_minify: bool = (
+        bool(getattr(settings, "TAILWIND_CLI_AUTOMATIC_MINIFY", True)) if minify is None else minify
+    )
 
     if verbose:
         typer.secho("🏗️  Starting Tailwind CSS build process...", fg=typer.colors.CYAN)
@@ -255,12 +256,12 @@ def build(
             continue
 
         if verbose:
-            build_cmd = config.get_build_cmd(entry, minify=minify)
+            build_cmd = config.get_build_cmd(entry, minify=effective_minify)
             typer.secho(f"⚡ [{entry.name}] Executing Tailwind CSS build command...", fg=typer.colors.CYAN)
             typer.secho(f"   • Command: {' '.join(build_cmd)}", fg=typer.colors.BLUE)
 
         _execute_tailwind_command(
-            config.get_build_cmd(entry, minify=minify),
+            config.get_build_cmd(entry, minify=effective_minify),
             success_message=f"Built production stylesheet '{entry.dist_css}'.",
             error_message=f"Failed to build production stylesheet '{entry.name}'",
             verbose=verbose,

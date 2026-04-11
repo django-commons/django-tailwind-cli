@@ -36,6 +36,7 @@ Repository = "https://github.com/django-commons/django-tailwind-cli"
 
 [dependency-groups]
 dev = [
+    "django-stubs>=6.0.2",
     "pytest-cov>=5.0.0",
     "pytest-django>=4.9.0",
     "pytest-mock>=3.14.0",
@@ -51,7 +52,7 @@ build-backend = "hatchling.build"
 [tool.hatch.version]
 source = "vcs"
 
-# pyright
+# basedpyright (also read by pyright)
 [tool.pyright]
 pythonVersion = "3.10"
 typeCheckingMode = "strict"
