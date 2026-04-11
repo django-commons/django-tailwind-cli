@@ -676,6 +676,66 @@ class TestAutoSourceExternalApps:
         assert f'@source "{editable_app}";' in written
 
 
+class TestDefaultGitignore:
+    """Tests for _ensure_default_gitignore() — the auto .gitignore drop-in."""
+
+    def test_ensure_default_gitignore_creates_star_file(self, settings: LazySettings, tmp_path: Path):
+        """In default mode the helper writes '*\\n' into .django_tailwind_cli/.gitignore."""
+        from django_tailwind_cli.management.commands.tailwind import _ensure_default_gitignore
+
+        settings.BASE_DIR = tmp_path
+        # TAILWIND_CLI_PATH intentionally not set → default mode
+        default_dir = tmp_path / ".django_tailwind_cli"
+        default_dir.mkdir()
+
+        _ensure_default_gitignore()
+
+        gitignore = default_dir / ".gitignore"
+        assert gitignore.exists()
+        assert gitignore.read_text() == "*\n"
+
+    def test_ensure_default_gitignore_skipped_for_custom_path(self, settings: LazySettings, tmp_path: Path):
+        """With a custom TAILWIND_CLI_PATH, the helper is a no-op."""
+        from django_tailwind_cli.management.commands.tailwind import _ensure_default_gitignore
+
+        settings.BASE_DIR = tmp_path
+        settings.TAILWIND_CLI_PATH = str(tmp_path / "custom" / "tailwindcss")
+
+        # The default dir can still exist from a previous run — the helper
+        # should leave it alone when a custom path is active.
+        default_dir = tmp_path / ".django_tailwind_cli"
+        default_dir.mkdir()
+
+        _ensure_default_gitignore()
+
+        assert not (default_dir / ".gitignore").exists()
+
+    def test_ensure_default_gitignore_preserves_existing_file(self, settings: LazySettings, tmp_path: Path):
+        """If the user already wrote a .gitignore, we don't overwrite it."""
+        from django_tailwind_cli.management.commands.tailwind import _ensure_default_gitignore
+
+        settings.BASE_DIR = tmp_path
+        default_dir = tmp_path / ".django_tailwind_cli"
+        default_dir.mkdir()
+        existing = default_dir / ".gitignore"
+        existing.write_text("# hand-written\n*.log\n")
+
+        _ensure_default_gitignore()
+
+        assert existing.read_text() == "# hand-written\n*.log\n"
+
+    def test_ensure_default_gitignore_noop_when_dir_missing(self, settings: LazySettings, tmp_path: Path):
+        """If the managed dir was never created, the helper simply returns."""
+        from django_tailwind_cli.management.commands.tailwind import _ensure_default_gitignore
+
+        settings.BASE_DIR = tmp_path
+        # No default_dir created
+
+        _ensure_default_gitignore()  # must not raise
+
+        assert not (tmp_path / ".django_tailwind_cli").exists()
+
+
 # Configuration to run tests with appropriate markers
 pytestmark = [
     pytest.mark.filterwarnings("ignore::DeprecationWarning"),

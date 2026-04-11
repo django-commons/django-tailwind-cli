@@ -1225,6 +1225,29 @@ def _setup_tailwind_environment_with_verbose(*, verbose: bool = False) -> None:
         typer.secho("⚙️  Setting up Tailwind environment...", fg=typer.colors.CYAN)
     _download_cli_with_verbose(verbose=verbose)
     _create_standard_config_with_verbose(verbose=verbose)
+    _ensure_default_gitignore()
+
+
+def _ensure_default_gitignore() -> None:
+    """Drop a single-star .gitignore into the managed `.django_tailwind_cli/` dir.
+
+    The pattern ``*`` ignores every file in the directory — including the
+    .gitignore itself — so ``git add .`` silently skips the whole folder
+    without the user having to touch their project-level .gitignore.
+
+    Only acts when ``TAILWIND_CLI_PATH`` is unset (default mode). Custom
+    paths are left alone: we don't own them and a stray .gitignore there
+    could conflict with whatever the user is doing.
+    """
+    if getattr(settings, "TAILWIND_CLI_PATH", None):
+        return
+    default_dir = Path(settings.BASE_DIR) / ".django_tailwind_cli"
+    if not default_dir.exists():
+        return
+    gitignore = default_dir / ".gitignore"
+    if gitignore.exists():
+        return  # Respect whatever the user put there
+    gitignore.write_text("*\n")
 
 
 def _should_rebuild_css(src_css: Path, dist_css: Path) -> bool:
