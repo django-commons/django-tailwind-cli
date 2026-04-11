@@ -1043,14 +1043,14 @@ class ProcessManager:
         signal.signal(signal.SIGTERM, self._signal_handler)
 
         try:
-            # Start Tailwind watch process
+            # Start Tailwind watch process — inherit stdout/stderr so the
+            # user sees watch output live and we avoid a pipe-fill deadlock:
+            # the OS pipe buffer (~64 KB on Linux) would otherwise fill up
+            # after a few minutes of rebuilds and block the watcher.
             watch_process = subprocess.Popen(
                 watch_cmd,
                 cwd=settings.BASE_DIR,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
                 text=True,
-                bufsize=1,  # Line buffered
             )
             self.processes.append(watch_process)
             typer.secho("Started Tailwind CSS watch process", fg=typer.colors.GREEN)
@@ -1141,13 +1141,13 @@ class MultiWatchProcessManager:
                     typer.secho(f"🚀 Starting watch for '{entry.name}'...", fg=typer.colors.CYAN)
                     typer.secho(f"   • Command: {' '.join(watch_cmd)}", fg=typer.colors.BLUE)
 
+                # Inherit stdout/stderr so output flows to the terminal and we
+                # avoid a pipe-fill deadlock — the OS pipe buffer would otherwise
+                # block the watcher after ~64 KB of rebuild status lines.
                 process = subprocess.Popen(
                     watch_cmd,
                     cwd=settings.BASE_DIR,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.STDOUT,
                     text=True,
-                    bufsize=1,
                 )
                 self.processes.append(process)
                 typer.secho(f"Watching '{entry.name}': {entry.src_css}", fg=typer.colors.GREEN)
