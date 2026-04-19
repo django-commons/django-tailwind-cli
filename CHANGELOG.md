@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### 🔧 Technical Improvements
+- **Hardened GitHub Actions workflows**: pinned all actions to commit SHAs, scoped top-level permissions, added concurrency groups, moved `github.ref_name` / `github.repository` out of shell interpolation into `env:` vars, and added a [zizmor](https://docs.zizmor.sh/) audit job to keep workflow security regressions out of CI.
+
 ## 4.6.0 (2026-04-11)
 
 ### 💥 Breaking Changes
