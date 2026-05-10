@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 4.6.1 (2026-05-10)
+
 ### 🐛 Bug Fixes
 - **`tailwind watch` crash with `TAILWIND_CLI_CSS_MAP`**: `MultiWatchProcessManager` installed `signal.signal` handlers that fail with `ValueError: signal only works in main thread of the main interpreter` under Django's autoreloader (the watch loop runs in a worker thread). Cleanup now relies on `KeyboardInterrupt` propagation, matching the single-entry path. Fixes [#201](https://github.com/django-commons/django-tailwind-cli/issues/201).
 - **SIGTERM-graceful shutdown for both watch managers**: `ProcessManager` and `MultiWatchProcessManager` now install a SIGTERM handler only when running on the main thread, so `kill -TERM` cleans up child watchers in `tailwind watch --noreload` and `tailwind runserver` without re-introducing the autoreloader crash. SIGINT keeps using Python's default handler (which raises `KeyboardInterrupt`).
