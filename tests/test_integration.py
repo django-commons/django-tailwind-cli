@@ -26,6 +26,7 @@ from django_tailwind_cli.config import get_config
 from django_tailwind_cli.management.commands.tailwind import (
     DAISY_UI_SOURCE_CSS,
     DEFAULT_SOURCE_CSS,
+    _WATCH_SPAWN_STAGGER_S,
     MultiWatchProcessManager,
     ProcessManager,
     _run_watch_loop,
@@ -420,6 +421,58 @@ class TestWatchModeIntegration:
 
             assert not worker.is_alive(), "_run_watch_loop did not terminate within 5s"
             assert not errors, f"_run_watch_loop crashed in worker thread: {errors[0]!r}"
+
+    @pytest.mark.parametrize(
+        "entry_count,expected_staggers",
+        [(2, 1), (3, 2), (4, 3)],
+    )
+    def test_watch_staggers_multi_entry_spawn(
+        self,
+        settings: LazySettings,
+        tmp_path: Path,
+        mocker: MockerFixture,
+        entry_count: int,
+        expected_staggers: int,
+    ):
+        """Multi-entry Popen calls must be spaced by _WATCH_SPAWN_STAGGER_S to avoid the Bun DLOPEN race."""
+        settings.BASE_DIR = tmp_path
+        settings.TAILWIND_CLI_PATH = tmp_path / ".django_tailwind_cli"
+        settings.STATICFILES_DIRS = (tmp_path / "assets",)
+        settings.TAILWIND_CLI_VERSION = "4.1.3"
+        settings.TAILWIND_CLI_CSS_MAP = [(f"src{i}.css", f"out{i}.output.css") for i in range(entry_count)]
+        _clear_legacy_css_settings(settings)
+
+        for i in range(entry_count):
+            (tmp_path / f"src{i}.css").write_text('@import "tailwindcss";')
+
+        def mock_download_func(
+            url: str,
+            filepath: Path,
+            timeout: int = 30,
+            progress_callback: Callable[[int, int, float], None] | None = None,
+        ) -> None:
+            filepath.parent.mkdir(parents=True, exist_ok=True)
+            filepath.write_bytes(b"fake-cli-binary")
+            filepath.chmod(0o755)
+
+        mocker.patch("django_tailwind_cli.utils.http.download_with_progress", side_effect=mock_download_func)
+
+        mock_process = Mock()
+        mock_process.poll.return_value = 0  # exits immediately so monitor loop returns
+        mock_process.wait.return_value = 0
+        mock_popen = mocker.patch("subprocess.Popen", return_value=mock_process)
+
+        # Patch only the time reference inside tailwind.py to avoid disturbing
+        # the rest of the test runtime.
+        mock_sleep = mocker.patch("django_tailwind_cli.management.commands.tailwind.time.sleep")
+
+        call_command("tailwind", "watch")
+
+        assert mock_popen.call_count == entry_count
+        stagger_calls = [c for c in mock_sleep.call_args_list if c.args == (_WATCH_SPAWN_STAGGER_S,)]
+        assert len(stagger_calls) == expected_staggers, (
+            f"expected {expected_staggers} stagger sleeps, got {len(stagger_calls)} of {mock_sleep.call_args_list}"
+        )
 
     def test_watch_keyboard_interrupt_handling(
         self, settings: LazySettings, tmp_path: Path, capsys: CaptureFixture[str]

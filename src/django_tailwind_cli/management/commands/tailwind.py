@@ -44,6 +44,13 @@ For more information about a specific command, use:
     rich_markup_mode="markdown",
 )  # type: ignore
 
+# Delay between successive multi-watch Popen calls. The Bun-built tailwindcss
+# standalone binary extracts its embedded @parcel/watcher native module to
+# /$bunfs/ on first use; two parallel spawns race on the same path and one
+# crashes with ERR_DLOPEN_FAILED. Staggering by 300 ms sidesteps the race
+# without being noticeable in interactive use.
+_WATCH_SPAWN_STAGGER_S = 0.3
+
 
 # DECORATORS AND COMMON SETUP ---------------------------------------------------------------------
 
@@ -1150,7 +1157,10 @@ class MultiWatchProcessManager:
             signal.signal(signal.SIGTERM, self._signal_handler)
 
         try:
-            for entry in config.css_entries:
+            for index, entry in enumerate(config.css_entries):
+                if index > 0:
+                    time.sleep(_WATCH_SPAWN_STAGGER_S)
+
                 watch_cmd = config.get_watch_cmd(entry)
                 if verbose:
                     typer.secho(f"🚀 Starting watch for '{entry.name}'...", fg=typer.colors.CYAN)
