@@ -1130,10 +1130,9 @@ class MultiWatchProcessManager:
             config: Configuration object with css_entries.
             verbose: Whether to show detailed information.
         """
-        # Set up signal handlers for graceful shutdown
-        signal.signal(signal.SIGINT, self._signal_handler)
-        signal.signal(signal.SIGTERM, self._signal_handler)
-
+        # Rely on KeyboardInterrupt rather than signal.signal() so this works
+        # under Django's autoreloader, which runs the watch loop in a worker
+        # thread where signal.signal() raises ValueError.
         try:
             for entry in config.css_entries:
                 watch_cmd = config.get_watch_cmd(entry)
@@ -1153,19 +1152,17 @@ class MultiWatchProcessManager:
                 typer.secho(f"Watching '{entry.name}': {entry.src_css}", fg=typer.colors.GREEN)
 
             self._monitor_processes()
+        except KeyboardInterrupt:
+            typer.secho("\nShutdown signal received, stopping watch processes...", fg=typer.colors.YELLOW)
+            self.shutdown_requested = True
         except Exception as e:
             typer.secho(f"Error starting watch processes: {e}", fg=typer.colors.RED)
-            self._cleanup_processes()
             raise
-
-    def _signal_handler(self, _signum: int, _frame: FrameType | None) -> None:
-        """Handle shutdown signals gracefully."""
-        typer.secho("\nShutdown signal received, stopping watch processes...", fg=typer.colors.YELLOW)
-        self.shutdown_requested = True
-        self._cleanup_processes()
+        finally:
+            self._cleanup_processes()
 
     def _monitor_processes(self) -> None:
-        """Monitor all watch processes."""
+        """Monitor all watch processes. Cleanup is owned by start_watch_processes' finally."""
         while not self.shutdown_requested and any(p.poll() is None for p in self.processes):
             time.sleep(0.5)
 
@@ -1174,8 +1171,6 @@ class MultiWatchProcessManager:
                     typer.secho(f"Watch process {i} exited with code {process.returncode}", fg=typer.colors.RED)
                     self.shutdown_requested = True
                     break
-
-        self._cleanup_processes()
 
     def _cleanup_processes(self) -> None:
         """Clean up all watch processes."""

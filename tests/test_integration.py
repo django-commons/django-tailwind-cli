@@ -7,6 +7,7 @@ file operations, and cross-platform compatibility.
 
 import os
 import platform
+import threading
 import time
 from pathlib import Path
 from collections.abc import Callable
@@ -25,12 +26,20 @@ from django_tailwind_cli.management.commands.tailwind import (
     DAISY_UI_SOURCE_CSS,
     DEFAULT_SOURCE_CSS,
     ProcessManager,
+    _run_watch_loop,
 )
 
 
 def _call_directly(func: Any, *args: Any, **kwargs: Any) -> Any:
     """Helper that bypasses django.utils.autoreload.run_with_reloader in tests."""
     return func(*args, **kwargs)
+
+
+def _clear_legacy_css_settings(settings: LazySettings) -> None:
+    """Drop single-file CSS settings so CSS_MAP is the sole source of truth."""
+    for name in ("TAILWIND_CLI_SRC_CSS", "TAILWIND_CLI_DIST_CSS"):
+        if hasattr(settings, name):
+            delattr(settings, name)
 
 
 class TestBuildWorkflowIntegration:
@@ -197,11 +206,7 @@ class TestBuildWorkflowIntegration:
             ("admin.css", "admin.output.css"),
             ("web.css", "web.output.css"),
         ]
-        # Remove single-file settings to avoid conflict
-        if hasattr(settings, "TAILWIND_CLI_SRC_CSS"):
-            delattr(settings, "TAILWIND_CLI_SRC_CSS")
-        if hasattr(settings, "TAILWIND_CLI_DIST_CSS"):
-            delattr(settings, "TAILWIND_CLI_DIST_CSS")
+        _clear_legacy_css_settings(settings)
 
         # Create source CSS files
         (tmp_path / "admin.css").write_text('@import "tailwindcss";')
@@ -308,11 +313,7 @@ class TestWatchModeIntegration:
             ("admin.css", "admin.output.css"),
             ("web.css", "web.output.css"),
         ]
-        # Remove single-file settings to avoid conflict
-        if hasattr(settings, "TAILWIND_CLI_SRC_CSS"):
-            delattr(settings, "TAILWIND_CLI_SRC_CSS")
-        if hasattr(settings, "TAILWIND_CLI_DIST_CSS"):
-            delattr(settings, "TAILWIND_CLI_DIST_CSS")
+        _clear_legacy_css_settings(settings)
 
         # Create source CSS files
         (tmp_path / "admin.css").write_text('@import "tailwindcss";')
@@ -360,6 +361,63 @@ class TestWatchModeIntegration:
             assert "web.css" in str(call_args_1)
             assert "web.output.css" in str(call_args_1)
             assert "--watch" in call_args_1
+
+    def test_watch_with_css_map_runs_in_worker_thread(self, settings: LazySettings, tmp_path: Path):
+        """Regression for #201: multi-entry watch must work outside the main thread.
+
+        Django's autoreload.run_with_reloader executes the wrapped callable
+        in a worker thread. signal.signal() raises ValueError there, so the
+        multi-entry watch path must not rely on signal handlers.
+        """
+        settings.BASE_DIR = tmp_path
+        settings.TAILWIND_CLI_PATH = tmp_path / ".django_tailwind_cli"
+        settings.STATICFILES_DIRS = (tmp_path / "assets",)
+        settings.TAILWIND_CLI_VERSION = "4.1.3"
+        settings.TAILWIND_CLI_CSS_MAP = [
+            ("admin.css", "admin.output.css"),
+            ("web.css", "web.output.css"),
+        ]
+        _clear_legacy_css_settings(settings)
+
+        (tmp_path / "admin.css").write_text('@import "tailwindcss";')
+        (tmp_path / "web.css").write_text('@import "tailwindcss";')
+
+        with (
+            patch("django_tailwind_cli.utils.http.download_with_progress") as mock_download,
+            patch("subprocess.Popen") as mock_popen,
+        ):
+
+            def mock_download_func(
+                url: str,
+                filepath: Path,
+                timeout: int = 30,
+                progress_callback: Callable[[int, int, float], None] | None = None,
+            ) -> None:
+                filepath.parent.mkdir(parents=True, exist_ok=True)
+                filepath.write_bytes(b"fake-cli-binary")
+                filepath.chmod(0o755)
+
+            mock_download.side_effect = mock_download_func
+
+            mock_process = Mock()
+            mock_process.poll.return_value = 0  # already exited → monitor loop returns immediately
+            mock_process.wait.return_value = 0
+            mock_popen.return_value = mock_process
+
+            errors: list[BaseException] = []
+
+            def runner() -> None:
+                try:
+                    _run_watch_loop(verbose=False)
+                except BaseException as exc:
+                    errors.append(exc)
+
+            worker = threading.Thread(target=runner)
+            worker.start()
+            worker.join(timeout=5)
+
+            assert not worker.is_alive(), "_run_watch_loop did not terminate within 5s"
+            assert not errors, f"_run_watch_loop crashed in worker thread: {errors[0]!r}"
 
     def test_watch_keyboard_interrupt_handling(
         self, settings: LazySettings, tmp_path: Path, capsys: CaptureFixture[str]
