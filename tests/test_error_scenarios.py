@@ -7,7 +7,6 @@ file operations, and subprocess execution.
 # pyright: reportPrivateUsage=false
 
 import os
-import signal
 import subprocess
 import time
 from pathlib import Path
@@ -483,8 +482,8 @@ class TestFileSystemErrorScenarios:
 class TestConcurrencyErrorScenarios:
     """Test concurrency and race condition handling."""
 
-    def test_process_manager_signal_handling_error(self):
-        """Test ProcessManager error handling during signal processing."""
+    def test_process_manager_cleanup_swallows_terminate_error(self):
+        """ProcessManager cleanup must not propagate OSError from terminate()."""
         manager = ProcessManager()
 
         # Mock process that raises exception during terminate
@@ -494,14 +493,13 @@ class TestConcurrencyErrorScenarios:
         mock_process.wait.return_value = None
         manager.processes = [mock_process]
 
-        # Should handle terminate errors gracefully
-        manager._signal_handler(signal.SIGINT, None)
+        manager._cleanup_processes()
 
         # Should still clean up processes list
         assert manager.processes == []
 
-    def test_process_manager_wait_timeout_error(self):
-        """Test ProcessManager handling of wait timeout."""
+    def test_process_manager_cleanup_escalates_on_wait_timeout(self):
+        """ProcessManager cleanup must kill() when terminate() + wait() time out."""
         manager = ProcessManager()
 
         # Mock process that times out during wait
@@ -512,8 +510,7 @@ class TestConcurrencyErrorScenarios:
         mock_process.kill.return_value = None
         manager.processes = [mock_process]
 
-        # Should escalate to kill when terminate times out
-        manager._signal_handler(signal.SIGINT, None)
+        manager._cleanup_processes()
 
         mock_process.terminate.assert_called_once()
         mock_process.kill.assert_called_once()

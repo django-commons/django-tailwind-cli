@@ -7,6 +7,7 @@ file operations, and cross-platform compatibility.
 
 import os
 import platform
+import signal
 import threading
 import time
 from pathlib import Path
@@ -25,6 +26,7 @@ from django_tailwind_cli.config import get_config
 from django_tailwind_cli.management.commands.tailwind import (
     DAISY_UI_SOURCE_CSS,
     DEFAULT_SOURCE_CSS,
+    MultiWatchProcessManager,
     ProcessManager,
     _run_watch_loop,
 )
@@ -471,10 +473,7 @@ class TestProcessManagerIntegration:
         mock_process.wait.return_value = None
         manager.processes = [mock_process]
 
-        # Manually trigger cleanup to test behavior
-        import signal
-
-        manager._signal_handler(signal.SIGINT, None)
+        manager._cleanup_processes()
 
         # Verify cleanup was called
         mock_process.terminate.assert_called_once()
@@ -489,14 +488,50 @@ class TestProcessManagerIntegration:
         mock_process.poll.return_value = 0  # Already exited
         manager.processes = [mock_process]
 
-        # Manually trigger cleanup to test behavior
-        import signal
-
-        manager._signal_handler(signal.SIGINT, None)
+        manager._cleanup_processes()
 
         # Should not call terminate on already-exited process
         mock_process.terminate.assert_not_called()
         assert manager.processes == []
+
+    @pytest.mark.parametrize("manager_cls", [ProcessManager, MultiWatchProcessManager])
+    def test_signal_handler_flips_shutdown_flag_without_cleanup(self, manager_cls: type):
+        """Handler must only flip the flag — cleanup is owned by start_xxx' finally."""
+        manager = manager_cls()
+        mock_process = Mock()
+        mock_process.poll.return_value = None
+        manager.processes = [mock_process]
+
+        manager._signal_handler(signal.SIGTERM, None)
+
+        assert manager.shutdown_requested is True
+        # Cleanup must NOT happen inside the handler — re-entrancy risk.
+        mock_process.terminate.assert_not_called()
+        assert manager.processes == [mock_process]
+
+    @pytest.mark.parametrize("manager_cls", [ProcessManager, MultiWatchProcessManager])
+    def test_sigterm_in_main_thread_triggers_shutdown(self, manager_cls: type):
+        """SIGTERM received in the main thread must flip the shutdown flag."""
+        manager = manager_cls()
+        original = signal.getsignal(signal.SIGTERM)
+        signal.signal(signal.SIGTERM, manager._signal_handler)
+        try:
+            signal.raise_signal(signal.SIGTERM)
+            assert manager.shutdown_requested is True
+        finally:
+            signal.signal(signal.SIGTERM, original)
+
+    @pytest.mark.parametrize("manager_cls", [ProcessManager, MultiWatchProcessManager])
+    def test_signal_handler_is_idempotent(self, manager_cls: type, capsys: CaptureFixture[str]):
+        """Repeated SIGTERMs must produce a single shutdown message (e.g. when pkill matches both wrapper and child)."""
+        manager = manager_cls()
+        manager._signal_handler(signal.SIGTERM, None)
+        manager._signal_handler(signal.SIGTERM, None)
+        manager._signal_handler(signal.SIGTERM, None)
+
+        out = capsys.readouterr().out
+        assert out.count("Shutdown signal received") == 1
+        assert manager.shutdown_requested is True
 
 
 class TestCLIDownloadIntegration:

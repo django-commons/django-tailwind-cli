@@ -6,6 +6,7 @@ import os
 import signal
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 from types import FrameType
@@ -1027,6 +1028,8 @@ def runserver(
 class ProcessManager:
     """Manages concurrent processes for Tailwind watch and Django runserver."""
 
+    _SHUTDOWN_MESSAGE = "\nShutdown signal received, stopping processes..."
+
     def __init__(self) -> None:
         self.processes: list[subprocess.Popen[str]] = []
         self.shutdown_requested = False
@@ -1038,9 +1041,11 @@ class ProcessManager:
             watch_cmd: Command to start Tailwind watch process.
             server_cmd: Command to start Django development server.
         """
-        # Set up signal handlers for graceful shutdown
-        signal.signal(signal.SIGINT, self._signal_handler)
-        signal.signal(signal.SIGTERM, self._signal_handler)
+        # SIGINT propagates as KeyboardInterrupt via Python's default handler.
+        # Override SIGTERM only on the main thread — signal.signal() raises
+        # ValueError in worker threads (e.g. under Django's autoreloader).
+        if threading.current_thread() is threading.main_thread():
+            signal.signal(signal.SIGTERM, self._signal_handler)
 
         try:
             # Start Tailwind watch process — inherit stdout/stderr so the
@@ -1067,22 +1072,31 @@ class ProcessManager:
             self.processes.append(server_process)
             typer.secho("Started Django development server", fg=typer.colors.GREEN)
 
-            # Monitor processes
             self._monitor_processes()
-
+        except KeyboardInterrupt:
+            self._request_shutdown()
         except Exception as e:
             typer.secho(f"Error starting processes: {e}", fg=typer.colors.RED)
-            self._cleanup_processes()
             raise
+        finally:
+            self._cleanup_processes()
 
     def _signal_handler(self, _signum: int, _frame: FrameType | None) -> None:
-        """Handle shutdown signals gracefully."""
-        typer.secho("\nShutdown signal received, stopping processes...", fg=typer.colors.YELLOW)
+        """Adapter for signal.signal — delegates to the idempotent shutdown request."""
+        self._request_shutdown()
+
+    def _request_shutdown(self) -> None:
+        """Print the shutdown message once and flip the flag. Idempotent.
+
+        Cleanup is owned by start_concurrent_processes' finally.
+        """
+        if self.shutdown_requested:
+            return
+        typer.secho(self._SHUTDOWN_MESSAGE, fg=typer.colors.YELLOW)
         self.shutdown_requested = True
-        self._cleanup_processes()
 
     def _monitor_processes(self) -> None:
-        """Monitor running processes and handle their lifecycle."""
+        """Monitor running processes. Cleanup is owned by start_concurrent_processes' finally."""
         while not self.shutdown_requested and any(p.poll() is None for p in self.processes):
             time.sleep(0.5)
 
@@ -1092,9 +1106,6 @@ class ProcessManager:
                     typer.secho(f"Process exited with code {process.returncode}", fg=typer.colors.RED)
                     self.shutdown_requested = True
                     break
-
-        # Clean up any remaining processes
-        self._cleanup_processes()
 
     def _cleanup_processes(self) -> None:
         """Clean up all managed processes."""
@@ -1119,6 +1130,8 @@ class ProcessManager:
 class MultiWatchProcessManager:
     """Manages multiple Tailwind watch processes for multi-file mode."""
 
+    _SHUTDOWN_MESSAGE = "\nShutdown signal received, stopping watch processes..."
+
     def __init__(self) -> None:
         self.processes: list[subprocess.Popen[str]] = []
         self.shutdown_requested = False
@@ -1130,9 +1143,12 @@ class MultiWatchProcessManager:
             config: Configuration object with css_entries.
             verbose: Whether to show detailed information.
         """
-        # Rely on KeyboardInterrupt rather than signal.signal() so this works
-        # under Django's autoreloader, which runs the watch loop in a worker
-        # thread where signal.signal() raises ValueError.
+        # SIGINT propagates as KeyboardInterrupt via Python's default handler.
+        # Override SIGTERM only on the main thread — signal.signal() raises
+        # ValueError in worker threads (e.g. under Django's autoreloader).
+        if threading.current_thread() is threading.main_thread():
+            signal.signal(signal.SIGTERM, self._signal_handler)
+
         try:
             for entry in config.css_entries:
                 watch_cmd = config.get_watch_cmd(entry)
@@ -1153,13 +1169,26 @@ class MultiWatchProcessManager:
 
             self._monitor_processes()
         except KeyboardInterrupt:
-            typer.secho("\nShutdown signal received, stopping watch processes...", fg=typer.colors.YELLOW)
-            self.shutdown_requested = True
+            self._request_shutdown()
         except Exception as e:
             typer.secho(f"Error starting watch processes: {e}", fg=typer.colors.RED)
             raise
         finally:
             self._cleanup_processes()
+
+    def _signal_handler(self, _signum: int, _frame: FrameType | None) -> None:
+        """Adapter for signal.signal — delegates to the idempotent shutdown request."""
+        self._request_shutdown()
+
+    def _request_shutdown(self) -> None:
+        """Print the shutdown message once and flip the flag. Idempotent.
+
+        Cleanup is owned by start_watch_processes' finally.
+        """
+        if self.shutdown_requested:
+            return
+        typer.secho(self._SHUTDOWN_MESSAGE, fg=typer.colors.YELLOW)
+        self.shutdown_requested = True
 
     def _monitor_processes(self) -> None:
         """Monitor all watch processes. Cleanup is owned by start_watch_processes' finally."""
