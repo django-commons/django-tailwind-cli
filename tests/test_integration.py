@@ -5,6 +5,7 @@ file operations, and cross-platform compatibility.
 """
 # pyright: reportPrivateUsage=false
 
+import io
 import os
 import platform
 import signal
@@ -29,6 +30,8 @@ from django_tailwind_cli.management.commands.tailwind import (
     _WATCH_SPAWN_STAGGER_S,
     MultiWatchProcessManager,
     ProcessManager,
+    _drain_filtered_stderr,
+    _is_bun_noise,
     _run_watch_loop,
 )
 
@@ -343,6 +346,7 @@ class TestWatchModeIntegration:
             mock_process = Mock()
             mock_process.poll.return_value = 0  # Process already exited
             mock_process.wait.return_value = 0
+            mock_process.stderr = None  # skip the stderr drain thread
             mock_popen.return_value = mock_process
 
             call_command("tailwind", "watch")
@@ -405,6 +409,7 @@ class TestWatchModeIntegration:
             mock_process = Mock()
             mock_process.poll.return_value = 0  # already exited → monitor loop returns immediately
             mock_process.wait.return_value = 0
+            mock_process.stderr = None  # skip the stderr drain thread
             mock_popen.return_value = mock_process
 
             errors: list[BaseException] = []
@@ -460,6 +465,7 @@ class TestWatchModeIntegration:
         mock_process = Mock()
         mock_process.poll.return_value = 0  # exits immediately so monitor loop returns
         mock_process.wait.return_value = 0
+        mock_process.stderr = None  # skip the stderr drain thread
         mock_popen = mocker.patch("subprocess.Popen", return_value=mock_process)
 
         # Patch only the time reference inside tailwind.py to avoid disturbing
@@ -585,6 +591,70 @@ class TestProcessManagerIntegration:
         out = capsys.readouterr().out
         assert out.count("Shutdown signal received") == 1
         assert manager.shutdown_requested is True
+
+
+class TestBunStderrFilter:
+    """Pattern-match and drain logic for filtering Bun native-runtime crash traces."""
+
+    @pytest.mark.parametrize(
+        "line",
+        [
+            "EIO: i/o error, read\n",
+            "      fd: 7,\n",
+            ' syscall: "read",\n',
+            "   errno: -5,\n",
+            '    code: "EIO"\n',
+            "Bun v1.2.8 (macOS arm64)\n",
+            "error: dlopen(/$bunfs/root/watcher-tzt47keb.node, 0x0001): tried...\n",
+            "      at <anonymous> (/$bunfs/root/tailwindcss-macos-arm64:22717:29)\n",
+            '    code: "ERR_DLOPEN_FAILED"\n',
+            "22716 |   module.exports = __require(...);\n",
+            "                                    ^\n",
+        ],
+    )
+    def test_is_bun_noise_drops_known_patterns(self, line: str):
+        assert _is_bun_noise(line) is True
+
+    @pytest.mark.parametrize(
+        "line",
+        [
+            "≈ tailwindcss v4.1.3\n",
+            "Done in 32ms\n",
+            '[ERROR] Could not resolve "tailwindcss"\n',
+            "Watching 'admin': /path/to/admin.css\n",
+            "warn - Cannot find module './foo'\n",
+            "\n",  # blank line — drained but not filtered
+        ],
+    )
+    def test_is_bun_noise_keeps_legitimate_lines(self, line: str):
+        assert _is_bun_noise(line) is False
+
+    def test_drain_filtered_stderr_drops_bun_noise(self, capsys: CaptureFixture[str]):
+        stream = io.StringIO(
+            "Done in 32ms\n"
+            "EIO: i/o error, read\n"
+            "      fd: 7,\n"
+            "Bun v1.2.8 (macOS arm64)\n"
+            '[ERROR] Could not resolve "tailwindcss"\n'
+        )
+
+        _drain_filtered_stderr(stream, lambda: False)
+
+        err = capsys.readouterr().err
+        assert "Done in 32ms" in err
+        assert "[ERROR] Could not resolve" in err
+        assert "EIO" not in err
+        assert "Bun v" not in err
+        assert "fd: 7" not in err
+
+    def test_drain_filtered_stderr_drops_everything_after_shutdown(self, capsys: CaptureFixture[str]):
+        """Post-shutdown stderr is just churn from terminating subprocesses; drop it."""
+        stream = io.StringIO("Done in 32ms\n[ERROR] something legit\n")
+
+        _drain_filtered_stderr(stream, lambda: True)
+
+        err = capsys.readouterr().err
+        assert err == ""
 
 
 class TestCLIDownloadIntegration:

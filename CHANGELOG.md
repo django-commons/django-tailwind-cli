@@ -7,6 +7,9 @@
 - **SIGTERM-graceful shutdown for both watch managers**: `ProcessManager` and `MultiWatchProcessManager` now install a SIGTERM handler only when running on the main thread, so `kill -TERM` cleans up child watchers in `tailwind watch --noreload` and `tailwind runserver` without re-introducing the autoreloader crash. SIGINT keeps using Python's default handler (which raises `KeyboardInterrupt`).
 - **Sidestepped a Bun DLOPEN race in multi-entry watch**: `MultiWatchProcessManager` now staggers successive watcher subprocess spawns by 300 ms. The Bun-built tailwindcss standalone binary extracts its embedded `@parcel/watcher` native module to `/$bunfs/` on first use; two parallel processes raced on that path and the loser crashed with `ERR_DLOPEN_FAILED`. The 300 ms gap is below noticeable in interactive use.
 
+### 🛠️ Developer Experience
+- **Filtered Bun native-runtime noise from watcher stderr**: `MultiWatchProcessManager` captures each `tailwindcss` subprocess' stderr and drops upstream Bun stack traces (`EIO: i/o error` on shutdown, `ERR_DLOPEN_FAILED` on the rare DLOPEN race) while forwarding Tailwind's own diagnostics verbatim. Cleanup output stays clean even when the user `kill -TERM`s the runserver.
+
 ### 🔧 Technical Improvements
 - **Hardened GitHub Actions workflows**: pinned all actions to commit SHAs, scoped top-level permissions, added concurrency groups, moved `github.ref_name` / `github.repository` out of shell interpolation into `env:` vars, and added a [zizmor](https://docs.zizmor.sh/) audit job to keep workflow security regressions out of CI.
 

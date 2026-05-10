@@ -3,6 +3,7 @@
 import importlib.util
 import functools
 import os
+import re
 import signal
 import subprocess
 import sys
@@ -10,7 +11,7 @@ import threading
 import time
 from pathlib import Path
 from types import FrameType
-from typing import Any
+from typing import IO, Any
 from collections.abc import Callable
 
 from django_tailwind_cli.utils import http
@@ -50,6 +51,44 @@ For more information about a specific command, use:
 # crashes with ERR_DLOPEN_FAILED. Staggering by 300 ms sidesteps the race
 # without being noticeable in interactive use.
 _WATCH_SPAWN_STAGGER_S = 0.3
+
+# Bun-built tailwindcss occasionally leaks unhandled native-module errors
+# (DLOPEN race on startup, EIO on shutdown when its watch FD is closed under
+# it). The traces are upstream noise — neither actionable nor caused by
+# user code. We drop matching lines from forwarded stderr while keeping
+# Tailwind's own diagnostics intact.
+_BUN_NOISE = re.compile(
+    r"""
+    ^EIO:\ i/o\ error          |   # EIO header
+    ^Bun\ v\d                  |   # crash footer
+    ^error:\ dlopen\(          |   # DLOPEN header
+    ^\d+\ ?\|                  |   # numbered source-context line
+    ^\s+(?:fd|syscall|errno|code):  |   # error-detail field
+    ^\s+at\ <anonymous>\ \(/\$bunfs/   |   # bunfs stack frame
+    ^\s+\^\s*$                 |   # caret pointer
+    ^\s+code:\s*"(?:EIO|ERR_DLOPEN_FAILED)"   # error-code value
+    """,
+    re.VERBOSE,
+)
+
+
+def _is_bun_noise(line: str) -> bool:
+    """Return True if the line looks like a Bun native-runtime crash trace."""
+    return bool(_BUN_NOISE.match(line))
+
+
+def _drain_filtered_stderr(stream: IO[str], is_shutting_down: Callable[[], bool]) -> None:
+    """Forward subprocess stderr to the parent's stderr, dropping Bun noise.
+
+    Runs in a daemon thread until the subprocess closes the pipe. Drops every
+    line once `is_shutting_down()` returns True — post-shutdown stderr is not
+    actionable and just churns output during cleanup.
+    """
+    for line in stream:
+        if is_shutting_down() or _is_bun_noise(line):
+            continue
+        sys.stderr.write(line)
+        sys.stderr.flush()
 
 
 # DECORATORS AND COMMON SETUP ---------------------------------------------------------------------
@@ -1166,15 +1205,25 @@ class MultiWatchProcessManager:
                     typer.secho(f"🚀 Starting watch for '{entry.name}'...", fg=typer.colors.CYAN)
                     typer.secho(f"   • Command: {' '.join(watch_cmd)}", fg=typer.colors.BLUE)
 
-                # Inherit stdout/stderr so output flows to the terminal and we
-                # avoid a pipe-fill deadlock — the OS pipe buffer would otherwise
-                # block the watcher after ~64 KB of rebuild status lines.
+                # Inherit stdout (high-volume rebuild progress) to avoid a pipe-fill
+                # deadlock — the OS pipe buffer would otherwise block the watcher
+                # after ~64 KB. stderr is captured so we can filter Bun's native-
+                # runtime noise (DLOPEN race, EIO on shutdown) before it hits the
+                # terminal; volume there is low enough that the drain thread keeps
+                # up easily.
                 process = subprocess.Popen(
                     watch_cmd,
                     cwd=settings.BASE_DIR,
                     text=True,
+                    stderr=subprocess.PIPE,
                 )
                 self.processes.append(process)
+                if process.stderr is not None:
+                    threading.Thread(
+                        target=_drain_filtered_stderr,
+                        args=(process.stderr, lambda: self.shutdown_requested),
+                        daemon=True,
+                    ).start()
                 typer.secho(f"Watching '{entry.name}': {entry.src_css}", fg=typer.colors.GREEN)
 
             self._monitor_processes()
