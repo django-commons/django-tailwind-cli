@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### 🛠️ Developer Experience
+- **Python 3.15 support**: Added `py315` to the tox matrix (Django 6.0) and to the PyPI classifiers.
+
 ## 4.6.1 (2026-05-10)
 
 ### 🐛 Bug Fixes

@@ -35,7 +35,7 @@ VENV_DIRNAME := ".venv"
 @test: check_uv
     uv run pytest --cov --cov-report=html --cov-report=term
 
-# run test suite
+# run test suite on all supported python versions
 @test-all: check_uv
     uvx --with tox-uv tox
 
