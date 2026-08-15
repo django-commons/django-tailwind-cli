@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 4.7.0 (2026-08-15)
+
 ### 🎯 New Features
 - **Django 6.1 support**: added to the test matrix and the trove classifiers.
 
@@ -10,6 +12,7 @@
 
 ### 📚 Documentation
 - **Plainer README**: dropped the emoji headings and marketing register, and merged the overlapping feature sections into one. Same coverage, ~20% shorter.
+- **Accurate `tailwind setup` help**: `--help` no longer calls the command interactive. It lists the eight checks it actually runs and notes that it prompts for nothing.
 
 ### 🔧 Technical Improvements
 - **Dependency refresh**: clears the advisories `uv-secure` flagged in the old lock. `pytest-django` 4.14 renamed `SettingsWrapper` to `Settings`, so the dev floor moved to 4.14.
