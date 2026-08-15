@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### 🎯 New Features
+- **Django 6.1 support**: added to the test matrix and the trove classifiers.
+
+### 🛠️ Developer Experience
+- **Switch dev tooling from `just` to `mise`**: Python 3.10–3.15, `uv`, and `pre-commit` are now pinned in `.mise.toml`. Local tasks run via `mise run …`; CI uses `jdx/mise-action`.
+
+### 🔧 Technical Improvements
+- **Dependency refresh**: clears the advisories `uv-secure` flagged in the old lock. `pytest-django` 4.14 renamed `SettingsWrapper` to `Settings`, so the dev floor moved to 4.14.
+
 ## 4.6.2 (2026-05-14)
 
 ### 🛠️ Developer Experience

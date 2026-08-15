@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 from _pytest.recwarn import WarningsChecker
-from pytest_django.fixtures import SettingsWrapper
+from pytest_django import Settings
 from pytest_mock import MockerFixture
 
 from django_tailwind_cli.config import get_config, get_version
@@ -11,7 +11,7 @@ from django_tailwind_cli.config import get_config, get_version
 
 @pytest.fixture(autouse=True)
 def configure_settings(
-    settings: SettingsWrapper,
+    settings: Settings,
     mocker: MockerFixture,
 ):
     settings.BASE_DIR = Path("/home/user/project")
@@ -28,7 +28,7 @@ def configure_settings(
     ],
 )
 def test_get_version(
-    settings: SettingsWrapper,
+    settings: Settings,
     version_str: str,
     expected_version_str: str,
     version: tuple[int, int, int],
@@ -92,13 +92,13 @@ def test_get_version_latest_without_redirect(mocker: MockerFixture):
     assert r_version.patch == 3
 
 
-def test_get_version_with_official_repo_and_version_3(settings: SettingsWrapper):
+def test_get_version_with_official_repo_and_version_3(settings: Settings):
     settings.TAILWIND_CLI_VERSION = "3.4.13"
     with pytest.raises(ValueError, match="Tailwind CSS 3.x is not supported by this version."):
         get_version()
 
 
-def test_get_version_with_daisyui_enabled_latest(settings: SettingsWrapper, mocker: MockerFixture):
+def test_get_version_with_daisyui_enabled_latest(settings: Settings, mocker: MockerFixture):
     """Test that DaisyUI uses the correct repository and correctly parses version."""
     # Clear any existing cache
     from django_tailwind_cli.config import _get_cache_path
@@ -134,7 +134,7 @@ def test_get_version_with_daisyui_enabled_latest(settings: SettingsWrapper, mock
     )
 
 
-def test_get_version_with_daisyui_fallback_when_network_fails(settings: SettingsWrapper, mocker: MockerFixture):
+def test_get_version_with_daisyui_fallback_when_network_fails(settings: Settings, mocker: MockerFixture):
     """Test fallback behavior when DaisyUI is enabled but network request fails."""
     # Clear any existing cache
     from django_tailwind_cli.config import _get_cache_path, FALLBACK_VERSION
@@ -164,7 +164,7 @@ def test_get_version_with_daisyui_fallback_when_network_fails(settings: Settings
     )
 
 
-def test_get_version_with_unofficial_repo_and_version_3(settings: SettingsWrapper):
+def test_get_version_with_unofficial_repo_and_version_3(settings: Settings):
     settings.TAILWIND_CLI_VERSION = "3.4.13"
     settings.TAILWIND_CLI_SRC_REPO = "oliverandrich/my-tailwindcss-cli"
 
@@ -193,14 +193,14 @@ def test_default_config():
     "src_path",
     ["relative/source.css", "/absolute/src.css"],
 )
-def test_overwrite_src_css(settings: SettingsWrapper, src_path: str):
+def test_overwrite_src_css(settings: Settings, src_path: str):
     settings.TAILWIND_CLI_SRC_CSS = src_path
     c = get_config()
     assert not c.overwrite_default_config
     assert str(c.src_css).endswith(src_path)
 
 
-def test_invalid_settings_for_staticfiles_dirs(settings: SettingsWrapper):
+def test_invalid_settings_for_staticfiles_dirs(settings: Settings):
     settings.STATICFILES_DIRS = []
     with pytest.raises(ValueError, match="STATICFILES_DIRS is empty. Please add a path to your static files."):
         get_config()
@@ -210,37 +210,37 @@ def test_invalid_settings_for_staticfiles_dirs(settings: SettingsWrapper):
         get_config()
 
 
-def test_string_setting_for_staticfiles_dirs(settings: SettingsWrapper):
+def test_string_setting_for_staticfiles_dirs(settings: Settings):
     settings.STATICFILES_DIRS = ["path"]
     c = get_config()
     assert c.dist_css == Path("path/css/tailwind.css")
 
 
-def test_path_setting_for_staticfiles_dirs(settings: SettingsWrapper):
+def test_path_setting_for_staticfiles_dirs(settings: Settings):
     settings.STATICFILES_DIRS = [Path("path")]
     c = get_config()
     assert c.dist_css == Path("path/css/tailwind.css")
 
 
-def test_prefixed_setting_for_staticfiles_dirs(settings: SettingsWrapper):
+def test_prefixed_setting_for_staticfiles_dirs(settings: Settings):
     settings.STATICFILES_DIRS = (("prefix", "path"),)
     c = get_config()
     assert c.dist_css == Path("path/css/tailwind.css")
 
 
-def test_invalid_settings_for_tailwind_cli_dist_css(settings: SettingsWrapper):
+def test_invalid_settings_for_tailwind_cli_dist_css(settings: Settings):
     settings.TAILWIND_CLI_DIST_CSS = None
     with pytest.raises(ValueError, match="TAILWIND_CLI_DIST_CSS must not be None."):
         get_config()
 
 
-def test_invalid_settings_for_tailwind_cli_assert_name(settings: SettingsWrapper):
+def test_invalid_settings_for_tailwind_cli_assert_name(settings: Settings):
     settings.TAILWIND_CLI_ASSET_NAME = None
     with pytest.raises(ValueError, match="TAILWIND_CLI_ASSET_NAME must not be None."):
         get_config()
 
 
-def test_invalid_settings_for_tailwind_cli_src_repo(settings: SettingsWrapper):
+def test_invalid_settings_for_tailwind_cli_src_repo(settings: Settings):
     settings.TAILWIND_CLI_SRC_REPO = None
     with pytest.raises(ValueError, match="TAILWIND_CLI_SRC_REPO must not be None."):
         get_config()
@@ -275,7 +275,7 @@ def test_download_url(mocker: MockerFixture, platform: str, machine: str, result
         ("Darwin", "arm64", "tailwindcss-macos-arm64-4.0.0"),
     ],
 )
-def test_get_cli_path(settings: SettingsWrapper, mocker: MockerFixture, platform: str, machine: str, result: str):
+def test_get_cli_path(settings: Settings, mocker: MockerFixture, platform: str, machine: str, result: str):
     settings.TAILWIND_CLI_VERSION = "4.0.0"
 
     platform_system = mocker.patch("platform.system")
@@ -288,14 +288,14 @@ def test_get_cli_path(settings: SettingsWrapper, mocker: MockerFixture, platform
     assert str(c.cli_path).endswith(result)
 
 
-def test_cli_path_to_existing_file(settings: SettingsWrapper, tmp_path: Path):
+def test_cli_path_to_existing_file(settings: Settings, tmp_path: Path):
     settings.TAILWIND_CLI_PATH = tmp_path / "tailwindcss"
     settings.TAILWIND_CLI_PATH.touch(mode=0o755, exist_ok=True)
     c = get_config()
     assert str(c.cli_path) == str(tmp_path / "tailwindcss")
 
 
-def test_cli_path_to_existing_directory(settings: SettingsWrapper):
+def test_cli_path_to_existing_directory(settings: Settings):
     settings.TAILWIND_CLI_PATH = "/opt/bin"
     c = get_config()
     assert "/opt/bin/tailwindcss-" in str(c.cli_path)
@@ -360,7 +360,7 @@ def test_watch_cmd():
 
 
 def test_daisy_ui_support(
-    settings: SettingsWrapper,
+    settings: Settings,
     mocker: MockerFixture,
 ):
     from django_tailwind_cli.config import _get_cache_path
@@ -393,7 +393,7 @@ def test_daisy_ui_support(
     assert str(r_version) == test_version
 
 
-def test_css_map_creates_multiple_entries(settings: SettingsWrapper):
+def test_css_map_creates_multiple_entries(settings: Settings):
     settings.TAILWIND_CLI_CSS_MAP = [
         ("admin.css", "admin.output.css"),
         ("web.css", "web.output.css"),
@@ -406,7 +406,7 @@ def test_css_map_creates_multiple_entries(settings: SettingsWrapper):
     assert str(c.css_entries[1].dist_css).endswith("web.output.css")
 
 
-def test_css_map_backward_compatibility_properties(settings: SettingsWrapper):
+def test_css_map_backward_compatibility_properties(settings: Settings):
     settings.TAILWIND_CLI_CSS_MAP = [
         ("admin.css", "admin.output.css"),
         ("web.css", "web.output.css"),
@@ -417,7 +417,7 @@ def test_css_map_backward_compatibility_properties(settings: SettingsWrapper):
     assert c.dist_css_base == "admin.output.css"
 
 
-def test_css_map_get_build_cmd(settings: SettingsWrapper):
+def test_css_map_get_build_cmd(settings: Settings):
     settings.TAILWIND_CLI_CSS_MAP = [
         ("admin.css", "admin.output.css"),
         ("web.css", "web.output.css"),
@@ -432,7 +432,7 @@ def test_css_map_get_build_cmd(settings: SettingsWrapper):
         assert str(entry.dist_css) in cmd
 
 
-def test_get_build_cmd_without_minify(settings: SettingsWrapper):
+def test_get_build_cmd_without_minify(settings: Settings):
     settings.TAILWIND_CLI_CSS_MAP = [("admin.css", "admin.output.css")]
     c = get_config()
     cmd = c.get_build_cmd(c.css_entries[0], minify=False)
@@ -441,7 +441,7 @@ def test_get_build_cmd_without_minify(settings: SettingsWrapper):
     assert "--output" in cmd
 
 
-def test_css_map_get_watch_cmd(settings: SettingsWrapper):
+def test_css_map_get_watch_cmd(settings: Settings):
     settings.TAILWIND_CLI_CSS_MAP = [
         ("admin.css", "admin.output.css"),
         ("web.css", "web.output.css"),
@@ -456,45 +456,45 @@ def test_css_map_get_watch_cmd(settings: SettingsWrapper):
         assert str(entry.dist_css) in cmd
 
 
-def test_css_map_mutual_exclusivity_with_src_css(settings: SettingsWrapper):
+def test_css_map_mutual_exclusivity_with_src_css(settings: Settings):
     settings.TAILWIND_CLI_CSS_MAP = [("a.css", "b.css")]
     settings.TAILWIND_CLI_SRC_CSS = "source.css"
     with pytest.raises(ValueError, match="Cannot use TAILWIND_CLI_CSS_MAP together"):
         get_config()
 
 
-def test_css_map_mutual_exclusivity_with_dist_css(settings: SettingsWrapper):
+def test_css_map_mutual_exclusivity_with_dist_css(settings: Settings):
     settings.TAILWIND_CLI_CSS_MAP = [("a.css", "b.css")]
     settings.TAILWIND_CLI_DIST_CSS = "output.css"
     with pytest.raises(ValueError, match="Cannot use TAILWIND_CLI_CSS_MAP together"):
         get_config()
 
 
-def test_css_map_invalid_format_not_list(settings: SettingsWrapper):
+def test_css_map_invalid_format_not_list(settings: Settings):
     settings.TAILWIND_CLI_CSS_MAP = "invalid"
     with pytest.raises(ValueError, match="must be a list or tuple"):
         get_config()
 
 
-def test_css_map_invalid_entry_format(settings: SettingsWrapper):
+def test_css_map_invalid_entry_format(settings: Settings):
     settings.TAILWIND_CLI_CSS_MAP = [("only_one",)]
     with pytest.raises(ValueError, match="must be a .* pair"):
         get_config()
 
 
-def test_css_map_empty_source(settings: SettingsWrapper):
+def test_css_map_empty_source(settings: Settings):
     settings.TAILWIND_CLI_CSS_MAP = [("", "output.css")]
     with pytest.raises(ValueError, match="empty source or destination"):
         get_config()
 
 
-def test_css_map_empty_destination(settings: SettingsWrapper):
+def test_css_map_empty_destination(settings: Settings):
     settings.TAILWIND_CLI_CSS_MAP = [("source.css", "")]
     with pytest.raises(ValueError, match="empty source or destination"):
         get_config()
 
 
-def test_css_map_duplicate_names(settings: SettingsWrapper):
+def test_css_map_duplicate_names(settings: Settings):
     settings.TAILWIND_CLI_CSS_MAP = [
         ("admin.css", "admin1.output.css"),
         ("admin.css", "admin2.output.css"),
@@ -503,7 +503,7 @@ def test_css_map_duplicate_names(settings: SettingsWrapper):
         get_config()
 
 
-def test_css_map_single_file_still_works(settings: SettingsWrapper):
+def test_css_map_single_file_still_works(settings: Settings):
     settings.TAILWIND_CLI_SRC_CSS = "my/source.css"
     settings.TAILWIND_CLI_DIST_CSS = "my/output.css"
     c = get_config()
@@ -513,7 +513,7 @@ def test_css_map_single_file_still_works(settings: SettingsWrapper):
     assert c.dist_css == c.css_entries[0].dist_css
 
 
-def test_css_map_overwrite_default_config_false(settings: SettingsWrapper):
+def test_css_map_overwrite_default_config_false(settings: Settings):
     settings.TAILWIND_CLI_CSS_MAP = [
         ("admin.css", "admin.output.css"),
     ]
@@ -524,7 +524,7 @@ def test_css_map_overwrite_default_config_false(settings: SettingsWrapper):
 # System binary support ---------------------------------------------------------------------------
 
 
-def test_system_binary_happy_path(settings: SettingsWrapper, mocker: MockerFixture):
+def test_system_binary_happy_path(settings: Settings, mocker: MockerFixture):
     """System binary resolved via shutil.which when USE_SYSTEM_BINARY is True."""
     settings.TAILWIND_CLI_USE_SYSTEM_BINARY = True
     mocker.patch("shutil.which", return_value="/opt/homebrew/bin/tailwindcss")
@@ -539,7 +539,7 @@ def test_system_binary_happy_path(settings: SettingsWrapper, mocker: MockerFixtu
     assert c.automatic_download is False
 
 
-def test_system_binary_uses_shutil_which_with_default_name(settings: SettingsWrapper, mocker: MockerFixture):
+def test_system_binary_uses_shutil_which_with_default_name(settings: Settings, mocker: MockerFixture):
     """The default binary name is 'tailwindcss'."""
     settings.TAILWIND_CLI_USE_SYSTEM_BINARY = True
     which_mock = mocker.patch("shutil.which", return_value="/usr/local/bin/tailwindcss")
@@ -550,7 +550,7 @@ def test_system_binary_uses_shutil_which_with_default_name(settings: SettingsWra
     which_mock.assert_called_once_with("tailwindcss")
 
 
-def test_system_binary_custom_name(settings: SettingsWrapper, mocker: MockerFixture):
+def test_system_binary_custom_name(settings: Settings, mocker: MockerFixture):
     """TAILWIND_CLI_SYSTEM_BINARY_NAME overrides the lookup name."""
     settings.TAILWIND_CLI_USE_SYSTEM_BINARY = True
     settings.TAILWIND_CLI_SYSTEM_BINARY_NAME = "tailwindcss-extra"
@@ -563,7 +563,7 @@ def test_system_binary_custom_name(settings: SettingsWrapper, mocker: MockerFixt
     assert c.cli_path == Path("/opt/homebrew/bin/tailwindcss-extra")
 
 
-def test_system_binary_daisyui_default_name(settings: SettingsWrapper, mocker: MockerFixture):
+def test_system_binary_daisyui_default_name(settings: Settings, mocker: MockerFixture):
     """When DaisyUI is enabled, the default system binary name is tailwindcss-extra."""
     settings.TAILWIND_CLI_USE_SYSTEM_BINARY = True
     settings.TAILWIND_CLI_USE_DAISY_UI = True
@@ -575,7 +575,7 @@ def test_system_binary_daisyui_default_name(settings: SettingsWrapper, mocker: M
     which_mock.assert_called_once_with("tailwindcss-extra")
 
 
-def test_system_binary_not_found(settings: SettingsWrapper, mocker: MockerFixture):
+def test_system_binary_not_found(settings: Settings, mocker: MockerFixture):
     """A clear error is raised when the system binary cannot be located."""
     settings.TAILWIND_CLI_USE_SYSTEM_BINARY = True
     mocker.patch("shutil.which", return_value=None)
@@ -584,7 +584,7 @@ def test_system_binary_not_found(settings: SettingsWrapper, mocker: MockerFixtur
         get_config()
 
 
-def test_system_binary_not_found_error_mentions_binary_name(settings: SettingsWrapper, mocker: MockerFixture):
+def test_system_binary_not_found_error_mentions_binary_name(settings: Settings, mocker: MockerFixture):
     """The error message includes the binary name that was searched for."""
     settings.TAILWIND_CLI_USE_SYSTEM_BINARY = True
     settings.TAILWIND_CLI_SYSTEM_BINARY_NAME = "tailwindcss-extra"
@@ -594,9 +594,7 @@ def test_system_binary_not_found_error_mentions_binary_name(settings: SettingsWr
         get_config()
 
 
-def test_system_binary_mutually_exclusive_with_cli_path(
-    settings: SettingsWrapper, mocker: MockerFixture, tmp_path: Path
-):
+def test_system_binary_mutually_exclusive_with_cli_path(settings: Settings, mocker: MockerFixture, tmp_path: Path):
     """Combining TAILWIND_CLI_USE_SYSTEM_BINARY with TAILWIND_CLI_PATH raises."""
     settings.TAILWIND_CLI_USE_SYSTEM_BINARY = True
     settings.TAILWIND_CLI_PATH = str(tmp_path / "tailwindcss")
@@ -609,7 +607,7 @@ def test_system_binary_mutually_exclusive_with_cli_path(
         get_config()
 
 
-def test_system_binary_system_binary_name_without_flag_is_ignored(settings: SettingsWrapper):
+def test_system_binary_system_binary_name_without_flag_is_ignored(settings: Settings):
     """Setting TAILWIND_CLI_SYSTEM_BINARY_NAME alone does not enable system mode."""
     settings.TAILWIND_CLI_SYSTEM_BINARY_NAME = "tailwindcss"
     c = get_config()
@@ -618,7 +616,7 @@ def test_system_binary_system_binary_name_without_flag_is_ignored(settings: Sett
     assert ".django_tailwind_cli/tailwindcss" in str(c.cli_path)
 
 
-def test_system_binary_empty_name_raises(settings: SettingsWrapper):
+def test_system_binary_empty_name_raises(settings: Settings):
     """An empty TAILWIND_CLI_SYSTEM_BINARY_NAME is rejected."""
     settings.TAILWIND_CLI_USE_SYSTEM_BINARY = True
     settings.TAILWIND_CLI_SYSTEM_BINARY_NAME = ""
@@ -627,9 +625,7 @@ def test_system_binary_empty_name_raises(settings: SettingsWrapper):
         get_config()
 
 
-def test_system_binary_version_match_no_warning(
-    settings: SettingsWrapper, mocker: MockerFixture, recwarn: WarningsChecker
-):
+def test_system_binary_version_match_no_warning(settings: Settings, mocker: MockerFixture, recwarn: WarningsChecker):
     """When system binary version matches TAILWIND_CLI_VERSION, no warning is emitted."""
     from semver import Version
 
@@ -646,7 +642,7 @@ def test_system_binary_version_match_no_warning(
     assert len(recwarn) == 0
 
 
-def test_system_binary_version_mismatch_warns(settings: SettingsWrapper, mocker: MockerFixture):
+def test_system_binary_version_mismatch_warns(settings: Settings, mocker: MockerFixture):
     """Version mismatch with explicit TAILWIND_CLI_VERSION emits a warning."""
     from semver import Version
 
@@ -663,7 +659,7 @@ def test_system_binary_version_mismatch_warns(settings: SettingsWrapper, mocker:
 
 
 def test_system_binary_version_mismatch_with_latest_no_warning(
-    settings: SettingsWrapper, mocker: MockerFixture, recwarn: WarningsChecker
+    settings: Settings, mocker: MockerFixture, recwarn: WarningsChecker
 ):
     """When TAILWIND_CLI_VERSION is 'latest', version mismatch does not warn."""
     from semver import Version
@@ -684,7 +680,7 @@ def test_system_binary_version_mismatch_with_latest_no_warning(
 
 
 def test_system_binary_version_detection_failure_no_warning(
-    settings: SettingsWrapper, mocker: MockerFixture, recwarn: WarningsChecker
+    settings: Settings, mocker: MockerFixture, recwarn: WarningsChecker
 ):
     """If version detection fails (subprocess error), no warning is emitted."""
     settings.TAILWIND_CLI_VERSION = "4.1.3"

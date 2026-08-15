@@ -1,5 +1,10 @@
 """`tailwind` management command."""
 
+# click >= 8.4 made ParamType generic, while typer (capped below 0.26 by
+# django-typer) still references it bare, so every typer.Option call below
+# reads as partially unknown. reportUnnecessaryTypeIgnoreComment fails the
+# lint once that is fixed upstream, which is the signal to delete them.
+
 import importlib.util
 import functools
 import os
@@ -43,7 +48,7 @@ Examples:
 For more information about a specific command, use:
   python manage.py tailwind COMMAND --help""",
     rich_markup_mode="markdown",
-)  # type: ignore
+)
 
 # Delay between successive multi-watch Popen calls. The Bun-built tailwindcss
 # standalone binary extracts its embedded @parcel/watcher native module to
@@ -215,18 +220,18 @@ def _suggest_general_error_solutions(error_msg: str) -> None:
 @app.command()
 def build(
     *,
-    force: bool = typer.Option(
+    force: bool = typer.Option(  # pyright: ignore[reportUnknownMemberType]
         False,
         "--force",
         help="Force rebuild even if output is up to date.",
     ),
-    verbose: bool = typer.Option(
+    verbose: bool = typer.Option(  # pyright: ignore[reportUnknownMemberType]
         False,
         "--verbose",
         "-v",
         help="Show detailed build information and diagnostics.",
     ),
-    minify: bool | None = typer.Option(
+    minify: bool | None = typer.Option(  # pyright: ignore[reportUnknownMemberType]
         None,
         "--minify/--no-minify",
         help=(
@@ -332,13 +337,13 @@ def build(
 @app.command()
 def watch(
     *,
-    verbose: bool = typer.Option(
+    verbose: bool = typer.Option(  # pyright: ignore[reportUnknownMemberType]
         False,
         "--verbose",
         "-v",
         help="Show detailed watch information and diagnostics.",
     ),
-    no_reloader: bool = typer.Option(
+    no_reloader: bool = typer.Option(  # pyright: ignore[reportUnknownMemberType]
         False,
         "--noreload",
         help="Disable auto-reload on Python file changes.",
@@ -392,7 +397,7 @@ def watch(
 
     from django.utils import autoreload
 
-    autoreload.run_with_reloader(_run_watch_loop, verbose=verbose)  # pyright: ignore[reportUnknownMemberType]
+    autoreload.run_with_reloader(_run_watch_loop, verbose=verbose)
 
 
 def _run_watch_loop(*, verbose: bool = False) -> None:
@@ -1024,7 +1029,7 @@ def remove_cli():
 def runserver(
     ctx: typer.Context,
     *,
-    force_default_runserver: bool = typer.Option(
+    force_default_runserver: bool = typer.Option(  # pyright: ignore[reportUnknownMemberType]
         False,
         help="Force vanilla runserver even if django-extensions is installed.",
     ),

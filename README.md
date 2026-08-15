@@ -163,7 +163,7 @@ Start adding Tailwind classes to your templates:
 ## 📋 Requirements
 
 - **Python:** 3.10+
-- **Django:** 4.2 LTS, 5.2, or 6.0
+- **Django:** 4.2 LTS, 5.2, 6.0, or 6.1
 - **Platform:** Windows, macOS, Linux (automatic platform detection)
 
 ## ⚙️ Configuration Examples
@@ -268,8 +268,7 @@ We welcome contributions! This project uses modern Python tooling for developmen
 
 ### Prerequisites
 
-- **[uv](https://docs.astral.sh/uv/)** - Fast Python package manager
-- **[just](https://github.com/casey/just)** - Command runner (optional but recommended)
+- **[mise](https://mise.jdx.dev/)** — provisions Python 3.10–3.15, `uv`, and `pre-commit` from `.mise.toml`
 
 ### Quick Development Setup
 
@@ -278,35 +277,25 @@ We welcome contributions! This project uses modern Python tooling for developmen
 git clone https://github.com/django-commons/django-tailwind-cli.git
 cd django-tailwind-cli
 
-# Setup development environment (with just)
-just bootstrap
-
-# Or setup manually with uv
-uv venv
-uv sync --all-extras
+# Provision tools and install dependencies
+mise install
+mise run bootstrap
 ```
 
 ### Development Commands
 
 ```bash
-# With just (recommended)
-just upgrade          # Update dependencies
-just lint             # Run linting and formatting
-just test             # Run test suite
-just test-all         # Run tests across Python/Django versions
-
-# Without just
-uv sync --all-extras  # Update dependencies
-uvx pre-commit run --all-files  # Run linting
-uv run pytest        # Run tests
-uvx --with tox-uv tox # Run full test matrix
+mise run upgrade      # Update dependencies
+mise run lint         # Run linting and formatting
+mise run test         # Run test suite
+mise run test-all     # Run tests across Python/Django versions
 ```
 
 ### Contribution Guidelines
 
 1. **🍴 Fork** the repository
 2. **🌿 Create** a feature branch (`git checkout -b feature/amazing-feature`)
-3. **✅ Test** your changes (`just test`)
+3. **✅ Test** your changes (`mise run test`)
 4. **📝 Commit** with conventional commits (`feat:`, `fix:`, `docs:`, etc.)
 5. **📤 Push** to your branch (`git push origin feature/amazing-feature`)
 6. **🔄 Create** a Pull Request

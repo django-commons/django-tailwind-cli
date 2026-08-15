@@ -306,7 +306,7 @@ def _validate_css_settings() -> None:
         if not isinstance(css_map_raw, (list, tuple)):
             raise ValueError("TAILWIND_CLI_CSS_MAP must be a list or tuple of (source, destination) pairs.")
 
-        css_map: list[tuple[str, str]] | tuple[tuple[str, str], ...] = css_map_raw  # pyright: ignore[reportAssignmentType, reportUnknownVariableType]
+        css_map: list[tuple[str, str]] | tuple[tuple[str, str], ...] = css_map_raw  # pyright: ignore[reportUnknownVariableType]
         names_seen: set[str] = set()
         for i, entry in enumerate(css_map):
             # Runtime validation - pyright sees typed entry, but we validate for user input
@@ -608,7 +608,7 @@ def _resolve_css_paths() -> tuple[list[CSSEntry], bool]:
     css_map_raw = getattr(settings, "TAILWIND_CLI_CSS_MAP", None)
     if css_map_raw:
         # Type assertion after validation in _validate_css_settings()
-        css_map: list[tuple[str, str]] = css_map_raw  # pyright: ignore[reportAssignmentType]
+        css_map: list[tuple[str, str]] = css_map_raw
         entries: list[CSSEntry] = []
         for src, dist in css_map:
             src_path = Path(src)

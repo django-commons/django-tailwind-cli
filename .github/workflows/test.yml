@@ -21,22 +21,37 @@ jobs:
       matrix:
         python-version: ["3.10", "3.11", "3.12", "3.13", "3.14", "3.15"]
 
+    # Job-scoped so every step resolves the same interpreter, not just the
+    # install step. Prereleases are aliased in .mise.toml, so "3.15" resolves.
+    env:
+      MISE_PYTHON_VERSION: ${{ matrix.python-version }}
+      # pre-commit is a local lint tool. Disabling it beats limiting
+      # install_args, because `mise run` would auto-install it again.
+      MISE_DISABLE_TOOLS: pre-commit
+
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      - name: Set up mise
+        uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4.0.1
         with:
-          python-version: ${{ matrix.python-version }}
-          allow-prereleases: true
+          install: true
+          cache: true
+          # The default key ignores MISE_PYTHON_VERSION, so all six jobs would
+          # share one entry holding a single Python.
+          cache_key: "{{default}}-{{env.MISE_PYTHON_VERSION}}"
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+      - name: Cache uv downloads
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/uv
+          key: uv-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('uv.lock') }}
+          restore-keys: uv-${{ runner.os }}-${{ matrix.python-version }}-
 
       - name: Test with tox
-        run: uvx --with tox-uv --with tox-gh-actions tox
+        run: mise run test-all
 
   zizmor:
     name: Audit workflows (zizmor)

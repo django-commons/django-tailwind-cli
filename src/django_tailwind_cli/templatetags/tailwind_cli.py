@@ -45,7 +45,7 @@ from django_tailwind_cli.config import get_config
 register = template.Library()
 
 
-@register.inclusion_tag("tailwind_cli/tailwind_css.html")  # type: ignore
+@register.inclusion_tag("tailwind_cli/tailwind_css.html")
 def tailwind_css(name: str | None = None) -> dict[str, bool | list[str]]:
     """Include Tailwind CSS file(s) in templates with debug-aware cache handling.
 

@@ -1,0 +1,50 @@
+# 3.15 is unreleased, so bare "3.15" does not resolve. Aliasing it here is the
+# single place to bump while CI and the tool list keep saying "3.15".
+[tool_alias.python.versions]
+"3.15" = "3.15.0rc1"
+
+[tools]
+# 3.13 is the active default; the rest are installed for the tox matrix.
+python = ["3.13", "3.10", "3.11", "3.12", "3.14", "3.15"]
+uv = "latest"
+pre-commit = "latest"
+
+[env]
+# uv sync creates .venv itself; mise only has to activate it. create = true
+# would build a throwaway venv in every CI job on top of tox's own.
+_.python.venv = { path = ".venv", create = false }
+# Tell uv to use mise's Pythons via PATH instead of installing its own.
+# Keeps tox-uv matrix runs on the same interpreters mise provisioned.
+UV_PYTHON_PREFERENCE = "only-system"
+
+[tasks.bootstrap]
+description = "Install dependencies into .venv"
+run = "uv sync --all-extras"
+
+[tasks.upgrade]
+description = "Upgrade all dependencies"
+run = "uv sync --all-extras --upgrade"
+
+[tasks.lint]
+description = "Run pre-commit on all files"
+run = "pre-commit run --all-files"
+
+[tasks.test]
+description = "Run pytest with coverage"
+run = "uv run pytest --cov --cov-report=html --cov-report=term"
+
+[tasks."test-all"]
+description = "Run full Python/Django matrix via tox"
+run = "uvx --with tox-uv --with tox-gh-actions tox"
+
+[tasks."serve-docs"]
+description = "Serve docs locally with sphinx-autobuild"
+dir = "{{ config_root }}/docs"
+run = "uvx --with-requirements requirements.txt --from sphinx-autobuild sphinx-autobuild . _build/html"
+
+[tasks.clean]
+description = "Remove caches, build artefacts, coverage"
+run = '''
+rm -rf htmlcov/ .coverage .coverage.* .pytest_cache/ .ruff_cache/ docs/_build/ dist/ build/ .tox/ src/*.egg-info
+find . -type d -name __pycache__ -prune -exec rm -rf {} +
+'''

@@ -78,6 +78,9 @@ docs/_build/
 # macOS
 .DS_Store
 
+# Local tool config
+.mise.local.toml
+
 # AI tool configs
 CLAUDE.md
 AGENTS.md
