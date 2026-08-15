@@ -8,6 +8,9 @@
 ### 🛠️ Developer Experience
 - **Switch dev tooling from `just` to `mise`**: Python 3.10–3.15, `uv`, and `pre-commit` are now pinned in `.mise.toml`. Local tasks run via `mise run …`; CI uses `jdx/mise-action`.
 
+### 📚 Documentation
+- **Plainer README**: dropped the emoji headings and marketing register, and merged the overlapping feature sections into one. Same coverage, ~20% shorter.
+
 ### 🔧 Technical Improvements
 - **Dependency refresh**: clears the advisories `uv-secure` flagged in the old lock. `pytest-django` 4.14 renamed `SettingsWrapper` to `Settings`, so the dev floor moved to 4.14.
 

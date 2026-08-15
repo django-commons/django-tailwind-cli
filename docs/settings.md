@@ -257,7 +257,7 @@ Example content of `src/styles/main.css`:
 
 ### DaisyUI
 
-If you plan to use [daisyUI](https://daisyui.com), there is an easy way to solve this with this library.
+If you plan to use [daisyUI](https://daisyui.com), one setting covers it:
 
 ```python
 TAILWIND_CLI_USE_DAISY_UI = True
@@ -265,7 +265,7 @@ TAILWIND_CLI_USE_DAISY_UI = True
 
 Setting this, the library switches from using the default TailwindCSS CLI to the one provided by [Andris Dobičinaitis](https://github.com/dobicinaitis) and his [tailwind-cli-extra](https://github.com/dobicinaitis/tailwind-cli-extra) project. It also causes the library to create a proper default config that activates the daisyUI plugin.
 
-But of course you can do it manually, too. Just configure a repository where the library should pull the CLI from and activate the daisyUI support.
+You can also configure it manually, by pointing the library at the repository it should pull the CLI from and activating daisyUI support yourself.
 
 ```python
 TAILWIND_CLI_SRC_REPO = "dobicinaitis/tailwind-cli-extra"

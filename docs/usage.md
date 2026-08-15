@@ -68,7 +68,7 @@ python manage.py tailwind runserver --force-default-runserver
 
 ### download_cli
 
-Run `python manage.py tailwind download_cli` to just download the CLI. This commands downloads the correct version of the CLI for your platform and stores it in the path configured by the `TAILWIND_CLI_PATH` setting.
+Run `python manage.py tailwind download_cli` to download the CLI without building anything. It fetches the correct version for your platform and stores it in the path configured by the `TAILWIND_CLI_PATH` setting.
 
 ### config
 
@@ -83,7 +83,7 @@ The command shows:
 
 ### setup
 
-Run `python manage.py tailwind setup` to launch the interactive setup guide for django-tailwind-cli. This command provides step-by-step guidance for setting up Tailwind CSS in your Django project, from installation to first build.
+Run `python manage.py tailwind setup` for a guided first-time setup. The command checks each step, prints what is still missing, and performs the CLI download and first build itself. It does not prompt for anything, so it is safe to run repeatedly.
 
 The guide covers:
 1. Installation verification
@@ -93,7 +93,7 @@ The guide covers:
 5. Template integration
 6. Development workflow
 
-This is perfect for first-time setup, troubleshooting configuration issues, or learning the development workflow.
+Use it for a first-time setup, or when you want to check how the pieces fit together.
 
 ### troubleshoot
 

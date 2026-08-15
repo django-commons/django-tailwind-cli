@@ -7,7 +7,7 @@ This guide covers development workflows for django-tailwind-cli.
 ```bash
 # Step 1: Install and configure
 pip install django-tailwind-cli
-python manage.py tailwind setup  # Interactive setup
+python manage.py tailwind setup  # Guided setup
 
 # Step 2: Verify configuration
 python manage.py tailwind config
