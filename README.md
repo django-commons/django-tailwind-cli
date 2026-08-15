@@ -102,8 +102,9 @@ First run creates a managed `<BASE_DIR>/.django_tailwind_cli/` directory for the
 auto-generated `source.css`. The directory is automatically git-ignored — no entry in your
 project-level `.gitignore` needed.
 
-`python manage.py tailwind setup` walks through the same ground: it checks what is already in
-place, prints what is still missing, and performs the CLI download and first build for you.
+`python manage.py tailwind setup` walks the same ground: it checks each piece in order, stops at
+the first one that is missing with instructions, and performs the download and first build when
+they are needed.
 
 ## Management commands
 

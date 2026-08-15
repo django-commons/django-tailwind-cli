@@ -83,7 +83,7 @@ The command shows:
 
 ### setup
 
-Run `python manage.py tailwind setup` for a guided first-time setup. The command checks each step, prints what is still missing, and performs the CLI download and first build itself. It does not prompt for anything, so it is safe to run repeatedly.
+Run `python manage.py tailwind setup` for a guided first-time setup. The command walks the steps in order, stops at the first blocker with instructions, and performs the CLI download and first build when they are missing. It does not prompt for anything, so it is safe to run repeatedly.
 
 The guide covers:
 1. Installation verification

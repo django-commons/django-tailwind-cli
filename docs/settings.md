@@ -203,7 +203,7 @@ This switch can also be used as a shortcut to activate daisyUI and change `TAILW
 
 ### Default
 
-The library works out of the box with sensible defaults. No configuration is required:
+Beyond installing the app and setting `BASE_DIR` and a static files directory, no configuration is required:
 
 ```python
 # settings.py

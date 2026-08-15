@@ -35,7 +35,7 @@ This command provides seamless integration between Django and Tailwind CSS,
 allowing you to build, watch, and serve your Tailwind styles without Node.js.
 
 Examples:
-  python manage.py tailwind setup          # Interactive setup guide (start here!)
+  python manage.py tailwind setup          # Guided setup (start here)
   python manage.py tailwind build          # Build production CSS
   python manage.py tailwind build --force  # Force rebuild ignoring cache
   python manage.py tailwind watch          # Watch for changes during development
@@ -598,31 +598,32 @@ def show_config():
 @handle_command_errors
 @app.command(name="setup")
 def setup_guide():
-    """Interactive setup guide for django-tailwind-cli.
+    """Guided setup for django-tailwind-cli.
 
-    This command provides step-by-step guidance for setting up Tailwind CSS
-    in your Django project, from installation to first build.
+    Walks the setup in order and stops at the first blocker with instructions
+    for fixing it. Creates the source CSS file, downloads the CLI, and runs a
+    first build — each only when it is missing. It prompts for nothing, so it
+    is safe to run repeatedly.
 
     \b
-    The guide covers:
-    1. Installation verification
-    2. Django settings configuration
-    3. CLI binary download
-    4. First CSS build
-    5. Template integration
-    6. Development workflow
+    The steps:
+    1. Installation check
+    2. Django settings check
+    3. Configuration status
+    4. Tailwind CLI binary
+    5. Source CSS file
+    6. First build
+    7. Template integration
+    8. Development workflow
 
     \b
     Examples:
-        # Run the interactive setup guide
+        # Run the setup guide
         python manage.py tailwind setup
 
     \b
-    This is perfect for:
-        - First-time setup
-        - Troubleshooting configuration issues
-        - Learning the development workflow
-        - Migrating from other Tailwind setups
+    Useful for a first-time setup, for checking a configuration that is not
+    behaving, or for seeing which pieces are already in place.
     """
     typer.secho("\n🚀 Django Tailwind CLI Setup Guide", fg=typer.colors.CYAN, bold=True)
     typer.secho("=" * 50, fg=typer.colors.CYAN)
@@ -881,7 +882,7 @@ def troubleshoot():
     typer.secho("   Run these to gather information:", fg=typer.colors.BLUE)
     typer.secho("   python manage.py tailwind config          # Show configuration", fg=typer.colors.GREEN)
     typer.secho("   python manage.py tailwind build --verbose # Detailed build info", fg=typer.colors.GREEN)
-    typer.secho("   python manage.py tailwind setup           # Interactive setup", fg=typer.colors.GREEN)
+    typer.secho("   python manage.py tailwind setup           # Guided setup", fg=typer.colors.GREEN)
 
     # Getting more help
     typer.secho("\n💬 Need More Help?", fg=typer.colors.CYAN, bold=True)
