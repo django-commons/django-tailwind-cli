@@ -219,7 +219,7 @@ Contributions are welcome.
 
 ### Prerequisites
 
-- **[mise](https://mise.jdx.dev/)** — provisions Python 3.10–3.15, `uv`, and `pre-commit` from `.mise.toml`
+- **[mise](https://mise.jdx.dev/)** — provisions Python 3.10–3.15, `uv`, and `pre-commit` from `mise.toml`
 
 ### Development setup
 
