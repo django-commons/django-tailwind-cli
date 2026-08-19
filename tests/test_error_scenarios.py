@@ -129,11 +129,6 @@ class TestNetworkErrorScenarios:
         settings.TAILWIND_CLI_VERSION = "latest"
         settings.TAILWIND_CLI_REQUEST_TIMEOUT = 0.001  # Very short timeout
 
-        # Clear any existing cache to ensure fallback behavior
-        cache_path = _get_cache_path()
-        if cache_path.exists():
-            cache_path.unlink()
-
         with patch("django_tailwind_cli.utils.http.fetch_redirect_location") as mock_fetch:
             mock_fetch.side_effect = http.RequestTimeoutError("Connection timeout")
 
@@ -146,11 +141,6 @@ class TestNetworkErrorScenarios:
         settings.STATICFILES_DIRS = [tmp_path / "assets"]
         settings.TAILWIND_CLI_VERSION = "latest"
 
-        # Clear any existing cache to ensure fallback behavior
-        cache_path = _get_cache_path()
-        if cache_path.exists():
-            cache_path.unlink()
-
         with patch("django_tailwind_cli.utils.http.fetch_redirect_location") as mock_fetch:
             mock_fetch.side_effect = http.NetworkConnectionError("Network unreachable")
 
@@ -162,11 +152,6 @@ class TestNetworkErrorScenarios:
         """Test HTTP error when fetching latest version."""
         settings.STATICFILES_DIRS = [tmp_path / "assets"]
         settings.TAILWIND_CLI_VERSION = "latest"
-
-        # Clear any existing cache to ensure fallback behavior
-        cache_path = _get_cache_path()
-        if cache_path.exists():
-            cache_path.unlink()
 
         with patch("django_tailwind_cli.utils.http.fetch_redirect_location") as mock_fetch:
             mock_fetch.return_value = (False, None)
@@ -211,15 +196,12 @@ class TestNetworkErrorScenarios:
             assert config.cli_path.exists()
             assert config.cli_path.read_bytes() == b"incomplete"
 
-    def test_version_cache_corruption_handling(self, settings: LazySettings, tmp_path: Path):
+    def test_version_cache_corruption_handling(self, settings: LazySettings, tmp_path: Path, version_cache_path: Path):
         """Test handling of corrupted version cache."""
         settings.STATICFILES_DIRS = [tmp_path / "assets"]
         settings.TAILWIND_CLI_VERSION = "latest"
 
-        # Create corrupted cache file
-        cache_path = _get_cache_path()
-        cache_path.parent.mkdir(parents=True, exist_ok=True)
-        cache_path.write_text("corrupted\ncache\ndata")
+        version_cache_path.write_text("corrupted\ncache\ndata")
 
         with patch("django_tailwind_cli.utils.http.fetch_redirect_location") as mock_fetch:
             mock_fetch.return_value = (True, "https://github.com/repo/releases/tag/v4.1.0")
@@ -543,11 +525,6 @@ class TestConcurrencyErrorScenarios:
         settings.STATICFILES_DIRS = [tmp_path / "assets"]
         settings.TAILWIND_CLI_VERSION = "latest"
 
-        # Clear any existing cache to ensure fresh state
-        cache_path = _get_cache_path()
-        if cache_path.exists():
-            cache_path.unlink()
-
         with patch("django_tailwind_cli.utils.http.fetch_redirect_location") as mock_fetch:
             mock_fetch.return_value = (True, "https://github.com/repo/releases/tag/v4.1.5")
 
@@ -649,11 +626,6 @@ class TestEdgeCaseScenarios:
         settings.STATICFILES_DIRS = [tmp_path / "assets"]
         settings.TAILWIND_CLI_VERSION = "latest"
 
-        # Clear any existing cache to ensure fallback behavior
-        cache_path = _get_cache_path()
-        if cache_path.exists():
-            cache_path.unlink()
-
         malformed_locations = [
             "not-a-url",
             "https://malformed/path/without/version",
@@ -669,12 +641,11 @@ class TestEdgeCaseScenarios:
                 version_str, _ = get_version()
                 assert version_str == "4.1.3"  # FALLBACK_VERSION
 
-    def test_cache_file_corruption_scenarios(self, settings: LazySettings, tmp_path: Path):
+    def test_cache_file_corruption_scenarios(self, settings: LazySettings, tmp_path: Path, version_cache_path: Path):
         """Test various cache file corruption scenarios."""
         settings.STATICFILES_DIRS = [tmp_path / "assets"]
 
-        cache_path = _get_cache_path()
-        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        cache_path = version_cache_path
 
         corruption_scenarios = [
             "",  # Empty file
@@ -806,10 +777,14 @@ class TestSetupCommandScenarios:
     """Test the setup command functionality."""
 
     def test_setup_command_import_error_handling(
-        self, settings: LazySettings, tmp_path: Path, capsys: CaptureFixture[str]
+        self, settings: LazySettings, tmp_path: Path, capsys: CaptureFixture[str], mocker: MockerFixture
     ):
         """Test setup command when django-tailwind-cli cannot be imported."""
+        # Without BASE_DIR the setup guide downloads the real CLI into the
+        # source tree (tests/.django_tailwind_cli), one binary per version.
+        settings.BASE_DIR = tmp_path
         settings.STATICFILES_DIRS = [tmp_path / "assets"]
+        mocker.patch("django_tailwind_cli.utils.http.download_with_progress")
 
         # Mock the import of __version__ within the setup function
         with patch("django_tailwind_cli.__version__", side_effect=ImportError):

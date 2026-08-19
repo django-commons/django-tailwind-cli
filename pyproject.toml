@@ -124,6 +124,9 @@ ban-relative-imports = "all"
 DJANGO_SETTINGS_MODULE = "tests.settings"
 pythonpath = [".", "src"]
 testpaths = ["tests"]
+markers = [
+    "unpatched_http: test exercises django_tailwind_cli.utils.http itself, so conftest must not patch it",
+]
 filterwarnings = [
     "ignore:In Typer, only the parameter 'autocompletion' is supported.:DeprecationWarning",
 ]

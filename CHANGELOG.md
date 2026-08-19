@@ -5,6 +5,9 @@
 ### 🛠️ Developer Experience
 - **The linters run in CI again**: a `lint` job runs the full pre-commit suite (ruff, basedpyright, uv-secure, the upgrade hooks) on every pull request. It had been dropped in 2022 because pyright could not resolve imports without the project venv, which `mise run bootstrap` now provides.
 
+### 🔧 Technical Improvements
+- **The test suite no longer reaches the network**: `tests/conftest.py` fails any test that resolves a hostname, isolates the version cache per test, and answers the release lookup from a fixture. Until now the suite overwrote the machine-wide version cache that `manage.py tailwind` itself reads, and one setup test downloaded a real Tailwind binary into the source tree on every new version.
+
 ## 4.7.0 (2026-08-15)
 
 ### 🎯 New Features

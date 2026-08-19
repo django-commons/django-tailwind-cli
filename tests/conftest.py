@@ -1,0 +1,70 @@
+"""Shared fixtures for the test suite."""
+
+import socket
+from collections.abc import Iterator
+from pathlib import Path
+from typing import Any
+
+import pytest
+from pytest_mock import MockerFixture
+
+# Deliberately not FALLBACK_VERSION: if the two matched, a test could not tell
+# "the fixture answered" from "the lookup failed and fell back". Tests that care
+# about a specific version pin it themselves.
+LATEST_RELEASE_URL = "https://github.com/tailwindlabs/tailwindcss/releases/tag/v4.2.7"
+
+
+@pytest.fixture(autouse=True)
+def fail_on_network_access(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """Fail any test that resolves a hostname.
+
+    Blocking the socket is not enough on its own: the version lookup swallows
+    connection errors and falls back to a pinned version, so a test that reaches
+    for the network passes either way and the attempt stays invisible. Recording
+    the attempt and failing afterwards is what makes it visible.
+
+    This catches name resolution, not every conceivable socket. That covers
+    everything this package does — urllib reaches the network through
+    `socket.create_connection`, which resolves even an IP literal — but a raw
+    `socket.connect()` to an address would slip past.
+    """
+    attempts: list[str] = []
+
+    def record(host: Any, port: Any, *args: Any, **kwargs: Any) -> Any:
+        attempts.append(f"{host}:{port}")
+        raise OSError(f"network access to {host}:{port} is blocked in tests")
+
+    monkeypatch.setattr(socket, "getaddrinfo", record)
+    yield
+    if attempts:
+        pytest.fail(f"test attempted network access: {', '.join(attempts)}")
+
+
+@pytest.fixture(autouse=True)
+def version_cache_path(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
+    """Give every test its own version cache, and hand it out on request.
+
+    The real cache lives in the system temp directory and is shared by every run
+    on the machine, so whether a test resolved a version from cache or over the
+    network depended on what ran before it. Worse, tests that exercise cache
+    handling used to delete and overwrite that shared file, which is the same
+    file a developer's own `manage.py tailwind` reads.
+    """
+    cache_path = tmp_path / "version_cache.txt"
+    monkeypatch.setattr("django_tailwind_cli.config._get_cache_path", lambda: cache_path)
+    return cache_path
+
+
+@pytest.fixture(autouse=True)
+def patch_version_lookup(request: pytest.FixtureRequest, mocker: MockerFixture) -> None:
+    """Answer the "what is the latest release" lookup without a network call.
+
+    Modules that need a different answer patch this again; a later patch wins.
+    Tests of the lookup itself opt out with the `unpatched_http` marker.
+    """
+    if "unpatched_http" in request.keywords:
+        return
+    mocker.patch(
+        "django_tailwind_cli.utils.http.fetch_redirect_location",
+        return_value=(True, LATEST_RELEASE_URL),
+    )

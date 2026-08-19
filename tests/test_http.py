@@ -16,6 +16,9 @@ import pytest
 
 from django_tailwind_cli.utils import http
 
+# This module tests the HTTP layer itself, so it must see the real functions.
+pytestmark = pytest.mark.unpatched_http
+
 
 class TestFetchRedirectLocation:
     """Test the fetch_redirect_location function error handling."""
