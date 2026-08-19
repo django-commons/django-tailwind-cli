@@ -216,36 +216,11 @@ explicitly also keeps builds fast, because Tailwind only scans what you list.
 ## Contributing
 
 Contributions are welcome.
-
-### Prerequisites
-
-- **[mise](https://mise.jdx.dev/)** — provisions Python 3.10–3.15, `uv`, and `pre-commit` from `mise.toml`
-
-### Development setup
-
-```bash
-git clone https://github.com/django-commons/django-tailwind-cli.git
-cd django-tailwind-cli
-
-mise install
-mise run bootstrap
-```
-
-### Development commands
-
-```bash
-mise run upgrade      # Update dependencies
-mise run lint         # Run linting and formatting
-mise run test         # Run test suite
-mise run test-all     # Run tests across Python/Django versions
-```
-
-### Guidelines
-
-Fork the repository and work on a feature branch. Please add type hints and tests for new code,
-update the documentation for user-facing changes, and use
-[conventional commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:`, …) so the
-history stays readable. Run `mise run test` before opening a pull request.
+[CONTRIBUTING.md](https://github.com/django-commons/django-tailwind-cli/blob/main/CONTRIBUTING.md)
+covers the development setup ([mise](https://mise.jdx.dev/) provisions Python, `uv`, and
+`pre-commit`), how to run the tests, and what a pull request should look like. Please read the short
+section at the top of it before opening an issue or a pull request — it explains what makes one easy
+to act on.
 
 ## License
 

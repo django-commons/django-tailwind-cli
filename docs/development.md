@@ -29,7 +29,7 @@ python manage.py runserver          # Terminal 2: Django server
 
 `tailwind watch` (and the inner watcher spawned by `tailwind runserver`) runs under Django's auto-reloader by default. Any change to a Python file — including `settings.py` — restarts the watcher, regenerates the source CSS file, and respawns the Tailwind CLI subprocess. Pass `--noreload` to disable.
 
-`tailwind runserver` is a transparent wrapper around the underlying Django `runserver` / `runserver_plus` command: every runserver flag is forwarded verbatim. Consult `python manage.py runserver --help` (or `runserver_plus --help` with `django-extensions` installed) for the full list of available options.
+`tailwind runserver` is a transparent wrapper around the underlying Django `runserver` / `runserver_plus` command: every runserver flag except `--force-default-runserver` is forwarded verbatim. Consult `python manage.py runserver --help` (or `runserver_plus --help` with `django-extensions` installed) for the full list of available options.
 
 ## Template Development
 
@@ -153,28 +153,8 @@ python manage.py runserver          # Terminal 2: Django server
    - Sufficient disk space
    - Network access for CLI download
 
-### Information to Include in Bug Reports
+### Filing the Report
 
-```text
-Environment:
-- OS: [macOS/Linux/Windows version]
-- Python: [version]
-- Django: [version]
-- django-tailwind-cli: [version]
-
-Configuration:
-- STATICFILES_DIRS: [value]
-- TAILWIND_CLI_VERSION: [value]
-- Custom settings: [list any custom Tailwind settings]
-
-Command Output:
-[Paste output from python manage.py tailwind config]
-
-Error Message:
-[Full error message and traceback]
-
-Steps to Reproduce:
-1. [First step]
-2. [Second step]
-3. [etc.]
-```
+If the checklist above does not explain the behaviour, open an issue. What to include and what makes
+a report easy to act on is described in
+[CONTRIBUTING.md](https://github.com/django-commons/django-tailwind-cli/blob/main/CONTRIBUTING.md).

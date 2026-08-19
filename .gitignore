@@ -81,9 +81,8 @@ docs/_build/
 # Local tool config
 mise.local.toml
 
-# AI tool configs
-CLAUDE.md
-AGENTS.md
+# Local agent and tracker state (AGENTS.md and CLAUDE.md are tracked)
+CLAUDE.local.md
 .claude/
 .beans.yml
 .beans/

@@ -8,6 +8,10 @@
 ### 🔧 Technical Improvements
 - **The test suite no longer reaches the network**: `tests/conftest.py` fails any test that resolves a hostname, isolates the version cache per test, and answers the release lookup from a fixture. Until now the suite overwrote the machine-wide version cache that `manage.py tailwind` itself reads, and one setup test downloaded a real Tailwind binary into the source tree on every new version.
 
+### 📚 Documentation
+- **`CONTRIBUTING.md`**: development setup, test commands, commit and changelog conventions, and what makes an issue or pull request easy to act on. Linked from the README and published in the docs.
+- **`AGENTS.md` is tracked**: the repository conventions coding agents need live in the repo now instead of an ignored local file. `CLAUDE.md` is a one-line pointer at it.
+
 ## 4.7.0 (2026-08-15)
 
 ### 🎯 New Features

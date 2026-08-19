@@ -11,5 +11,6 @@ settings
 template_tags
 base_template
 development
+contributing
 changelog
 ```

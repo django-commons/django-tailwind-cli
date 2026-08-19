@@ -54,6 +54,11 @@ build-backend = "hatchling.build"
 [tool.hatch.version]
 source = "vcs"
 
+# hatchling falls back to .gitignore for file selection, so tracking the agent
+# instructions would otherwise ship them in every source release.
+[tool.hatch.build.targets.sdist]
+exclude = ["AGENTS.md", "CLAUDE.md"]
+
 # basedpyright (also read by pyright)
 [tool.pyright]
 pythonVersion = "3.10"
