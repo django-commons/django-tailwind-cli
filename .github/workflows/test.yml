@@ -14,6 +14,57 @@ permissions:
   contents: read
 
 jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+
+    # pre-commit pins its hook environments to 3.10 (default_language_version),
+    # and the linters only ever need one interpreter.
+    env:
+      MISE_PYTHON_VERSION: "3.10"
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up mise
+        uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4.0.1
+        with:
+          install: true
+          cache: true
+          # Distinct from the test jobs: this one also installs pre-commit, so
+          # sharing their key would hand them a cache missing a tool. The
+          # version belongs in the key too, or bumping it later restores a
+          # cache holding the old interpreter and never re-saves.
+          cache_key: "lint-{{default}}-{{env.MISE_PYTHON_VERSION}}"
+
+      - name: Cache pre-commit hooks
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
+          restore-keys: pre-commit-${{ runner.os }}-
+
+      - name: Cache uv downloads
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/uv
+          key: uv-${{ runner.os }}-lint-${{ hashFiles('uv.lock') }}
+          restore-keys: uv-${{ runner.os }}-lint-
+
+      # basedpyright resolves imports through .venv (see [tool.pyright] in
+      # pyproject.toml). Without this step it reports every import as missing,
+      # which is why the original pre-commit job was dropped back in 2022.
+      # --locked, unlike `mise run bootstrap`: a uv.lock that has drifted from
+      # pyproject.toml should fail the job, not be silently re-resolved into
+      # something uv-secure then audits instead of the committed lock.
+      - name: Install dependencies
+        run: uv sync --all-extras --locked
+
+      - name: Run pre-commit
+        run: mise run lint
+
   build:
     name: Test (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest

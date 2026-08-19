@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### 🛠️ Developer Experience
+- **The linters run in CI again**: a `lint` job runs the full pre-commit suite (ruff, basedpyright, uv-secure, the upgrade hooks) on every pull request. It had been dropped in 2022 because pyright could not resolve imports without the project venv, which `mise run bootstrap` now provides.
+
 ## 4.7.0 (2026-08-15)
 
 ### 🎯 New Features
