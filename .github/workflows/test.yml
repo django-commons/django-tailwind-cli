@@ -62,6 +62,9 @@ jobs:
       - name: Install dependencies
         run: uv sync --all-extras --locked
 
+      # uv-secure audits uv.lock against the published advisories, so a new one
+      # can turn an unrelated pull request red. That is deliberate: it is how we
+      # hear about it. Fix the lock rather than skipping the hook.
       - name: Run pre-commit
         run: mise run lint
 

@@ -63,6 +63,10 @@ mise run lint        # pre-commit: ruff, basedpyright, uv-secure, upgrade hooks
 takes a while; CI runs the matrix on every pull request, so running it locally is optional unless
 you are touching something version-specific.
 
+One of the lint hooks, `uv-secure`, checks the lock file against published security advisories. If
+it fails on a dependency your change never touched, a new advisory appeared and the lock needs a
+bump — mention it in the pull request instead of working around it.
+
 ## Commit messages
 
 [Conventional Commits](https://www.conventionalcommits.org/) in English, with a scope:
