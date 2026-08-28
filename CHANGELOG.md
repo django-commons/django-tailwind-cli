@@ -19,6 +19,7 @@
 - **`AGENTS.md` is tracked**: the repository conventions coding agents need live in the repo now instead of an ignored local file. `CLAUDE.md` is a one-line pointer at it.
 - **WhiteNoise page**: a sample configuration and the two traps that only show up on deploy — a `collectstatic` that runs before `tailwind build` fails at render time, not at build time, and a source CSS inside `STATICFILES_DIRS` breaks `collectstatic` outright.
 - **`troubleshoot` covers the deployment failure**: a `collectstatic` that runs before `tailwind build` leaves the manifest without an entry, and the guide now carries that error string and the fix. `setup` spells out the ordering too.
+- **`template_tags.md` showed `/static/css/styles.css`**, a path no configuration produces. It is `css/tailwind.css`.
 - **Cross-references to settings resolve again**: `myst_heading_anchors` was never enabled, so every `settings.md#tailwind_cli_…` link in the docs pointed at a fragment that does not exist. Three links had been broken since they were written.
 
 ## 4.7.0 (2026-08-15)

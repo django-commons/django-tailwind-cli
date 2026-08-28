@@ -19,14 +19,14 @@ Depending on the value of the variable `settings.DEBUG` it also activates preloa
 - `DEBUG = False` creates the following output:
 
   ```html
-  <link rel="preload" href="/static/css/styles.css" as="style" />
-  <link rel="stylesheet" href="/static/css/styles.css" />
+  <link rel="preload" href="/static/css/tailwind.css" as="style">
+  <link rel="stylesheet" href="/static/css/tailwind.css">
   ```
 
 - `DEBUG = True` creates this output:
 
   ```html
-  <link rel="stylesheet" href="/static/css/styles.css" />
+  <link rel="stylesheet" href="/static/css/tailwind.css">
   ```
 
 ### Optional `name` Parameter
