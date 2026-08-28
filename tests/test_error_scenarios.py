@@ -30,7 +30,7 @@ from django_tailwind_cli.config import (
     get_config,
     get_version,
 )
-from django_tailwind_cli.management.commands.tailwind import ProcessManager
+from django_tailwind_cli.management.commands._process import ProcessManager
 from tests.helpers import write_fake_cli
 
 
@@ -466,6 +466,65 @@ class TestConcurrencyErrorScenarios:
 
         # Should still clean up processes list
         assert manager.processes == []
+
+    def test_process_manager_names_the_exit_code(self, capsys: CaptureFixture[str], mocker: MockerFixture):
+        """The two managers word this differently; consolidating them must not level it."""
+        mocker.patch("django_tailwind_cli.management.commands._process.time.sleep")
+        manager = ProcessManager()
+        alive, dead = Mock(), Mock()
+        # Runs out, so a broken loop guard fails the test instead of spinning forever.
+        alive.poll.side_effect = [None, None, 0, 0, 0]
+        dead.poll.return_value = 2
+        dead.returncode = 2
+        manager.processes = [alive, dead]
+
+        manager._monitor_processes()
+
+        assert "Process exited with code 2" in capsys.readouterr().out
+        assert manager.shutdown_requested is True  # reporting one dead process ends the watch
+
+    def test_multi_watch_manager_names_which_process_exited(self, capsys: CaptureFixture[str], mocker: MockerFixture):
+        """With several watchers running, the bare message would not say which one died."""
+        from django_tailwind_cli.management.commands._process import MultiWatchProcessManager
+
+        mocker.patch("django_tailwind_cli.management.commands._process.time.sleep")
+        manager = MultiWatchProcessManager()
+        alive, dead = Mock(), Mock()
+        alive.poll.side_effect = [None, None, 0, 0, 0]
+        dead.poll.return_value = 2
+        dead.returncode = 2
+        manager.processes = [alive, dead]
+
+        manager._monitor_processes()
+
+        assert "Watch process 1 exited with code 2" in capsys.readouterr().out
+
+    def test_only_the_multi_watch_manager_reports_the_end_of_watching(self, capsys: CaptureFixture[str]):
+        """The single-watch path prints this from tailwind.py; the manager must for the multi path."""
+        from django_tailwind_cli.management.commands._process import MultiWatchProcessManager
+
+        done = Mock()
+        done.poll.return_value = 0
+
+        pm = ProcessManager()
+        pm.processes = [done]
+        pm._cleanup_processes()
+        assert "Stopped watching for changes." not in capsys.readouterr().out
+
+        mw = MultiWatchProcessManager()
+        mw.processes = [done]
+        mw._cleanup_processes()
+        assert "Stopped watching for changes." in capsys.readouterr().out
+
+    def test_the_two_managers_word_their_shutdown_differently(self, capsys: CaptureFixture[str]):
+        """Class-level text, so a consolidation that only compares methods would drop it."""
+        from django_tailwind_cli.management.commands._process import MultiWatchProcessManager
+
+        ProcessManager()._request_shutdown()
+        assert "stopping processes..." in capsys.readouterr().out
+
+        MultiWatchProcessManager()._request_shutdown()
+        assert "stopping watch processes..." in capsys.readouterr().out
 
     def test_process_manager_cleanup_escalates_on_wait_timeout(self):
         """ProcessManager cleanup must kill() when terminate() + wait() time out."""

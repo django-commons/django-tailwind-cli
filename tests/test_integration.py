@@ -23,14 +23,16 @@ from pytest import CaptureFixture
 from pytest_mock import MockerFixture
 
 from django_tailwind_cli.config import get_config
-from django_tailwind_cli.management.commands.tailwind import (
-    DAISY_UI_SOURCE_CSS,
-    DEFAULT_SOURCE_CSS,
+from django_tailwind_cli.management.commands._process import (
     _WATCH_SPAWN_STAGGER_S,
     MultiWatchProcessManager,
     ProcessManager,
     _drain_filtered_stderr,
     _is_bun_noise,
+)
+from django_tailwind_cli.management.commands.tailwind import (
+    DAISY_UI_SOURCE_CSS,
+    DEFAULT_SOURCE_CSS,
     _run_watch_loop,
 )
 from tests.helpers import write_fake_cli
@@ -370,9 +372,7 @@ class TestWatchModeIntegration:
         mock_process.stderr = None  # skip the stderr drain thread
         mock_popen = mocker.patch("subprocess.Popen", return_value=mock_process)
 
-        # Patch only the time reference inside tailwind.py to avoid disturbing
-        # the rest of the test runtime.
-        mock_sleep = mocker.patch("django_tailwind_cli.management.commands.tailwind.time.sleep")
+        mock_sleep = mocker.patch("django_tailwind_cli.management.commands._process.time.sleep")
 
         call_command("tailwind", "watch")
 
