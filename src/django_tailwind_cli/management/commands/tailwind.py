@@ -753,8 +753,9 @@ def setup_guide():
     typer.secho("   Terminal 1: python manage.py tailwind watch", fg=typer.colors.GREEN)
     typer.secho("   Terminal 2: python manage.py runserver", fg=typer.colors.GREEN)
     typer.secho("", fg=typer.colors.BLUE)
-    typer.secho("   For production builds:", fg=typer.colors.CYAN)
+    typer.secho("   For production builds, in this order:", fg=typer.colors.CYAN)
     typer.secho("   python manage.py tailwind build", fg=typer.colors.GREEN)
+    typer.secho("   python manage.py collectstatic --noinput", fg=typer.colors.GREEN)
 
     # Success message
     typer.secho("\n🎉 Setup Complete!", fg=typer.colors.GREEN, bold=True)
@@ -778,6 +779,7 @@ def troubleshoot():
     - Missing or incorrect configuration
     - Permission and download issues
     - Template integration problems
+    - Missing styles after deployment (collectstatic ordering)
 
     \b
     Examples:
@@ -876,6 +878,22 @@ def troubleshoot():
     typer.secho("   3. Verify class names are correct (no typos)", fg=typer.colors.WHITE)
     typer.secho("   4. Try rebuild with force:", fg=typer.colors.WHITE)
     typer.secho("      python manage.py tailwind build --force", fg=typer.colors.GREEN)
+
+    # Issue 8: Deployment / collectstatic ordering
+    typer.secho("\n❓ Issue 8: Styles missing after deployment", fg=typer.colors.YELLOW, bold=True)
+    typer.secho(
+        "   Symptoms: ValueError: Missing staticfiles manifest entry for 'css/tailwind.css'",
+        fg=typer.colors.BLUE,
+    )
+    typer.secho("   Cause: collectstatic ran before the stylesheet was built", fg=typer.colors.BLUE)
+    typer.secho("   Solutions:", fg=typer.colors.GREEN)
+    typer.secho("   1. Build before collecting, in this order:", fg=typer.colors.WHITE)
+    typer.secho("      python manage.py tailwind build", fg=typer.colors.GREEN)
+    typer.secho("      python manage.py collectstatic --noinput", fg=typer.colors.GREEN)
+    typer.secho("   2. Keep the source CSS outside STATICFILES_DIRS", fg=typer.colors.WHITE)
+    typer.secho("      Otherwise collectstatic fails with MissingFileError", fg=typer.colors.BLUE)
+    typer.secho("   3. See the WhiteNoise notes for a full sample configuration:", fg=typer.colors.WHITE)
+    typer.secho("      https://django-tailwind-cli.rtfd.io/latest/whitenoise.html", fg=typer.colors.GREEN)
 
     # Diagnostic commands
     typer.secho("\n🔧 Diagnostic Commands", fg=typer.colors.CYAN, bold=True)
@@ -1606,15 +1624,6 @@ def _get_site_packages_paths() -> list[Path]:
     return sorted(paths)
 
 
-def _is_under(child: Path, parent: Path) -> bool:
-    """Return True if ``child`` lies under ``parent`` in the filesystem tree."""
-    try:
-        child.relative_to(parent)
-    except ValueError:
-        return False
-    return True
-
-
 def _discover_external_app_base_dirs() -> list[Path]:
     """Return base dirs of installed Django apps that need explicit @source.
 
@@ -1631,9 +1640,9 @@ def _discover_external_app_base_dirs() -> list[Path]:
 
     for app_config in apps.get_app_configs():
         app_path = Path(app_config.path).resolve()
-        if _is_under(app_path, base_dir):
+        if app_path.is_relative_to(base_dir):
             continue
-        if any(_is_under(app_path, sp) for sp in site_packages):
+        if any(app_path.is_relative_to(sp) for sp in site_packages):
             continue
         external.append(app_path)
 

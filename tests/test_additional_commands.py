@@ -30,7 +30,8 @@ def configure_test_settings(settings: LazySettings, tmp_path: Path, mocker: Mock
     settings.BASE_DIR = tmp_path
     settings.TAILWIND_CLI_PATH = tmp_path / "tailwindcss"
     settings.TAILWIND_CLI_VERSION = "4.0.0"
-    settings.TAILWIND_CLI_SRC_CSS = tmp_path / "assets" / "css" / "input.css"
+    # Outside STATICFILES_DIRS on purpose — a source CSS below it warns, see config.py.
+    settings.TAILWIND_CLI_SRC_CSS = tmp_path / "css" / "input.css"
     settings.STATICFILES_DIRS = (tmp_path / "assets",)
     settings.TAILWIND_CLI_USE_DAISY_UI = False
     settings.TAILWIND_CLI_AUTOMATIC_DOWNLOAD = True
@@ -177,6 +178,30 @@ class TestTroubleshootCommand:
         assert "❓ Issue 1: CSS not updating in browser" in captured.out
         assert "❓ Issue 2: Build/watch command fails" in captured.out
         assert "🔧 Diagnostic Commands" in captured.out
+
+    def test_troubleshoot_covers_the_collectstatic_manifest_failure(self, capsys: CaptureFixture[str]):
+        """The most common deployment failure has to be findable by its error string."""
+        call_command("tailwind", "troubleshoot")
+        captured = capsys.readouterr()
+
+        assert "Missing staticfiles manifest entry" in captured.out
+        assert "python manage.py tailwind build" in captured.out
+        assert "python manage.py collectstatic --noinput" in captured.out
+
+
+class TestSetupCommand:
+    """Test the setup guide."""
+
+    def test_setup_guide_spells_out_the_production_order(self, capsys: CaptureFixture[str], mocker: MockerFixture):
+        """A build that runs after collectstatic leaves the manifest without an entry."""
+        # The guide only reaches its closing steps when the trial build succeeds.
+        mocker.patch("subprocess.run", return_value=mocker.Mock(returncode=0, stderr=""))
+
+        call_command("tailwind", "setup")
+        captured = capsys.readouterr()
+
+        assert "python manage.py tailwind build" in captured.out
+        assert "python manage.py collectstatic --noinput" in captured.out
 
 
 class TestOptimizeCommand:
