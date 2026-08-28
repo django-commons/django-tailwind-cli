@@ -16,6 +16,8 @@ from django.core.management import CommandError, call_command
 from pytest import CaptureFixture
 from pytest_mock import MockerFixture
 
+from semver import Version
+
 from django_tailwind_cli.config import get_config
 from django_tailwind_cli.management.commands.tailwind import (
     DAISY_UI_SOURCE_CSS,
@@ -839,3 +841,63 @@ class TestSourceCssOverwriteWarning:
         captured = capsys.readouterr()
 
         assert "TAILWIND_CLI_SRC_CSS" not in captured.out
+
+
+class TestCustomCliPathVersionMismatch:
+    """TAILWIND_CLI_PATH may point at a binary the library never downloaded."""
+
+    @pytest.fixture(autouse=True)
+    def _custom_binary(self, settings: LazySettings, tmp_path: Path, mocker: MockerFixture):
+        settings.BASE_DIR = tmp_path
+        settings.STATICFILES_DIRS = (tmp_path / "assets",)
+        binary = tmp_path / "my-tailwindcss"
+        binary.write_bytes(b"fake-cli-binary")
+        binary.chmod(0o755)
+        settings.TAILWIND_CLI_PATH = binary
+        self.binary = binary
+        mocker.patch("subprocess.run")
+
+    def _detect(self, mocker: MockerFixture, version: str | None):
+        return mocker.patch(
+            "django_tailwind_cli.config.detect_binary_version",
+            return_value=Version.parse(version) if version else None,
+        )
+
+    def test_a_differing_binary_version_warns(self, settings: LazySettings, mocker: MockerFixture):
+        settings.TAILWIND_CLI_VERSION = "4.1.3"
+        self._detect(mocker, "4.0.0")
+
+        with pytest.warns(UserWarning, match="4.1.3.*4.0.0"):
+            call_command("tailwind", "build")
+
+    def test_the_binary_is_left_alone(self, settings: LazySettings, mocker: MockerFixture):
+        """Warning only — the file was placed by the user and must not be replaced."""
+        settings.TAILWIND_CLI_VERSION = "4.1.3"
+        self._detect(mocker, "4.0.0")
+        download = mocker.patch("django_tailwind_cli.utils.http.download_with_progress")
+
+        with pytest.warns(UserWarning):
+            call_command("tailwind", "build")
+
+        download.assert_not_called()
+        assert self.binary.read_bytes() == b"fake-cli-binary"
+
+    def test_a_matching_binary_version_is_quiet(
+        self, settings: LazySettings, mocker: MockerFixture, recwarn: pytest.WarningsRecorder
+    ):
+        settings.TAILWIND_CLI_VERSION = "4.1.3"
+        self._detect(mocker, "4.1.3")
+
+        call_command("tailwind", "build")
+
+        assert [w for w in recwarn.list if "reports version" in str(w.message)] == []
+
+    def test_version_latest_accepts_whatever_is_there(
+        self, settings: LazySettings, mocker: MockerFixture, recwarn: pytest.WarningsRecorder
+    ):
+        settings.TAILWIND_CLI_VERSION = "latest"
+        self._detect(mocker, "4.0.0")
+
+        call_command("tailwind", "build")
+
+        assert [w for w in recwarn.list if "reports version" in str(w.message)] == []

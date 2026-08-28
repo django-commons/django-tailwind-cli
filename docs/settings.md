@@ -30,6 +30,8 @@ The default behaviour is to store the CLI binary in the hidden directory `.djang
 
 But if you want to store it elsewhere or plan to use a custom build binary stored locally, change this setting either to a path to a directory or the full path to the binary. If it points to a directory, this is the download destination otherwise it directly tries to use the referenced binary.
 
+A binary you placed there yourself is never replaced: its filename carries no version, so the library reads the version out of the binary instead, and a mismatch with `TAILWIND_CLI_VERSION` is reported as a warning rather than resolved by overwriting your file. A path pointing at a directory is the managed case — the version is part of the downloaded filename there, so a version bump simply downloads the new one.
+
 :::{warning}
 If you use the new option from **2.7.0** but haven't installed a binary before running any of the management commands, these commands will treat the configured path as a directory and create it, if it is missing. Afterwards the official CLI will be downloaded to this path.
 

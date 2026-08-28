@@ -25,7 +25,7 @@ from django.conf import settings
 from django.core.management.base import CommandError
 from django_typer.management import Typer
 
-from django_tailwind_cli.config import Config, get_config
+from django_tailwind_cli.config import Config, get_config, maybe_warn_version_mismatch
 
 app = Typer(  # pyright: ignore[reportUnknownVariableType]
     name="tailwind",
@@ -1483,25 +1483,29 @@ def _should_recreate_file(file_path: Path, content: str) -> bool:
     return False
 
 
-def _is_cli_up_to_date(cli_path: Path, _expected_version: str) -> bool:
-    """Check if CLI binary is up to date and functional.
+def _is_cli_up_to_date(cli_path: Path, expected_version: str) -> bool:
+    """Check whether the CLI binary is present, executable, and the expected version.
+
+    For a managed download the version is part of the filename, so a version bump lands on a path
+    that does not exist yet and this never has to look inside the binary. The exception is a
+    ``TAILWIND_CLI_PATH`` pointing straight at an executable: that file is the user's, its name
+    says nothing about its version, and replacing it is not ours to do — so a mismatch warns and
+    the binary is used as it is.
 
     Args:
         cli_path: Path to the CLI binary.
-        _expected_version: Expected version string (currently unused but kept for future enhancement).
+        expected_version: Version string as resolved by get_version().
 
     Returns:
-        True if CLI is up to date and functional.
+        True if the CLI can be used as it is.
     """
     if not cli_path.exists():
         return False
 
-    # Check if CLI is executable
     if not os.access(cli_path, os.X_OK):
         return False
 
-    # For now, we assume existing CLI is functional
-    # Could be enhanced to check version via subprocess call using _expected_version
+    maybe_warn_version_mismatch(cli_path, expected_version)
     return True
 
 

@@ -756,7 +756,7 @@ def get_config() -> Config:
         cli_path = _resolve_system_binary(binary_name)
         # System binary mode implies auto-download is off — we never downloaded it.
         automatic_download = False
-        _maybe_warn_version_mismatch(cli_path, version_str)
+        maybe_warn_version_mismatch(cli_path, version_str)
     else:
         cli_path = _resolve_cli_path(platform_info, version_str, asset_name)
 
@@ -808,8 +808,12 @@ def find_src_css_in_static_dirs() -> list[tuple[Path, Path]]:
     return offenders
 
 
-def _maybe_warn_version_mismatch(cli_path: Path, configured_version: str) -> None:
-    """Warn when the system binary reports a different version than configured.
+def maybe_warn_version_mismatch(cli_path: Path, configured_version: str) -> None:
+    """Warn when a binary this library did not download reports a different version.
+
+    That is either a system binary found on PATH, or a ``TAILWIND_CLI_PATH`` pointing straight at an
+    executable. Both are the user's file, so the mismatch is reported rather than resolved by
+    replacing it.
 
     No warning is emitted when:
     - TAILWIND_CLI_VERSION is 'latest' (user has no explicit expectation).
@@ -817,7 +821,7 @@ def _maybe_warn_version_mismatch(cli_path: Path, configured_version: str) -> Non
     - The versions match.
 
     Args:
-        cli_path: Path to the system binary.
+        cli_path: Path to the binary.
         configured_version: Version string as resolved by get_version().
     """
     # When the user set VERSION='latest', they accepted whatever is installed.
@@ -832,9 +836,10 @@ def _maybe_warn_version_mismatch(cli_path: Path, configured_version: str) -> Non
         return
 
     warnings.warn(
-        f"TAILWIND_CLI_VERSION is set to {configured_version}, but the system binary at "
-        f"{cli_path} reports version {detected}. Using the system binary anyway — "
-        "update TAILWIND_CLI_VERSION or your installed binary to silence this warning.",
+        f"TAILWIND_CLI_VERSION is set to {configured_version}, but the binary at "
+        f"{cli_path} reports version {detected}. Using it anyway — this file was not downloaded "
+        "by django-tailwind-cli and is left as it is. Update TAILWIND_CLI_VERSION or the binary "
+        "to silence this warning.",
         UserWarning,
         stacklevel=2,
     )
