@@ -166,6 +166,37 @@ class TestNetworkErrorScenarios:
             with pytest.raises(CommandError, match="Failed to download Tailwind CSS CLI"):
                 call_command("tailwind", "download_cli")
 
+    def test_automatic_download_disabled_without_a_cli_is_an_error(self, settings: LazySettings, tmp_path: Path):
+        """With the download turned off, a missing binary has to be reported, not fetched.
+
+        `download_cli` forces the download by design, so `build` is the command that reaches this.
+        """
+        settings.BASE_DIR = tmp_path
+        settings.STATICFILES_DIRS = [tmp_path / "assets"]
+        settings.TAILWIND_CLI_AUTOMATIC_DOWNLOAD = False
+
+        with pytest.raises(CommandError, match="Automatic download of Tailwind CSS CLI is deactivated"):
+            call_command("tailwind", "build")
+
+    def test_a_cli_appearing_after_an_earlier_miss_is_seen(
+        self, settings: LazySettings, tmp_path: Path, mocker: MockerFixture
+    ):
+        """Two builds in the same process: the second must not answer from a stale existence cache."""
+        settings.BASE_DIR = tmp_path
+        settings.STATICFILES_DIRS = [tmp_path / "assets"]
+        settings.TAILWIND_CLI_AUTOMATIC_DOWNLOAD = False
+        mocker.patch("subprocess.run")
+        cli_path = get_config().cli_path
+
+        with pytest.raises(CommandError):
+            call_command("tailwind", "build")
+
+        cli_path.parent.mkdir(parents=True, exist_ok=True)
+        cli_path.write_bytes(b"fake-cli-binary")
+        cli_path.chmod(0o755)
+
+        call_command("tailwind", "build")
+
     def test_cli_download_incomplete_response(self, settings: LazySettings, tmp_path: Path):
         """Test handling of incomplete download response."""
         settings.BASE_DIR = tmp_path

@@ -1505,36 +1505,6 @@ def _is_cli_up_to_date(cli_path: Path, _expected_version: str) -> bool:
     return True
 
 
-# Global cache for file existence checks
-_FILE_CACHE: dict[str, tuple[float, bool]] = {}
-
-
-def _check_file_exists_cached(file_path: Path, cache_duration: float = 5.0) -> bool:
-    """Check file existence with caching to avoid repeated filesystem calls.
-
-    Args:
-        file_path: Path to check.
-        cache_duration: Cache duration in seconds.
-
-    Returns:
-        True if file exists (from cache or filesystem).
-    """
-    global _FILE_CACHE
-    cache_key = str(file_path)
-    current_time = time.time()
-
-    # Check cache
-    if cache_key in _FILE_CACHE:
-        last_check, existed = _FILE_CACHE[cache_key]
-        if current_time - last_check < cache_duration:
-            return existed
-
-    # Check filesystem and update cache
-    exists = file_path.exists()
-    _FILE_CACHE[cache_key] = (current_time, exists)
-    return exists
-
-
 # UTILITY FUNCTIONS -------------------------------------------------------------------------------
 
 
@@ -1565,7 +1535,7 @@ def _download_cli_with_verbose(*, verbose: bool = False, force_download: bool = 
         return
 
     if not force_download and not c.automatic_download:
-        if not _check_file_exists_cached(c.cli_path):
+        if not c.cli_path.exists():
             if verbose:
                 typer.secho("❌ CLI not found and automatic download is disabled", fg=typer.colors.RED)
             raise CommandError(

@@ -7,6 +7,7 @@
 - **Hand edits to the managed `source.css` no longer vanish silently**: the command says what it is about to replace, keeps your version as `source.css.bak`, and points at `TAILWIND_CLI_SRC_CSS` as the way to own the file. Toggling DaisyUI or a changed set of auto-`@source`d apps does not trip it — only content this library could not have written does.
 
 ### 🐛 Bug Fixes
+- **A CLI binary that appears mid-process is seen again**: an existence check was cached for five seconds behind a module-level dict, so with `TAILWIND_CLI_AUTOMATIC_DOWNLOAD = False` a build right after placing the binary still reported it missing. The cache served one call site and is gone.
 - **`tailwind runserver` says when there is no `manage.py` at `BASE_DIR`** instead of starting both subprocesses and reporting that the server is up, only for it to die a moment later with a bare exit code. Layouts that keep `manage.py` elsewhere are pointed at running the two halves separately.
 - **`TAILWIND_CLI_SRC_CSS` expands a leading `~`**, as `TAILWIND_CLI_PATH` already did. It used to become a directory named `~` below `BASE_DIR`. `TAILWIND_CLI_CSS_MAP` sources go through the same resolution now.
 - **A prefixed `STATICFILES_DIRS` entry may be a list**, not only a tuple. Django's own `FileSystemFinder` accepts both; `STATICFILES_DIRS[0]` in list form raised a `TypeError` before reaching any Tailwind code.
