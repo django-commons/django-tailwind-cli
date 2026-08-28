@@ -10,8 +10,9 @@ import os
 import subprocess
 import time
 from pathlib import Path
-from collections.abc import Callable
 from unittest.mock import Mock, patch
+
+from functools import partial
 
 import pytest
 from django.conf import LazySettings
@@ -30,6 +31,7 @@ from django_tailwind_cli.config import (
     get_version,
 )
 from django_tailwind_cli.management.commands.tailwind import ProcessManager
+from tests.helpers import write_fake_cli
 
 
 class TestConfigurationErrorScenarios:
@@ -203,17 +205,10 @@ class TestNetworkErrorScenarios:
         settings.STATICFILES_DIRS = [tmp_path / "assets"]
         settings.TAILWIND_CLI_PATH = tmp_path / ".cli"
 
-        def mock_download(
-            url: str,
-            filepath: Path,
-            timeout: int = 30,
-            progress_callback: Callable[[int, int, float], None] | None = None,
-        ) -> None:
-            # Simulate incomplete download by writing partial content
-            filepath.parent.mkdir(parents=True, exist_ok=True)
-            filepath.write_bytes(b"incomplete")
-
-        with patch("django_tailwind_cli.utils.http.download_with_progress", side_effect=mock_download):
+        with patch(
+            "django_tailwind_cli.utils.http.download_with_progress",
+            side_effect=partial(write_fake_cli, content=b"incomplete"),
+        ):
             # Should complete download despite size mismatch
             call_command("tailwind", "download_cli")
 
@@ -298,17 +293,10 @@ class TestSubprocessErrorScenarios:
         config.cli_path.write_text("fake cli content")
         config.cli_path.chmod(0o644)  # Not executable
 
-        def mock_download(
-            url: str,
-            filepath: Path,
-            timeout: int = 30,
-            progress_callback: Callable[[int, int, float], None] | None = None,
-        ) -> None:
-            # Write the expected binary content
-            filepath.parent.mkdir(parents=True, exist_ok=True)
-            filepath.write_bytes(b"real-cli-binary")
-
-        with patch("django_tailwind_cli.utils.http.download_with_progress", side_effect=mock_download):
+        with patch(
+            "django_tailwind_cli.utils.http.download_with_progress",
+            side_effect=partial(write_fake_cli, content=b"real-cli-binary"),
+        ):
             with patch("subprocess.run") as mock_subprocess:
                 mock_subprocess.return_value = Mock(returncode=0)
 
@@ -353,17 +341,11 @@ class TestFileSystemErrorScenarios:
         readonly_dir.mkdir(mode=0o555)  # Read and execute only
         settings.TAILWIND_CLI_PATH = readonly_dir / "cli"
 
-        def mock_download(
-            url: str,
-            filepath: Path,
-            timeout: int = 30,
-            progress_callback: Callable[[int, int, float], None] | None = None,
-        ) -> None:
-            filepath.parent.mkdir(parents=True, exist_ok=True)
-            filepath.write_bytes(b"cli-binary")
-
         try:
-            with patch("django_tailwind_cli.utils.http.download_with_progress", side_effect=mock_download):
+            with patch(
+                "django_tailwind_cli.utils.http.download_with_progress",
+                side_effect=partial(write_fake_cli, content=b"cli-binary"),
+            ):
                 with pytest.raises((CommandError, PermissionError)):
                     call_command("tailwind", "download_cli")
         finally:
@@ -445,17 +427,10 @@ class TestFileSystemErrorScenarios:
             config.cli_path.parent.chmod(0o555)  # Read-only directory
 
             try:
-
-                def mock_download(
-                    url: str,
-                    filepath: Path,
-                    timeout: int = 30,
-                    progress_callback: Callable[[int, int, float], None] | None = None,
-                ) -> None:
-                    filepath.parent.mkdir(parents=True, exist_ok=True)
-                    filepath.write_bytes(b"cli-binary")
-
-                with patch("django_tailwind_cli.utils.http.download_with_progress", side_effect=mock_download):
+                with patch(
+                    "django_tailwind_cli.utils.http.download_with_progress",
+                    side_effect=partial(write_fake_cli, content=b"cli-binary"),
+                ):
                     # Should handle permission/disk errors gracefully
                     with pytest.raises((CommandError, PermissionError, OSError)):
                         call_command("tailwind", "download_cli")
@@ -464,16 +439,10 @@ class TestFileSystemErrorScenarios:
                 config.cli_path.parent.chmod(0o755)
         else:
             # On Windows, just test that the command can complete normally
-            def mock_download_win(
-                url: str,
-                filepath: Path,
-                timeout: int = 30,
-                progress_callback: Callable[[int, int, float], None] | None = None,
-            ) -> None:
-                filepath.parent.mkdir(parents=True, exist_ok=True)
-                filepath.write_bytes(b"cli-binary")
-
-            with patch("django_tailwind_cli.utils.http.download_with_progress", side_effect=mock_download_win):
+            with patch(
+                "django_tailwind_cli.utils.http.download_with_progress",
+                side_effect=partial(write_fake_cli, content=b"cli-binary"),
+            ):
                 call_command("tailwind", "download_cli")
                 config = get_config()
                 assert config.cli_path.exists()
@@ -521,16 +490,10 @@ class TestConcurrencyErrorScenarios:
         settings.STATICFILES_DIRS = [tmp_path / "assets"]
         settings.TAILWIND_CLI_PATH = tmp_path / ".cli"
 
-        def mock_download(
-            url: str,
-            filepath: Path,
-            timeout: int = 30,
-            progress_callback: Callable[[int, int, float], None] | None = None,
-        ) -> None:
-            filepath.parent.mkdir(parents=True, exist_ok=True)
-            filepath.write_bytes(b"our-cli-binary")
-
-        with patch("django_tailwind_cli.utils.http.download_with_progress", side_effect=mock_download):
+        with patch(
+            "django_tailwind_cli.utils.http.download_with_progress",
+            side_effect=partial(write_fake_cli, content=b"our-cli-binary"),
+        ):
             # Should complete successfully
             call_command("tailwind", "download_cli")
 
@@ -561,16 +524,9 @@ class TestEdgeCaseScenarios:
         settings.STATICFILES_DIRS = [tmp_path / "assets"]
         settings.TAILWIND_CLI_PATH = tmp_path / ".cli"
 
-        def mock_download(
-            url: str,
-            filepath: Path,
-            timeout: int = 30,
-            progress_callback: Callable[[int, int, float], None] | None = None,
-        ) -> None:
-            filepath.parent.mkdir(parents=True, exist_ok=True)
-            filepath.write_bytes(b"")  # Empty content
-
-        with patch("django_tailwind_cli.utils.http.download_with_progress", side_effect=mock_download):
+        with patch(
+            "django_tailwind_cli.utils.http.download_with_progress", side_effect=partial(write_fake_cli, content=b"")
+        ):
             # Ensure directory exists before attempting download
             config = get_config()
             config.cli_path.parent.mkdir(parents=True, exist_ok=True)

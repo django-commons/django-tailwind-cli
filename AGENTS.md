@@ -79,6 +79,7 @@ nobody checked.
   fetches a real binary is a broken test.
 - **Opt out of the patched HTTP layer with `@pytest.mark.unpatched_http`**, as `tests/test_http.py`
   does. That is only for tests of `utils/http.py` itself.
+- Plain test helpers live in `tests/helpers.py` — `write_fake_cli` stands in for `download_with_progress` and is what every test that fakes a download uses. Do not write a local copy.
 - Shared fixtures belong in `tests/conftest.py`, which holds the network guard, the version-cache
   isolation, the version-lookup patch, and two opt-in fixtures: `bypass_autoreload` (run `tailwind
   watch` in-process instead of under Django's autoreloader) and `fake_project_settings` (a

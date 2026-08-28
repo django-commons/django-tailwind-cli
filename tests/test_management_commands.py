@@ -6,7 +6,6 @@ by implementing better mocking strategies, timeouts, and process management.
 # pyright: reportPrivateUsage=false
 
 from pathlib import Path
-from collections.abc import Callable
 from typing import Any
 from unittest.mock import Mock
 
@@ -26,19 +25,7 @@ from django_tailwind_cli.management.commands.tailwind import (
     DEFAULT_SOURCE_CSS,
     _create_standard_config_with_verbose,
 )
-
-
-def write_fake_cli(
-    url: str,
-    filepath: Path,
-    timeout: int = 30,
-    progress_callback: Callable[[int, int, float], None] | None = None,
-    *,
-    content: bytes = b"fake-cli-binary",
-) -> None:
-    """Stand-in for http.download_with_progress that just puts bytes at the target path."""
-    filepath.parent.mkdir(parents=True, exist_ok=True)
-    filepath.write_bytes(content)
+from tests.helpers import write_fake_cli
 
 
 class TestFastCommands:
@@ -56,16 +43,7 @@ class TestFastCommands:
         # Mock only what's necessary for fast tests
         mocker.patch("subprocess.run")
 
-        def mock_download(
-            url: str,
-            filepath: Path,
-            timeout: int = 30,
-            progress_callback: Callable[[int, int, float], None] | None = None,
-        ) -> None:
-            filepath.parent.mkdir(parents=True, exist_ok=True)
-            filepath.write_bytes(b"fake-cli-binary")
-
-        mocker.patch("django_tailwind_cli.utils.http.download_with_progress", side_effect=mock_download)
+        mocker.patch("django_tailwind_cli.utils.http.download_with_progress", side_effect=write_fake_cli)
 
     def test_calling_unknown_subcommand(self):
         """Test handling of unknown subcommands."""
@@ -199,16 +177,7 @@ class TestSubprocessCommands:
         self.mock_subprocess_run = mocker.patch("subprocess.run")
         self.mock_subprocess_popen = mocker.patch("subprocess.Popen")
 
-        def mock_download(
-            url: str,
-            filepath: Path,
-            timeout: int = 30,
-            progress_callback: Callable[[int, int, float], None] | None = None,
-        ) -> None:
-            filepath.parent.mkdir(parents=True, exist_ok=True)
-            filepath.write_bytes(b"fake-cli-binary")
-
-        mocker.patch("django_tailwind_cli.utils.http.download_with_progress", side_effect=mock_download)
+        mocker.patch("django_tailwind_cli.utils.http.download_with_progress", side_effect=write_fake_cli)
 
         # Configure Popen mock to return immediately
         mock_process = Mock()
@@ -309,16 +278,7 @@ class TestProcessManagementCommands:
         mocker.patch("subprocess.run")
         mocker.patch("subprocess.Popen")
 
-        def mock_download(
-            url: str,
-            filepath: Path,
-            timeout: int = 30,
-            progress_callback: Callable[[int, int, float], None] | None = None,
-        ) -> None:
-            filepath.parent.mkdir(parents=True, exist_ok=True)
-            filepath.write_bytes(b"fake-cli-binary")
-
-        mocker.patch("django_tailwind_cli.utils.http.download_with_progress", side_effect=mock_download)
+        mocker.patch("django_tailwind_cli.utils.http.download_with_progress", side_effect=write_fake_cli)
 
         # Mock the ProcessManager entirely to prevent real process creation
         self.mock_process_manager = mocker.patch("django_tailwind_cli.management.commands.tailwind.ProcessManager")
@@ -444,16 +404,7 @@ class TestTemplateScanning:
         # Mock subprocess to avoid CLI calls
         mocker.patch("subprocess.run")
 
-        def mock_download(
-            url: str,
-            filepath: Path,
-            timeout: int = 30,
-            progress_callback: Callable[[int, int, float], None] | None = None,
-        ) -> None:
-            filepath.parent.mkdir(parents=True, exist_ok=True)
-            filepath.write_bytes(b"fake-cli-binary")
-
-        mocker.patch("django_tailwind_cli.utils.http.download_with_progress", side_effect=mock_download)
+        mocker.patch("django_tailwind_cli.utils.http.download_with_progress", side_effect=write_fake_cli)
 
 
 class TestAutoSourceExternalApps:
@@ -684,16 +635,7 @@ class TestAutoSourceExternalApps:
             return_value=[editable_app],
         )
 
-        def mock_download(
-            url: str,
-            filepath: Path,
-            timeout: int = 30,
-            progress_callback: Callable[[int, int, float], None] | None = None,
-        ) -> None:
-            filepath.parent.mkdir(parents=True, exist_ok=True)
-            filepath.write_bytes(b"fake-cli-binary")
-
-        mocker.patch("django_tailwind_cli.utils.http.download_with_progress", side_effect=mock_download)
+        mocker.patch("django_tailwind_cli.utils.http.download_with_progress", side_effect=write_fake_cli)
 
         call_command("tailwind", "build")
 
