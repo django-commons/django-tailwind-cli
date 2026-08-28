@@ -37,6 +37,11 @@ run = "uv run pytest --cov --cov-report=html --cov-report=term"
 description = "Run full Python/Django matrix via tox"
 run = "uvx --with tox-uv --with tox-gh-actions tox"
 
+[tasks."build-docs"]
+description = "Build the docs, failing on any Sphinx warning"
+dir = "{{ config_root }}/docs"
+run = "uvx --with-requirements requirements.txt --from sphinx sphinx-build -b html -W --keep-going . _build/html"
+
 [tasks."serve-docs"]
 description = "Serve docs locally with sphinx-autobuild"
 dir = "{{ config_root }}/docs"

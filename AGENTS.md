@@ -40,6 +40,7 @@ src/django_tailwind_cli/
 
 - **Tailwind CSS 4.x only.** There is no config-file-based v3 path left; template discovery happens
   exclusively through `@source` directives in the source CSS.
+- **`mise run build-docs` fails on any Sphinx warning**, which is how a dead cross-reference or a moved `literalinclude` target gets caught — a plain build reports both as warnings and publishes regardless. `docs/conf.py` suppresses only `misc.highlighting_failure`, the class Pygments raises on Tailwind 4 at-rules.
 - **The README is a docs page.** `docs/index.md` includes it verbatim, so a README edit is a
   documentation edit and has to hold up in both places.
 - **Supported versions are asserted in three places** — `pyproject.toml` classifiers, `tox.ini`, and

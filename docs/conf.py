@@ -48,6 +48,12 @@ myst_enable_extensions = [
 # settings.md#tailwind_cli_... renders as a link to a fragment that does not exist.
 myst_heading_anchors = 3
 
+# Pygments has no lexer for Tailwind 4 at-rules (@source, @plugin, @apply), so every CSS block
+# using them warns and falls back to relaxed highlighting. Suppressed narrowly, so that the -W in
+# the docs build turns the warnings that matter — missing references, unresolvable includes — into
+# failures without losing CSS highlighting.
+suppress_warnings = ["misc.highlighting_failure"]
+
 # Allow .md files to be parsed
 source_suffix = {
     ".rst": "restructuredtext",

@@ -14,6 +14,7 @@
 - **A prefixed `STATICFILES_DIRS` entry may be a list**, not only a tuple. Django's own `FileSystemFinder` accepts both; `STATICFILES_DIRS[0]` in list form raised a `TypeError` before reaching any Tailwind code.
 
 ### 🛠️ Developer Experience
+- **CI builds the docs with warnings as errors**: Sphinx reports a missing reference or an unresolvable include as a warning and publishes anyway, so a plain build would pass on exactly the failures worth catching. `mise run build-docs` runs the same check locally.
 - **One download stub for the whole suite**: `tests/helpers.py` holds `write_fake_cli`, replacing 29 copies of the same fixture across four test modules. Net −290 lines.
 - **Coverage has a floor**: the suite fails below 90%, and branch coverage is on, so both sides of a condition count. A `coverage` job in CI enforces it — the tox matrix runs pytest without `--cov`, so the floor would otherwise have been a local convention.
 - **TestPyPI is a gate for the PyPI release again**: `publish-to-pypi` waits for `publish-to-testpypi` instead of running beside it, so a broken artifact fails somewhere reversible first. The TestPyPI step already sets `skip-existing`, so a re-run does not block on an already-published version.

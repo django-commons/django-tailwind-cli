@@ -143,6 +143,39 @@ jobs:
       - name: Run the suite with coverage
         run: mise run test
 
+  docs:
+    name: Docs
+    runs-on: ubuntu-latest
+
+    # Sphinx reports a missing reference or an unresolvable include as a warning and publishes
+    # anyway, so a plain build would pass on exactly the failures worth catching. -W is the point
+    # of this job; conf.py suppresses the one warning class Pygments cannot help with.
+    env:
+      MISE_PYTHON_VERSION: "3.13"
+      MISE_DISABLE_TOOLS: pre-commit
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up mise
+        uses: jdx/mise-action@3c2e0cf82a5b2e5249f0d3635a4d83d0ae861518 # v4.2.5
+        with:
+          install: true
+          cache: true
+          cache_key: "docs-{{default}}-{{env.MISE_PYTHON_VERSION}}"
+
+      - name: Cache uv downloads
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/uv
+          key: uv-${{ runner.os }}-docs-${{ hashFiles('docs/requirements.txt') }}
+          restore-keys: uv-${{ runner.os }}-docs-
+
+      - name: Build the docs
+        run: mise run build-docs
+
   zizmor:
     name: Audit workflows (zizmor)
     runs-on: ubuntu-latest
