@@ -6,6 +6,7 @@
 - **A source CSS inside `STATICFILES_DIRS` is reported by the system check `django_tailwind_cli.W001`** instead of failing on deploy. Such a file is collected by `collectstatic`, and a manifest storage backend then cannot resolve the `@import "tailwindcss";` it contains. It stays a warning, not an error — without a manifest backend the file is merely published alongside the build output — and `SILENCED_SYSTEM_CHECKS` turns it off.
 
 ### 🐛 Bug Fixes
+- **`TAILWIND_CLI_SRC_CSS` expands a leading `~`**, as `TAILWIND_CLI_PATH` already did. It used to become a directory named `~` below `BASE_DIR`. `TAILWIND_CLI_CSS_MAP` sources go through the same resolution now.
 - **A prefixed `STATICFILES_DIRS` entry may be a list**, not only a tuple. Django's own `FileSystemFinder` accepts both; `STATICFILES_DIRS[0]` in list form raised a `TypeError` before reaching any Tailwind code.
 
 ### 🛠️ Developer Experience

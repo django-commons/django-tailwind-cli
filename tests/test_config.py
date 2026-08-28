@@ -827,3 +827,24 @@ def test_list_form_staticfiles_dirs_entry_is_unpacked(settings: Settings):
     config = get_config()
 
     assert config.dist_css == Path("/home/user/project/assets/css/tailwind.css")
+
+
+# Tilde expansion -----------------------------------------------------------------------------------
+
+
+def test_src_css_expands_a_leading_tilde(settings: Settings):
+    """A tilde is a home directory, not a directory named '~' below BASE_DIR."""
+    settings.TAILWIND_CLI_SRC_CSS = "~/styles/main.css"
+
+    config = get_config()
+
+    assert config.src_css == Path.home() / "styles/main.css"
+
+
+def test_css_map_source_expands_a_leading_tilde(settings: Settings):
+    """Multi-file mode resolves its sources the same way as single-file mode."""
+    settings.TAILWIND_CLI_CSS_MAP = [("~/styles/admin.css", "admin.output.css")]
+
+    config = get_config()
+
+    assert config.css_entries[0].src_css == Path.home() / "styles/admin.css"

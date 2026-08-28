@@ -609,6 +609,18 @@ def _get_staticfile_path() -> str:
     return str(_staticfiles_dir_path(settings.STATICFILES_DIRS[0]))
 
 
+def _resolve_src_css(src: str | Path) -> Path:
+    """Resolve a configured source CSS path.
+
+    A leading ``~`` is a home directory, as it already is for ``TAILWIND_CLI_PATH``. Everything
+    still relative afterwards is resolved against ``BASE_DIR``.
+    """
+    src_path = Path(src).expanduser()
+    if not src_path.is_absolute():
+        src_path = Path(settings.BASE_DIR) / src_path
+    return src_path
+
+
 def _resolve_css_paths() -> tuple[list[CSSEntry], bool]:
     """Resolve CSS input and output paths.
 
@@ -631,9 +643,7 @@ def _resolve_css_paths() -> tuple[list[CSSEntry], bool]:
         css_map: list[tuple[str, str]] = css_map_raw
         entries: list[CSSEntry] = []
         for src, dist in css_map:
-            src_path = Path(src)
-            if not src_path.is_absolute():
-                src_path = Path(settings.BASE_DIR) / src_path
+            src_path = _resolve_src_css(src)
 
             dist_path = Path(staticfile_path) / dist
 
@@ -669,9 +679,7 @@ def _resolve_css_paths() -> tuple[list[CSSEntry], bool]:
     else:
         overwrite_default_config = False
 
-    src_css = Path(src_css)
-    if not src_css.is_absolute():
-        src_css = Path(settings.BASE_DIR) / src_css
+    src_css = _resolve_src_css(src_css)
 
     # Create single entry with default name
     entry = CSSEntry(
