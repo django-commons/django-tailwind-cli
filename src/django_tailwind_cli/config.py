@@ -152,6 +152,10 @@ class Config:
     use_daisy_ui: bool = False
     uses_system_binary: bool = False
     auto_source_external_apps: bool = False
+    # False when the binary is not ours: a system binary from PATH, or a file the user placed at
+    # TAILWIND_CLI_PATH. Such a binary carries no version in its name, so the only way to notice a
+    # TAILWIND_CLI_VERSION bump is to ask the binary itself.
+    manages_cli_binary: bool = True
 
     # Backward compatibility properties
     @property
@@ -548,7 +552,7 @@ def _get_system_binary_name(*, use_daisy_ui: bool) -> str:
     return "tailwindcss-extra" if use_daisy_ui else "tailwindcss"
 
 
-def _resolve_cli_path(platform_info: PlatformInfo, version_str: str, asset_name: str) -> Path:
+def _resolve_cli_path(platform_info: PlatformInfo, version_str: str, asset_name: str) -> tuple[Path, bool]:
     """Resolve the CLI executable path.
 
     Args:
@@ -557,7 +561,7 @@ def _resolve_cli_path(platform_info: PlatformInfo, version_str: str, asset_name:
         asset_name: Asset name for the CLI.
 
     Returns:
-        Path: Resolved path to the CLI executable.
+        tuple: The resolved path, and whether this library manages the file behind it.
     """
     cli_path = getattr(settings, "TAILWIND_CLI_PATH", None)
     if not cli_path:
@@ -568,12 +572,12 @@ def _resolve_cli_path(platform_info: PlatformInfo, version_str: str, asset_name:
         cli_path = Path(settings.BASE_DIR) / cli_path
 
     if cli_path.exists() and cli_path.is_file() and os.access(cli_path, os.X_OK):
-        return cli_path.expanduser().resolve()
-    else:
-        return (
-            cli_path.expanduser()
-            / f"{asset_name}-{platform_info.system}-{platform_info.machine}-{version_str}{platform_info.extension}"
-        )
+        # The user put an executable at this exact path; we use it as it is.
+        return cli_path.expanduser().resolve(), False
+    return (
+        cli_path.expanduser()
+        / f"{asset_name}-{platform_info.system}-{platform_info.machine}-{version_str}{platform_info.extension}"
+    ), True
 
 
 def _absolute(path: Path) -> Path:
@@ -756,9 +760,11 @@ def get_config() -> Config:
         cli_path = _resolve_system_binary(binary_name)
         # System binary mode implies auto-download is off — we never downloaded it.
         automatic_download = False
-        maybe_warn_version_mismatch(cli_path, version_str)
+        # The version comparison runs a subprocess, so it belongs on the command path, not here:
+        # get_config() is uncached and the template tag calls it on every render.
+        manages_cli_binary = False
     else:
-        cli_path = _resolve_cli_path(platform_info, version_str, asset_name)
+        cli_path, manages_cli_binary = _resolve_cli_path(platform_info, version_str, asset_name)
 
     css_entries, overwrite_default_config = _resolve_css_paths()
 
@@ -779,6 +785,7 @@ def get_config() -> Config:
         use_daisy_ui=use_daisy_ui,
         uses_system_binary=uses_system_binary,
         auto_source_external_apps=auto_source_external_apps,
+        manages_cli_binary=manages_cli_binary,
     )
 
 

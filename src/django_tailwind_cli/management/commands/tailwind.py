@@ -25,7 +25,7 @@ from django.conf import settings
 from django.core.management.base import CommandError
 from django_typer.management import Typer
 
-from django_tailwind_cli.config import Config, get_config, maybe_warn_version_mismatch
+from django_tailwind_cli.config import Config, detect_binary_version, get_config, maybe_warn_version_mismatch
 
 app = Typer(  # pyright: ignore[reportUnknownVariableType]
     name="tailwind",
@@ -1483,30 +1483,14 @@ def _should_recreate_file(file_path: Path, content: str) -> bool:
     return False
 
 
-def _is_cli_up_to_date(cli_path: Path, expected_version: str) -> bool:
-    """Check whether the CLI binary is present, executable, and the expected version.
+def _is_cli_usable(cli_path: Path) -> bool:
+    """Return True if the CLI binary is present and executable.
 
-    For a managed download the version is part of the filename, so a version bump lands on a path
-    that does not exist yet and this never has to look inside the binary. The exception is a
-    ``TAILWIND_CLI_PATH`` pointing straight at an executable: that file is the user's, its name
-    says nothing about its version, and replacing it is not ours to do — so a mismatch warns and
-    the binary is used as it is.
-
-    Args:
-        cli_path: Path to the CLI binary.
-        expected_version: Version string as resolved by get_version().
-
-    Returns:
-        True if the CLI can be used as it is.
+    The version is not consulted here. For a managed download it is part of the filename, so a
+    version bump lands on a path that does not exist yet; for a binary the user supplied,
+    ``_download_cli_with_verbose`` warns about a mismatch before reaching this point.
     """
-    if not cli_path.exists():
-        return False
-
-    if not os.access(cli_path, os.X_OK):
-        return False
-
-    maybe_warn_version_mismatch(cli_path, expected_version)
-    return True
+    return cli_path.exists() and os.access(cli_path, os.X_OK)
 
 
 # UTILITY FUNCTIONS -------------------------------------------------------------------------------
@@ -1527,6 +1511,13 @@ def _download_cli_with_verbose(*, verbose: bool = False, force_download: bool = 
         typer.secho(f"   • Version: {c.version_str}", fg=typer.colors.BLUE)
         typer.secho(f"   • Download URL: {c.download_url}", fg=typer.colors.BLUE)
         typer.secho(f"   • Automatic download: {c.automatic_download}", fg=typer.colors.BLUE)
+
+    # A binary that is not ours — a system binary, or a file placed at TAILWIND_CLI_PATH — carries
+    # no version in its name, so the only way to notice a TAILWIND_CLI_VERSION bump is to ask the
+    # binary. A managed download does carry it, and asking would mean a subprocess on every build
+    # plus a false alarm for forks whose release tags differ from the Tailwind version they bundle.
+    if not force_download and not c.manages_cli_binary:
+        maybe_warn_version_mismatch(c.cli_path, c.version_str)
 
     # System-binary mode: the CLI lives on PATH, never download it.
     if c.uses_system_binary:
@@ -1550,7 +1541,7 @@ def _download_cli_with_verbose(*, verbose: bool = False, force_download: bool = 
         return
 
     # Use optimized CLI check for existing installations
-    if not force_download and _is_cli_up_to_date(c.cli_path, c.version_str):
+    if not force_download and _is_cli_usable(c.cli_path):
         if verbose:
             typer.secho("✅ CLI is up-to-date and functional", fg=typer.colors.GREEN)
         typer.secho(
@@ -1562,7 +1553,20 @@ def _download_cli_with_verbose(*, verbose: bool = False, force_download: bool = 
     if verbose:
         typer.secho("📥 Starting CLI download...", fg=typer.colors.CYAN)
 
-    typer.secho("Tailwind CSS CLI not found.", fg=typer.colors.RED)
+    if not c.manages_cli_binary and c.cli_path.exists():
+        typer.secho(
+            f"⚠️  Replacing '{c.cli_path}', which was not downloaded by django-tailwind-cli.",
+            fg=typer.colors.YELLOW,
+            bold=True,
+        )
+        typer.secho(
+            "   TAILWIND_CLI_PATH points straight at this file, so the download overwrites it.\n"
+            "   Point TAILWIND_CLI_PATH at a directory to keep your own build alongside.",
+            fg=typer.colors.YELLOW,
+        )
+    else:
+        typer.secho("Tailwind CSS CLI not found.", fg=typer.colors.RED)
+
     typer.secho(f"Downloading Tailwind CSS CLI from '{c.download_url}'.", fg=typer.colors.YELLOW)
 
     # Download with progress indication
@@ -1570,6 +1574,10 @@ def _download_cli_with_verbose(*, verbose: bool = False, force_download: bool = 
 
     # Make CLI executable
     c.cli_path.chmod(0o755)
+
+    # detect_binary_version is cached per path for the life of the process; the file behind that
+    # path just changed, so the cached reading is now wrong.
+    detect_binary_version.cache_clear()
 
     if verbose:
         import stat

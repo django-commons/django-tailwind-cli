@@ -629,75 +629,20 @@ def test_system_binary_empty_name_raises(settings: Settings):
         get_config()
 
 
-def test_system_binary_version_match_no_warning(
-    settings: Settings, mocker: MockerFixture, recwarn: pytest.WarningsRecorder
-):
-    """When system binary version matches TAILWIND_CLI_VERSION, no warning is emitted."""
-    from semver import Version
+def test_get_config_never_reads_the_binary_version(settings: Settings, mocker: MockerFixture):
+    """The template tag calls get_config() on every render — no subprocess may hide in there.
 
+    The version comparison for a binary this library did not download lives on the command path;
+    see the system-binary tests in test_management_commands.py.
+    """
     settings.TAILWIND_CLI_VERSION = "4.1.3"
     settings.TAILWIND_CLI_USE_SYSTEM_BINARY = True
     mocker.patch("shutil.which", return_value="/opt/homebrew/bin/tailwindcss")
-    mocker.patch(
-        "django_tailwind_cli.config.detect_binary_version",
-        return_value=Version.parse("4.1.3"),
-    )
+    detect = mocker.patch("django_tailwind_cli.config.detect_binary_version")
 
     get_config()
 
-    assert len(recwarn) == 0
-
-
-def test_system_binary_version_mismatch_warns(settings: Settings, mocker: MockerFixture):
-    """Version mismatch with explicit TAILWIND_CLI_VERSION emits a warning."""
-    from semver import Version
-
-    settings.TAILWIND_CLI_VERSION = "4.1.3"
-    settings.TAILWIND_CLI_USE_SYSTEM_BINARY = True
-    mocker.patch("shutil.which", return_value="/opt/homebrew/bin/tailwindcss")
-    mocker.patch(
-        "django_tailwind_cli.config.detect_binary_version",
-        return_value=Version.parse("4.2.0"),
-    )
-
-    with pytest.warns(UserWarning, match="4.1.3.*4.2.0"):
-        get_config()
-
-
-def test_system_binary_version_mismatch_with_latest_no_warning(
-    settings: Settings, mocker: MockerFixture, recwarn: pytest.WarningsRecorder
-):
-    """When TAILWIND_CLI_VERSION is 'latest', version mismatch does not warn."""
-    from semver import Version
-
-    settings.TAILWIND_CLI_VERSION = "latest"
-    settings.TAILWIND_CLI_USE_SYSTEM_BINARY = True
-    mocker.patch("shutil.which", return_value="/opt/homebrew/bin/tailwindcss")
-    mocker.patch(
-        "django_tailwind_cli.config.detect_binary_version",
-        return_value=Version.parse("4.2.0"),
-    )
-
-    get_config()
-
-    # Filter out unrelated warnings (e.g. deprecation warnings from deps)
-    user_warnings = [w for w in recwarn.list if issubclass(w.category, UserWarning)]
-    assert len(user_warnings) == 0
-
-
-def test_system_binary_version_detection_failure_no_warning(
-    settings: Settings, mocker: MockerFixture, recwarn: pytest.WarningsRecorder
-):
-    """If version detection fails (subprocess error), no warning is emitted."""
-    settings.TAILWIND_CLI_VERSION = "4.1.3"
-    settings.TAILWIND_CLI_USE_SYSTEM_BINARY = True
-    mocker.patch("shutil.which", return_value="/opt/homebrew/bin/tailwindcss")
-    mocker.patch("django_tailwind_cli.config.detect_binary_version", return_value=None)
-
-    get_config()
-
-    user_warnings = [w for w in recwarn.list if issubclass(w.category, UserWarning)]
-    assert len(user_warnings) == 0
+    detect.assert_not_called()
 
 
 # detect_binary_version helper --------------------------------------------------------------------
@@ -709,9 +654,6 @@ def test_detect_binary_version_parses_help_output(mocker: MockerFixture, tmp_pat
 
     binary = tmp_path / "tailwindcss"
     binary.touch()
-
-    # Clear lru_cache so previous tests don't leak
-    detect_binary_version.cache_clear()
 
     mock_run = mocker.patch("subprocess.run")
     mock_run.return_value = mocker.Mock(
@@ -738,8 +680,6 @@ def test_detect_binary_version_handles_subprocess_failure(mocker: MockerFixture,
     binary = tmp_path / "tailwindcss-fail"
     binary.touch()
 
-    detect_binary_version.cache_clear()
-
     mocker.patch(
         "subprocess.run",
         side_effect=subprocess.SubprocessError("boom"),
@@ -757,8 +697,6 @@ def test_detect_binary_version_handles_timeout(mocker: MockerFixture, tmp_path: 
     binary = tmp_path / "tailwindcss-timeout"
     binary.touch()
 
-    detect_binary_version.cache_clear()
-
     mocker.patch(
         "subprocess.run",
         side_effect=subprocess.TimeoutExpired(cmd="tailwindcss", timeout=5),
@@ -773,8 +711,6 @@ def test_detect_binary_version_handles_unparseable_output(mocker: MockerFixture,
 
     binary = tmp_path / "tailwindcss-weird"
     binary.touch()
-
-    detect_binary_version.cache_clear()
 
     mock_run = mocker.patch("subprocess.run")
     mock_run.return_value = mocker.Mock(
@@ -793,8 +729,6 @@ def test_detect_binary_version_handles_nonzero_exit(mocker: MockerFixture, tmp_p
     binary = tmp_path / "tailwindcss-crash"
     binary.touch()
 
-    detect_binary_version.cache_clear()
-
     mock_run = mocker.patch("subprocess.run")
     mock_run.return_value = mocker.Mock(returncode=1, stdout="", stderr="crash")
 
@@ -807,8 +741,6 @@ def test_detect_binary_version_handles_semver_parse_failure(mocker: MockerFixtur
 
     binary = tmp_path / "tailwindcss-badparse"
     binary.touch()
-
-    detect_binary_version.cache_clear()
 
     mock_run = mocker.patch("subprocess.run")
     mock_run.return_value = mocker.Mock(

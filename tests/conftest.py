@@ -56,6 +56,21 @@ def version_cache_path(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
 
 
 @pytest.fixture(autouse=True)
+def reset_binary_version_cache() -> Iterator[None]:
+    """Keep the per-path binary version cache from leaking between tests.
+
+    ``detect_binary_version`` is a process-global ``functools.cache``. Tests that reuse a path —
+    anything built on ``fake_project_settings`` — would otherwise read the previous test's answer,
+    which makes failures depend on execution order.
+    """
+    from django_tailwind_cli.config import detect_binary_version
+
+    detect_binary_version.cache_clear()
+    yield
+    detect_binary_version.cache_clear()
+
+
+@pytest.fixture(autouse=True)
 def patch_version_lookup(request: pytest.FixtureRequest, mocker: MockerFixture) -> None:
     """Answer the "what is the latest release" lookup without a network call.
 
