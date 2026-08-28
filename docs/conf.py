@@ -44,6 +44,10 @@ myst_enable_extensions = [
     "substitution",
 ]
 
+# Generate anchors for headings up to level 3. Without this, every cross-reference of the form
+# settings.md#tailwind_cli_... renders as a link to a fragment that does not exist.
+myst_heading_anchors = 3
+
 # Allow .md files to be parsed
 source_suffix = {
     ".rst": "restructuredtext",

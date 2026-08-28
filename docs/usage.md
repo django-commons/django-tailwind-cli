@@ -16,13 +16,15 @@
 :class: tip
 
 **No, and you don't have to do anything.** On first use the library writes a `.gitignore` containing `*` into the managed directory, so the downloaded CLI binary and the auto-generated `source.css` are silently ignored by Git — no entry in your project-level `.gitignore` needed.
+
+The compiled stylesheet is a different matter. It is written into your static files directory, which the library does not manage, so add it yourself — `assets/css/tailwind.css` for the default configuration.
 :::
 
 ## Management commands
 
 ### build
 
-Run `python manage.py tailwind build` to create an optimized production build of the stylesheet. Afterwards you are ready to deploy. Make sure this command runs before `python manage.py collectstatic` in your build process.
+Run `python manage.py tailwind build` to create an optimized production build of the stylesheet. Afterwards you are ready to deploy. Make sure this command runs before `python manage.py collectstatic` in your build process — with a manifest storage backend, the wrong order [fails at render time rather than at build time](whitenoise.md#build-the-css-before-collectstatic).
 
 ### watch
 
@@ -140,6 +142,4 @@ tailwind-sidecar:
 
 ## Use with WhiteNoise
 
-If you are using [WhiteNoise](https://whitenoise.readthedocs.io/en/latest/) to serve your static assets, you must not put your custom Tailwind configuration file inside any of the directories for static files. WhiteNoise stumbles across the `@import "tailwindcss";` statement, because it can't resolve it.
-
-If you want to use a custom configuration for Tailwind CSS, put it somewhere else in the project.
+[WhiteNoise](https://whitenoise.readthedocs.io/) works with the defaults of this library and needs no extra configuration. See [Use with WhiteNoise](whitenoise.md) for a sample configuration and the traps around `collectstatic`.
