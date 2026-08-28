@@ -4,6 +4,7 @@
 
 ### 🎯 New Features
 - **A source CSS inside `STATICFILES_DIRS` is reported by the system check `django_tailwind_cli.W001`** instead of failing on deploy. Such a file is collected by `collectstatic`, and a manifest storage backend then cannot resolve the `@import "tailwindcss";` it contains. It stays a warning, not an error — without a manifest backend the file is merely published alongside the build output — and `SILENCED_SYSTEM_CHECKS` turns it off.
+- **Hand edits to the managed `source.css` no longer vanish silently**: the command says what it is about to replace, keeps your version as `source.css.bak`, and points at `TAILWIND_CLI_SRC_CSS` as the way to own the file. Toggling DaisyUI or a changed set of auto-`@source`d apps does not trip it — only content this library could not have written does.
 
 ### 🐛 Bug Fixes
 - **`TAILWIND_CLI_SRC_CSS` expands a leading `~`**, as `TAILWIND_CLI_PATH` already did. It used to become a directory named `~` below `BASE_DIR`. `TAILWIND_CLI_CSS_MAP` sources go through the same resolution now.

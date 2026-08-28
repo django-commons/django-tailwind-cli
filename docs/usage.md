@@ -10,6 +10,8 @@
 :class: tip
 
 **No.** The management commands also take care of this step. If no source CSS file is present yet, one with sane defaults is created at `<BASE_DIR>/.django_tailwind_cli/source.css`. You can point at a hand-written file instead by setting [`TAILWIND_CLI_SRC_CSS`](settings.md#tailwind_cli_src_css) in your Django settings — the library leaves your file alone in that case.
+
+The generated file is **managed**: every build regenerates it, so edits you make there are replaced. The command says so before it overwrites them and keeps your version as `source.css.bak` next to it. Custom CSS belongs in a file of your own, pointed at by `TAILWIND_CLI_SRC_CSS`.
 :::
 
 :::{admonition} Is `.django_tailwind_cli/` safe to commit?

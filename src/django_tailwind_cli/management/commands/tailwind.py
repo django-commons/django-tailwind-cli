@@ -1596,6 +1596,7 @@ def _download_cli_with_verbose(*, verbose: bool = False, force_download: bool = 
 
 DEFAULT_SOURCE_CSS = '@import "tailwindcss";\n'
 DAISY_UI_SOURCE_CSS = '@import "tailwindcss";\n@plugin "daisyui";\n'
+AUTO_SOURCE_COMMENT = "/* Auto-generated: installed apps outside BASE_DIR and site-packages. */"
 
 
 def _get_site_packages_paths() -> list[Path]:
@@ -1664,11 +1665,58 @@ def _build_source_css_content(*, use_daisy_ui: bool, inject_external_apps: bool)
         external = _discover_external_app_base_dirs()
         if external:
             lines.append("")
-            lines.append("/* Auto-generated: installed apps outside BASE_DIR and site-packages. */")
+            lines.append(AUTO_SOURCE_COMMENT)
             for app_path in external:
                 lines.append(f'@source "{app_path}";')
 
     return "\n".join(lines) + "\n"
+
+
+_GENERATED_LINE_PATTERNS = (
+    r"\s*",  # blank lines
+    r'@import\s+"tailwindcss";',
+    r'@plugin\s+"daisyui";',
+    r'@source\s+"[^"]*";',
+    re.escape(AUTO_SOURCE_COMMENT),
+)
+_GENERATED_LINE = re.compile("^(?:" + "|".join(_GENERATED_LINE_PATTERNS) + ")$")
+
+
+def _looks_auto_generated(content: str) -> bool:
+    """Return True if every line of ``content`` is one this library writes itself.
+
+    Comparing against the *currently* generated content would be wrong: it changes when DaisyUI is
+    toggled or when the set of external apps changes, and neither means the user edited the file.
+    Checking the vocabulary instead only asks "could we have written this?".
+    """
+    return all(_GENERATED_LINE.match(line) for line in content.splitlines())
+
+
+def _preserve_hand_edits(src_css: Path) -> None:
+    """Copy the hand-edited source CSS aside and say where it went.
+
+    The managed file is regenerated on every build, so the edits are going to be lost either way.
+    Keeping a copy makes that recoverable instead of merely announced. The backup lives in the
+    managed directory, which carries its own ``.gitignore``.
+    """
+    backup = src_css.with_suffix(".css.bak")
+    backup.write_text(src_css.read_text())
+
+    typer.secho(
+        f"⚠️  '{src_css}' has hand edits that are about to be replaced.",
+        fg=typer.colors.YELLOW,
+        bold=True,
+    )
+    typer.secho(
+        "   This file is managed by django-tailwind-cli and regenerated on every build.",
+        fg=typer.colors.YELLOW,
+    )
+    typer.secho(f"   Your version has been copied to '{backup}'.", fg=typer.colors.YELLOW)
+    typer.secho(
+        "   To own it yourself, point TAILWIND_CLI_SRC_CSS at a file of your own — the library\n"
+        "   never overwrites that one.",
+        fg=typer.colors.YELLOW,
+    )
 
 
 def _create_standard_config_with_verbose(*, verbose: bool = False) -> None:
@@ -1714,6 +1762,9 @@ def _create_standard_config_with_verbose(*, verbose: bool = False) -> None:
             typer.secho(f"🔍 File check (custom config): {existing_msg}", fg=typer.colors.BLUE)
 
     if should_create:
+        if c.overwrite_default_config and c.src_css.exists() and not _looks_auto_generated(c.src_css.read_text()):
+            _preserve_hand_edits(c.src_css)
+
         if verbose:
             typer.secho("📝 Creating/updating source CSS file...", fg=typer.colors.CYAN)
 

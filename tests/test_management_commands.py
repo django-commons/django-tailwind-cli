@@ -17,7 +17,11 @@ from pytest import CaptureFixture
 from pytest_mock import MockerFixture
 
 from django_tailwind_cli.config import get_config
-from django_tailwind_cli.management.commands.tailwind import DAISY_UI_SOURCE_CSS, DEFAULT_SOURCE_CSS
+from django_tailwind_cli.management.commands.tailwind import (
+    DAISY_UI_SOURCE_CSS,
+    DEFAULT_SOURCE_CSS,
+    _create_standard_config_with_verbose,
+)
 
 
 class TestFastCommands:
@@ -734,3 +738,90 @@ pytestmark = [
     pytest.mark.filterwarnings("ignore::DeprecationWarning"),
     pytest.mark.filterwarnings("ignore::PendingDeprecationWarning"),
 ]
+
+
+class TestSourceCssOverwriteWarning:
+    """The managed source.css is overwritten; hand edits should not vanish silently."""
+
+    @pytest.fixture(autouse=True)
+    def _managed_source_css(self, settings: LazySettings, tmp_path: Path, mocker: MockerFixture):
+        settings.BASE_DIR = tmp_path
+        settings.STATICFILES_DIRS = (tmp_path / "assets",)
+        settings.TAILWIND_CLI_PATH = tmp_path / "tailwindcss"
+        settings.TAILWIND_CLI_VERSION = "4.0.0"
+        for name in ("TAILWIND_CLI_SRC_CSS", "TAILWIND_CLI_CSS_MAP"):
+            if hasattr(settings, name):
+                delattr(settings, name)
+        mocker.patch("subprocess.run")
+
+    def _src_css(self, tmp_path: Path) -> Path:
+        return tmp_path / ".django_tailwind_cli" / "source.css"
+
+    def _write(self, tmp_path: Path, content: str) -> Path:
+        path = self._src_css(tmp_path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content)
+        return path
+
+    def test_hand_edited_source_css_warns_before_it_is_replaced(self, tmp_path: Path, capsys: CaptureFixture[str]):
+        self._write(tmp_path, '@import "tailwindcss";\n\n@layer base {\n  html { font-size: 20px; }\n}\n')
+
+        _create_standard_config_with_verbose()
+        captured = capsys.readouterr()
+
+        assert "hand edits" in captured.out.lower() or "edited" in captured.out.lower()
+        assert "TAILWIND_CLI_SRC_CSS" in captured.out
+
+    def test_hand_edits_are_kept_in_a_backup_beside_the_file(self, tmp_path: Path, capsys: CaptureFixture[str]):
+        edited = '@import "tailwindcss";\n\n@theme {\n  --color-brand: #ff6600;\n}\n'
+        self._write(tmp_path, edited)
+
+        _create_standard_config_with_verbose()
+        captured = capsys.readouterr()
+
+        backup = self._src_css(tmp_path).with_suffix(".css.bak")
+        assert backup.read_text() == edited
+        assert str(backup) in captured.out
+
+    def test_no_backup_is_left_behind_for_untouched_content(self, settings: LazySettings, tmp_path: Path):
+        """Enabling DaisyUI rewrites the file — nothing was edited, so nothing needs keeping."""
+        self._write(tmp_path, DEFAULT_SOURCE_CSS)
+        settings.TAILWIND_CLI_USE_DAISY_UI = True
+
+        _create_standard_config_with_verbose()
+
+        assert self._src_css(tmp_path).read_text() == DAISY_UI_SOURCE_CSS
+        assert not self._src_css(tmp_path).with_suffix(".css.bak").exists()
+
+    def test_untouched_default_is_replaced_without_a_warning(
+        self, settings: LazySettings, tmp_path: Path, capsys: CaptureFixture[str]
+    ):
+        """Switching DaisyUI on rewrites the file, but nothing was lost."""
+        self._write(tmp_path, DEFAULT_SOURCE_CSS)
+        settings.TAILWIND_CLI_USE_DAISY_UI = True
+
+        _create_standard_config_with_verbose()
+        captured = capsys.readouterr()
+
+        assert "TAILWIND_CLI_SRC_CSS" not in captured.out
+        assert self._src_css(tmp_path).read_text() == DAISY_UI_SOURCE_CSS
+
+    def test_generated_source_directives_are_not_mistaken_for_edits(self, tmp_path: Path, capsys: CaptureFixture[str]):
+        """A file carrying an auto-generated @source block is still ours, even for other apps."""
+        self._write(
+            tmp_path,
+            '@import "tailwindcss";\n\n'
+            "/* Auto-generated: installed apps outside BASE_DIR and site-packages. */\n"
+            '@source "/somewhere/an_app_that_is_gone";\n',
+        )
+
+        _create_standard_config_with_verbose()
+        captured = capsys.readouterr()
+
+        assert "TAILWIND_CLI_SRC_CSS" not in captured.out
+
+    def test_missing_file_does_not_warn(self, capsys: CaptureFixture[str]):
+        _create_standard_config_with_verbose()
+        captured = capsys.readouterr()
+
+        assert "TAILWIND_CLI_SRC_CSS" not in captured.out

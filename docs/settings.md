@@ -145,7 +145,7 @@ TAILWIND_CLI_ASSET_NAME = "tailwindcss-extra"
 
 **Default**: `".django_tailwind_cli/source.css"` (relative to `BASE_DIR`, auto-created on first use)
 
-Path to the Tailwind CSS input file. The library manages the default file itself — it writes a minimal `@import "tailwindcss";` (plus `@plugin "daisyui";` if DaisyUI is enabled) into `<BASE_DIR>/.django_tailwind_cli/source.css` on first run and updates it when the auto-generated content drifts.
+Path to the Tailwind CSS input file. The library manages the default file itself — it writes a minimal `@import "tailwindcss";` (plus `@plugin "daisyui";` if DaisyUI is enabled) into `<BASE_DIR>/.django_tailwind_cli/source.css` on first run and updates it when the auto-generated content drifts. Anything else you write into that file is replaced on the next build; the command warns first and keeps your version as `source.css.bak`.
 
 Set this to point at a hand-written file if you need custom CSS alongside the Tailwind import. When `TAILWIND_CLI_SRC_CSS` is set, the library only creates the file if it doesn't yet exist and never overwrites it afterwards — you own it. A leading `~` expands to your home directory, a relative path is resolved against `settings.BASE_DIR`, and an absolute path is used as-is.
 
