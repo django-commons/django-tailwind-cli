@@ -44,6 +44,8 @@ python manage.py tailwind watch --noreload
 
 Run `python manage.py tailwind runserver` to start the Django debug server in parallel to a tailwind watcher process. If `django-extensions` plus `werkzeug` are installed, `runserver_plus` is used automatically; otherwise the vanilla `runserver` command runs.
 
+Both halves are started as `python manage.py …` from `BASE_DIR`, so this command needs a `manage.py` there and refuses to start without one. Projects that keep it elsewhere run the two halves separately: `tailwind watch` in one terminal, `manage.py runserver` in another.
+
 This command is a transparent passthrough wrapper: **every** positional argument and option other than the tailwind-specific `--force-default-runserver` is forwarded verbatim to the underlying server command. That includes flags the wrapper itself does not know about (e.g. `runserver_plus`'s `--extra-file`, `--reloader-interval`, `--browser`, `--exclude-pattern`, …).
 
 For the exhaustive list of forwarded flags, run:

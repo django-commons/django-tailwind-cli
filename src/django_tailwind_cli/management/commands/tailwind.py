@@ -1078,6 +1078,19 @@ def runserver(
         python manage.py runserver --help
         python manage.py runserver_plus --help   (with django-extensions)
     """
+    # Both commands below are `python manage.py ...` run from BASE_DIR. Without that file the
+    # subprocesses start, fail, and report a returncode — after this command has already claimed
+    # to have started them. Say it up front instead.
+    manage_py = Path(settings.BASE_DIR) / "manage.py"
+    if not manage_py.exists():
+        raise CommandError(
+            f"No manage.py at '{manage_py}'. `tailwind runserver` runs Django's runserver as a "
+            "subprocess from BASE_DIR and needs it there.\n"
+            "If your project keeps manage.py elsewhere, run the two halves separately instead:\n"
+            "  python manage.py tailwind watch\n"
+            "  python manage.py runserver"
+        )
+
     use_plus = (
         importlib.util.find_spec("django_extensions")
         and importlib.util.find_spec("werkzeug")

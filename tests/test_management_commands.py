@@ -285,6 +285,8 @@ class TestProcessManagementCommands:
         settings.TAILWIND_CLI_PATH = tmp_path / "tailwindcss"
         settings.TAILWIND_CLI_VERSION = "4.0.0"
         settings.STATICFILES_DIRS = (tmp_path / "assets",)
+        # runserver shells out to `python manage.py ...` and checks for it first.
+        (tmp_path / "manage.py").touch()
 
         # Mock ALL process-related functionality
         mocker.patch("subprocess.run")
@@ -309,6 +311,18 @@ class TestProcessManagementCommands:
 
         # Mock importlib checks for django-extensions
         self.mock_find_spec = mocker.patch("importlib.util.find_spec")
+
+    @pytest.mark.timeout(3)
+    def test_runserver_without_manage_py_says_so_instead_of_spawning(self, tmp_path: Path):
+        """Both spawned commands are `python manage.py ...`; without it they fail after the fact."""
+        (tmp_path / "manage.py").unlink()
+
+        with pytest.raises(CommandError) as excinfo:
+            call_command("tailwind", "runserver")
+
+        assert str(tmp_path / "manage.py") in str(excinfo.value)
+        assert "tailwind watch" in str(excinfo.value)
+        self.mock_process_manager.assert_not_called()
 
     @pytest.mark.timeout(3)  # Short timeout since these should be fast
     def test_runserver_without_django_extensions(self):
