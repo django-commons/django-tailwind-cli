@@ -15,6 +15,8 @@
 - **The linters run in CI again**: a `lint` job runs the full pre-commit suite (ruff, basedpyright, uv-secure, the upgrade hooks) on every pull request. It had been dropped in 2022 because pyright could not resolve imports without the project venv, which `mise run bootstrap` now provides.
 
 ### 🔧 Technical Improvements
+- **License metadata uses the SPDX form**: `license = "MIT"` plus `license-files`, so PyPI shows `MIT` instead of the whole licence text pasted into the metadata field. The `License :: OSI Approved` classifier is gone, which PyPI rejects alongside an SPDX expression.
+- **`_validate_css_settings` reads settings the way the rest of `config.py` does**, through `getattr(..., None)` rather than `hasattr` plus a second read. No behaviour change; the two idioms were verified to agree for an unset, `None`, empty and populated setting alike.
 - **The test suite no longer reaches the network**: `tests/conftest.py` fails any test that resolves a hostname, isolates the version cache per test, and answers the release lookup from a fixture. Until now the suite overwrote the machine-wide version cache that `manage.py tailwind` itself reads, and one setup test downloaded a real Tailwind binary into the source tree on every new version.
 
 ### 📚 Documentation
@@ -22,6 +24,7 @@
 - **`AGENTS.md` is tracked**: the repository conventions coding agents need live in the repo now instead of an ignored local file. `CLAUDE.md` is a one-line pointer at it.
 - **WhiteNoise page**: a sample configuration and the two traps that only show up on deploy — a `collectstatic` that runs before `tailwind build` fails at render time, not at build time, and a source CSS inside `STATICFILES_DIRS` breaks `collectstatic` outright.
 - **`troubleshoot` covers the deployment failure**: a `collectstatic` that runs before `tailwind build` leaves the manifest without an entry, and the guide now carries that error string and the fix. `setup` spells out the ordering too.
+- **DaisyUI is explained once**: the "Configuration Patterns" section pointed at the setting entry's explanation instead of repeating it, keeping only the manual-configuration and theme examples that the entry does not cover.
 - **`template_tags.md` showed `/static/css/styles.css`**, a path no configuration produces. It is `css/tailwind.css`.
 - **Cross-references to settings resolve again**: `myst_heading_anchors` was never enabled, so every `settings.md#tailwind_cli_…` link in the docs pointed at a fragment that does not exist. Three links had been broken since they were written.
 

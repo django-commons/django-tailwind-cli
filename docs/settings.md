@@ -261,15 +261,9 @@ Example content of `src/styles/main.css`:
 
 ### DaisyUI
 
-If you plan to use [daisyUI](https://daisyui.com), one setting covers it:
+[`TAILWIND_CLI_USE_DAISY_UI = True`](#tailwind_cli_use_daisy_ui) is all you need — it covers both the CLI build and the generated source CSS. The rest of this section is for setups that want more control than the switch gives them.
 
-```python
-TAILWIND_CLI_USE_DAISY_UI = True
-```
-
-Setting this, the library switches from using the default TailwindCSS CLI to the one provided by [Andris Dobičinaitis](https://github.com/dobicinaitis) and his [tailwind-cli-extra](https://github.com/dobicinaitis/tailwind-cli-extra) project. It also causes the library to create a proper default config that activates the daisyUI plugin.
-
-You can also configure it manually, by pointing the library at the repository it should pull the CLI from and activating daisyUI support yourself.
+You can configure the same thing manually, by pointing the library at the repository it should pull the CLI from and activating daisyUI support yourself.
 
 ```python
 TAILWIND_CLI_SRC_REPO = "dobicinaitis/tailwind-cli-extra"

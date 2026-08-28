@@ -289,9 +289,9 @@ def _validate_css_settings() -> None:
     Raises:
         ValueError: If both single-file and multi-file configurations are present.
     """
-    has_css_map = hasattr(settings, "TAILWIND_CLI_CSS_MAP") and settings.TAILWIND_CLI_CSS_MAP
-    has_src_css = hasattr(settings, "TAILWIND_CLI_SRC_CSS") and settings.TAILWIND_CLI_SRC_CSS
-    has_dist_css = hasattr(settings, "TAILWIND_CLI_DIST_CSS") and settings.TAILWIND_CLI_DIST_CSS
+    has_css_map = bool(getattr(settings, "TAILWIND_CLI_CSS_MAP", None))
+    has_src_css = bool(getattr(settings, "TAILWIND_CLI_SRC_CSS", None))
+    has_dist_css = bool(getattr(settings, "TAILWIND_CLI_DIST_CSS", None))
 
     if has_css_map and (has_src_css or has_dist_css):
         raise ValueError(
@@ -302,7 +302,7 @@ def _validate_css_settings() -> None:
 
     # Validate CSS_MAP format if provided
     if has_css_map:
-        css_map_raw = settings.TAILWIND_CLI_CSS_MAP
+        css_map_raw = getattr(settings, "TAILWIND_CLI_CSS_MAP", None)
         if not isinstance(css_map_raw, (list, tuple)):
             raise ValueError("TAILWIND_CLI_CSS_MAP must be a list or tuple of (source, destination) pairs.")
 
