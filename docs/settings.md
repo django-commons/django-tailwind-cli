@@ -149,7 +149,7 @@ Path to the Tailwind CSS input file. The library manages the default file itself
 
 Set this to point at a hand-written file if you need custom CSS alongside the Tailwind import. When `TAILWIND_CLI_SRC_CSS` is set, the library only creates the file if it doesn't yet exist and never overwrites it afterwards — you own it. A relative path is resolved against `settings.BASE_DIR`, an absolute path is used as-is.
 
-Keep the file **outside** every `STATICFILES_DIRS` entry. A source CSS that gets collected by `collectstatic` breaks any manifest storage backend, because the `@import "tailwindcss";` it contains is rewritten as a reference to a static file that does not exist. See [Use with WhiteNoise](whitenoise.md#keep-the-source-css-out-of-the-static-directories).
+Keep the file **outside** every `STATICFILES_DIRS` entry, otherwise the system check `django_tailwind_cli.W001` reports it. A source CSS that gets collected by `collectstatic` breaks any manifest storage backend, because the `@import "tailwindcss";` it contains is rewritten as a reference to a static file that does not exist. See [Use with WhiteNoise](whitenoise.md#keep-the-source-css-out-of-the-static-directories).
 
 ### TAILWIND_CLI_DIST_CSS
 
@@ -165,6 +165,8 @@ The name of the output file. This file is stored relative to the first element o
 A list of tuples defining multiple CSS source/destination pairs. Each tuple contains:
 - Source CSS file path (relative to `BASE_DIR`)
 - Destination CSS file path (relative to `STATICFILES_DIRS[0]`)
+
+Every source file has to stay outside `STATICFILES_DIRS`, for the reason given under [`TAILWIND_CLI_SRC_CSS`](#tailwind_cli_src_css). The check `django_tailwind_cli.W001` reports each source that does not.
 
 ```python
 TAILWIND_CLI_CSS_MAP = [

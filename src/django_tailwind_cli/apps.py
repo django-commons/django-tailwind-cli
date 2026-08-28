@@ -4,6 +4,8 @@ This module defines the Django app configuration for the Tailwind CSS integratio
 It handles app registration and provides metadata for Django's app system.
 """
 
+from importlib import import_module
+
 from django.apps import AppConfig
 
 
@@ -30,3 +32,7 @@ class DjangoTailwindCliConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "django_tailwind_cli"
     verbose_name = "Django Tailwind CLI"
+
+    def ready(self) -> None:
+        """Register the system checks by importing the module that declares them."""
+        import_module("django_tailwind_cli.checks")

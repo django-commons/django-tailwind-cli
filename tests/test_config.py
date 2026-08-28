@@ -2,7 +2,6 @@
 from pathlib import Path
 
 import pytest
-from _pytest.recwarn import WarningsChecker
 from pytest_django import Settings
 from pytest_mock import MockerFixture
 
@@ -625,7 +624,9 @@ def test_system_binary_empty_name_raises(settings: Settings):
         get_config()
 
 
-def test_system_binary_version_match_no_warning(settings: Settings, mocker: MockerFixture, recwarn: WarningsChecker):
+def test_system_binary_version_match_no_warning(
+    settings: Settings, mocker: MockerFixture, recwarn: pytest.WarningsRecorder
+):
     """When system binary version matches TAILWIND_CLI_VERSION, no warning is emitted."""
     from semver import Version
 
@@ -659,7 +660,7 @@ def test_system_binary_version_mismatch_warns(settings: Settings, mocker: Mocker
 
 
 def test_system_binary_version_mismatch_with_latest_no_warning(
-    settings: Settings, mocker: MockerFixture, recwarn: WarningsChecker
+    settings: Settings, mocker: MockerFixture, recwarn: pytest.WarningsRecorder
 ):
     """When TAILWIND_CLI_VERSION is 'latest', version mismatch does not warn."""
     from semver import Version
@@ -680,7 +681,7 @@ def test_system_binary_version_mismatch_with_latest_no_warning(
 
 
 def test_system_binary_version_detection_failure_no_warning(
-    settings: Settings, mocker: MockerFixture, recwarn: WarningsChecker
+    settings: Settings, mocker: MockerFixture, recwarn: pytest.WarningsRecorder
 ):
     """If version detection fails (subprocess error), no warning is emitted."""
     settings.TAILWIND_CLI_VERSION = "4.1.3"
@@ -814,3 +815,15 @@ def test_detect_binary_version_handles_semver_parse_failure(mocker: MockerFixtur
     mocker.patch("django_tailwind_cli.config.Version.parse", side_effect=ValueError("simulated"))
 
     assert detect_binary_version(binary) is None
+
+
+# STATICFILES_DIRS entry shapes ---------------------------------------------------------------------
+
+
+def test_list_form_staticfiles_dirs_entry_is_unpacked(settings: Settings):
+    """Django's FileSystemFinder accepts a prefixed entry as a list as well as a tuple."""
+    settings.STATICFILES_DIRS = [["assets", str(settings.BASE_DIR / "assets")]]
+
+    config = get_config()
+
+    assert config.dist_css == Path("/home/user/project/assets/css/tailwind.css")

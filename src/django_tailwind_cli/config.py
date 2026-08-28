@@ -576,17 +576,37 @@ def _resolve_cli_path(platform_info: PlatformInfo, version_str: str, asset_name:
         )
 
 
+def _absolute(path: Path) -> Path:
+    """Normalise ``path`` for comparison without touching the filesystem.
+
+    Resolves a relative path against the working directory the way Django resolves a relative
+    ``STATICFILES_DIRS`` entry, and collapses ``..`` segments. Unlike ``Path.resolve()`` this costs
+    no syscalls, so it is safe on the render path.
+    """
+    return Path(os.path.abspath(path))
+
+
+def _staticfiles_dir_path(entry: str | tuple[str, str] | list[str] | Path) -> Path:
+    """Return the filesystem path of a STATICFILES_DIRS entry.
+
+    An entry is either a path or a ``(prefix, path)`` pair for a prefixed directory. Django's
+    ``FileSystemFinder`` accepts that pair as a list or a tuple, so both are unpacked here.
+
+    The path is returned as configured — relative stays relative, because ``dist_css`` is built
+    from it and is handed to the Tailwind CLI as ``--output``.
+    """
+    if isinstance(entry, (list, tuple)):
+        entry = entry[1]
+    return Path(entry)
+
+
 def _get_staticfile_path() -> str:
     """Get the base path for static files from STATICFILES_DIRS.
 
     Returns:
         str: Path to the first staticfiles directory.
     """
-    first_staticfile_dir: str | tuple[str, str] = settings.STATICFILES_DIRS[0]
-    if isinstance(first_staticfile_dir, tuple):
-        # Handle prefixed staticfile dir
-        return first_staticfile_dir[1]
-    return first_staticfile_dir
+    return str(_staticfiles_dir_path(settings.STATICFILES_DIRS[0]))
 
 
 def _resolve_css_paths() -> tuple[list[CSSEntry], bool]:
@@ -752,6 +772,32 @@ def get_config() -> Config:
         uses_system_binary=uses_system_binary,
         auto_source_external_apps=auto_source_external_apps,
     )
+
+
+def find_src_css_in_static_dirs() -> list[tuple[Path, Path]]:
+    """Return every (source CSS, static directory) pair where the source would be collected.
+
+    A source CSS below one of the ``STATICFILES_DIRS`` entries gets collected by ``collectstatic``,
+    and a manifest storage backend then rewrites the ``@import "tailwindcss";`` it contains into a
+    reference to a static file that does not exist.
+
+    Paths are normalised lexically rather than with ``Path.resolve()``: a source CSS reachable only
+    through a symlinked static directory is missed, which is the price for touching no filesystem.
+
+    Raises:
+        ValueError: If the configuration cannot be resolved at all.
+    """
+    _validate_required_settings()
+    css_entries, _ = _resolve_css_paths()
+    static_dirs = [_absolute(_staticfiles_dir_path(entry)) for entry in settings.STATICFILES_DIRS]
+
+    offenders: list[tuple[Path, Path]] = []
+    for entry in css_entries:
+        src_css = _absolute(entry.src_css)
+        offending_dir = next((d for d in static_dirs if src_css.is_relative_to(d)), None)
+        if offending_dir is not None:
+            offenders.append((src_css, offending_dir))
+    return offenders
 
 
 def _maybe_warn_version_mismatch(cli_path: Path, configured_version: str) -> None:

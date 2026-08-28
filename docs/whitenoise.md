@@ -23,7 +23,7 @@ MIDDLEWARE = [
 ]
 
 STATIC_URL = "/static/"
-STATIC_ROOT = BASE_DIR / "static"         # collectstatic target, not a source directory
+STATIC_ROOT = BASE_DIR / "static"  # collectstatic target, not a source directory
 STATICFILES_DIRS = [BASE_DIR / "assets"]  # where the CLI writes css/tailwind.css
 
 STORAGES = {
@@ -78,6 +78,12 @@ static directory and `css/tailwindcss` for one in a `css/` subdirectory.
 Put a hand-written source CSS anywhere outside the static directories — the default location already
 is. The same applies to every source file listed in
 [`TAILWIND_CLI_CSS_MAP`](settings.md#tailwind_cli_css_map).
+
+A Django system check reports this as `django_tailwind_cli.W001`, so you do not have to wait for a
+deploy to find out — it runs on `manage.py check`, on `runserver`, and on every `manage.py tailwind`
+subcommand. It is a warning rather than an error because without a manifest storage backend the only
+consequence is that the source file gets published alongside the build output; silence it through
+`SILENCED_SYSTEM_CHECKS` if that is what you want.
 
 ## Development
 
