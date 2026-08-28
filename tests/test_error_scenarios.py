@@ -11,7 +11,6 @@ import subprocess
 import time
 from pathlib import Path
 from collections.abc import Callable
-from typing import Any
 from unittest.mock import Mock, patch
 
 import pytest
@@ -31,11 +30,6 @@ from django_tailwind_cli.config import (
     get_version,
 )
 from django_tailwind_cli.management.commands.tailwind import ProcessManager
-
-
-def _call_directly(func: Any, *args: Any, **kwargs: Any) -> Any:
-    """Helper that bypasses django.utils.autoreload.run_with_reloader in tests."""
-    return func(*args, **kwargs)
 
 
 class TestConfigurationErrorScenarios:
@@ -211,16 +205,9 @@ class TestNetworkErrorScenarios:
             assert version_str == "4.1.0"
 
 
+@pytest.mark.usefixtures("bypass_autoreload")
 class TestSubprocessErrorScenarios:
     """Test subprocess execution error handling."""
-
-    @pytest.fixture(autouse=True)
-    def _bypass_autoreload(self, mocker: MockerFixture):
-        """Bypass django autoreload so watch tests run in-process."""
-        mocker.patch(
-            "django.utils.autoreload.run_with_reloader",
-            side_effect=_call_directly,
-        )
 
     def test_build_command_execution_failure(self, settings: LazySettings, tmp_path: Path, capsys: CaptureFixture[str]):
         """Test handling of CLI execution failure during build."""

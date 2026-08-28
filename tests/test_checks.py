@@ -1,7 +1,5 @@
 """Tests for the Django system checks."""
 
-from pathlib import Path
-
 import pytest
 from pytest_django import Settings
 from pytest_mock import MockerFixture
@@ -9,10 +7,7 @@ from pytest_mock import MockerFixture
 from django_tailwind_cli.checks import check_src_css_outside_static_dirs
 
 
-@pytest.fixture(autouse=True)
-def configure_settings(settings: Settings):
-    settings.BASE_DIR = Path("/home/user/project")
-    settings.STATICFILES_DIRS = (settings.BASE_DIR / "assets",)
+pytestmark = pytest.mark.usefixtures("fake_project_settings")
 
 
 def test_default_configuration_passes():
@@ -27,7 +22,10 @@ def test_src_css_inside_staticfiles_dir_is_reported(settings: Settings):
 
     assert len(errors) == 1
     assert errors[0].id == "django_tailwind_cli.W001"
-    assert "assets/css/source.css" in errors[0].msg
+    assert errors[0].msg == (
+        "The Tailwind source CSS /home/user/project/assets/css/source.css lies inside the "
+        "static files directory /home/user/project/assets."
+    )
 
 
 def test_src_css_outside_staticfiles_dir_passes(settings: Settings):

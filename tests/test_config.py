@@ -8,15 +8,20 @@ from pytest_mock import MockerFixture
 from django_tailwind_cli.config import get_config, get_version
 
 
+pytestmark = pytest.mark.usefixtures("fake_project_settings")
+
+
 @pytest.fixture(autouse=True)
-def configure_settings(
-    settings: Settings,
-    mocker: MockerFixture,
-):
-    settings.BASE_DIR = Path("/home/user/project")
-    settings.STATICFILES_DIRS = (settings.BASE_DIR / "assets",)
-    request_get = mocker.patch("django_tailwind_cli.utils.http.fetch_redirect_location")
-    request_get.return_value = (True, "https://github.com/tailwindlabs/tailwindcss/releases/tag/v4.1.3")
+def pin_latest_release(mocker: MockerFixture):
+    """Answer the release lookup with 4.1.3, which this module's expectations are written against.
+
+    conftest already patches the lookup; this module needs a different answer, and a later patch
+    wins.
+    """
+    mocker.patch(
+        "django_tailwind_cli.utils.http.fetch_redirect_location",
+        return_value=(True, "https://github.com/tailwindlabs/tailwindcss/releases/tag/v4.1.3"),
+    )
 
 
 @pytest.mark.parametrize(

@@ -68,3 +68,33 @@ def patch_version_lookup(request: pytest.FixtureRequest, mocker: MockerFixture) 
         "django_tailwind_cli.utils.http.fetch_redirect_location",
         return_value=(True, LATEST_RELEASE_URL),
     )
+
+
+def call_directly(func: Any, *args: Any, **kwargs: Any) -> Any:
+    """Call ``func`` instead of handing it to Django's autoreloader."""
+    return func(*args, **kwargs)
+
+
+@pytest.fixture
+def bypass_autoreload(mocker: MockerFixture) -> None:
+    """Run `tailwind watch` in-process instead of under Django's autoreloader.
+
+    The command wraps its loop in ``django.utils.autoreload.run_with_reloader``, which forks a
+    child process. Calling the inner callable directly keeps the assertions in the same process.
+
+    Opt in with ``@pytest.mark.usefixtures("bypass_autoreload")``.
+    """
+    mocker.patch("django.utils.autoreload.run_with_reloader", side_effect=call_directly)
+
+
+@pytest.fixture
+def fake_project_settings(settings: Any) -> None:
+    """Point the settings at a project directory that does not exist on disk.
+
+    Path resolution is pure string work, so tests that only assert resolved paths do not need a
+    real directory — and a fixed path keeps their expected values readable as literals.
+
+    Opt in with ``@pytest.mark.usefixtures("fake_project_settings")``.
+    """
+    settings.BASE_DIR = Path("/home/user/project")
+    settings.STATICFILES_DIRS = (settings.BASE_DIR / "assets",)

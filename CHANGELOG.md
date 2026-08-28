@@ -10,6 +10,7 @@
 - **A prefixed `STATICFILES_DIRS` entry may be a list**, not only a tuple. Django's own `FileSystemFinder` accepts both; `STATICFILES_DIRS[0]` in list form raised a `TypeError` before reaching any Tailwind code.
 
 ### 🛠️ Developer Experience
+- **Shared test fixtures moved into `tests/conftest.py`**: `bypass_autoreload` and `fake_project_settings` replace four copies of the autoreload bypass and three copies of the settings setup. Modules opt in with `@pytest.mark.usefixtures(...)`.
 - **The linters run in CI again**: a `lint` job runs the full pre-commit suite (ruff, basedpyright, uv-secure, the upgrade hooks) on every pull request. It had been dropped in 2022 because pyright could not resolve imports without the project venv, which `mise run bootstrap` now provides.
 
 ### 🔧 Technical Improvements

@@ -79,5 +79,8 @@ nobody checked.
   fetches a real binary is a broken test.
 - **Opt out of the patched HTTP layer with `@pytest.mark.unpatched_http`**, as `tests/test_http.py`
   does. That is only for tests of `utils/http.py` itself.
-- Shared fixtures belong in `tests/conftest.py`. The `configure_settings` fixture is still copied
-  across several modules — do not add another copy.
+- Shared fixtures belong in `tests/conftest.py`, which holds the network guard, the version-cache
+  isolation, the version-lookup patch, and two opt-in fixtures: `bypass_autoreload` (run `tailwind
+  watch` in-process instead of under Django's autoreloader) and `fake_project_settings` (a
+  `BASE_DIR` that does not exist on disk, so expected paths stay readable literals). Opt in with
+  `@pytest.mark.usefixtures(...)` rather than copying the setup into the module.

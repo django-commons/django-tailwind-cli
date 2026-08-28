@@ -20,11 +20,6 @@ from django_tailwind_cli.config import get_config
 from django_tailwind_cli.management.commands.tailwind import DAISY_UI_SOURCE_CSS, DEFAULT_SOURCE_CSS
 
 
-def _call_directly(func: Any, *args: Any, **kwargs: Any) -> Any:
-    """Helper that bypasses django.utils.autoreload.run_with_reloader in tests."""
-    return func(*args, **kwargs)
-
-
 class TestFastCommands:
     """Fast tests that don't involve process management."""
 
@@ -165,7 +160,13 @@ class TestSubprocessCommands:
     """Tests for commands that involve subprocess calls - with better mocking."""
 
     @pytest.fixture(autouse=True)
-    def setup_subprocess_tests(self, settings: LazySettings, tmp_path: Path, mocker: MockerFixture):
+    def setup_subprocess_tests(
+        self,
+        settings: LazySettings,
+        tmp_path: Path,
+        mocker: MockerFixture,
+        bypass_autoreload: None,  # noqa: ARG002  (requested for its side effect)
+    ):
         """Setup with comprehensive subprocess mocking."""
         settings.BASE_DIR = tmp_path
         settings.TAILWIND_CLI_PATH = tmp_path / "tailwindcss"
@@ -176,14 +177,6 @@ class TestSubprocessCommands:
         # Mock all subprocess-related calls comprehensively
         self.mock_subprocess_run = mocker.patch("subprocess.run")
         self.mock_subprocess_popen = mocker.patch("subprocess.Popen")
-
-        # tailwind watch now wraps its loop in django.utils.autoreload.run_with_reloader.
-        # In tests we bypass the reloader (which would fork a child process) and call
-        # the inner callable directly so existing assertions still work.
-        mocker.patch(
-            "django.utils.autoreload.run_with_reloader",
-            side_effect=_call_directly,
-        )
 
         def mock_download(
             url: str,
