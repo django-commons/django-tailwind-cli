@@ -67,8 +67,11 @@ jobs:
     name: >-
       Publish Python 🐍 distribution 📦 to PyPI
     if: startsWith(github.ref, 'refs/tags/')  # only publish to PyPI on tag pushes
+    # TestPyPI first: the upload to PyPI cannot be undone, so a broken artifact
+    # has to fail somewhere reversible before it gets there.
     needs:
     - build
+    - publish-to-testpypi
     runs-on: ubuntu-latest
     environment:
       name: pypi
