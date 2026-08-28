@@ -664,9 +664,9 @@ class TestErrorSuggestionScenarios:
 
     def test_suggest_command_error_solutions_staticfiles_dirs(self, capsys: CaptureFixture[str]):
         """Test error suggestions for STATICFILES_DIRS issues."""
-        from django_tailwind_cli.management.commands.tailwind import _suggest_command_error_solutions
+        from django_tailwind_cli.management.commands._errors import suggest_command_error_solutions
 
-        _suggest_command_error_solutions("Error: STATICFILES_DIRS is not configured properly")
+        suggest_command_error_solutions("Error: STATICFILES_DIRS is not configured properly")
 
         captured = capsys.readouterr()
         assert "💡 Solution:" in captured.out
@@ -675,9 +675,9 @@ class TestErrorSuggestionScenarios:
 
     def test_suggest_command_error_solutions_base_dir(self, capsys: CaptureFixture[str]):
         """Test error suggestions for BASE_DIR issues."""
-        from django_tailwind_cli.management.commands.tailwind import _suggest_command_error_solutions
+        from django_tailwind_cli.management.commands._errors import suggest_command_error_solutions
 
-        _suggest_command_error_solutions("Error: BASE_DIR is not properly configured")
+        suggest_command_error_solutions("Error: BASE_DIR is not properly configured")
 
         captured = capsys.readouterr()
         assert "💡 Solution:" in captured.out
@@ -686,9 +686,9 @@ class TestErrorSuggestionScenarios:
 
     def test_suggest_command_error_solutions_tailwind_css_3x(self, capsys: CaptureFixture[str]):
         """Test error suggestions for Tailwind CSS 3.x issues."""
-        from django_tailwind_cli.management.commands.tailwind import _suggest_command_error_solutions
+        from django_tailwind_cli.management.commands._errors import suggest_command_error_solutions
 
-        _suggest_command_error_solutions("Error: Tailwind CSS 3.x is not supported")
+        suggest_command_error_solutions("Error: Tailwind CSS 3.x is not supported")
 
         captured = capsys.readouterr()
         assert "💡 Solution:" in captured.out
@@ -697,9 +697,9 @@ class TestErrorSuggestionScenarios:
 
     def test_suggest_command_error_solutions_version(self, capsys: CaptureFixture[str]):
         """Test error suggestions for version issues."""
-        from django_tailwind_cli.management.commands.tailwind import _suggest_command_error_solutions
+        from django_tailwind_cli.management.commands._errors import suggest_command_error_solutions
 
-        _suggest_command_error_solutions("Error: invalid version specified")
+        suggest_command_error_solutions("Error: invalid version specified")
 
         captured = capsys.readouterr()
         assert "💡 Solution:" in captured.out
@@ -708,9 +708,9 @@ class TestErrorSuggestionScenarios:
 
     def test_suggest_command_error_solutions_no_match(self, capsys: CaptureFixture[str]):
         """Test error suggestions when no specific match is found."""
-        from django_tailwind_cli.management.commands.tailwind import _suggest_command_error_solutions
+        from django_tailwind_cli.management.commands._errors import suggest_command_error_solutions
 
-        _suggest_command_error_solutions("Some random error message")
+        suggest_command_error_solutions("Some random error message")
 
         captured = capsys.readouterr()
         # Should not print any suggestions for unknown errors
@@ -718,9 +718,9 @@ class TestErrorSuggestionScenarios:
 
     def test_suggest_file_error_solutions_file_not_found(self, capsys: CaptureFixture[str]):
         """Test file error suggestions for file not found issues."""
-        from django_tailwind_cli.management.commands.tailwind import _suggest_file_error_solutions
+        from django_tailwind_cli.management.commands._errors import suggest_file_error_solutions
 
-        _suggest_file_error_solutions("Error: file not found: /path/to/missing/file.css")
+        suggest_file_error_solutions("Error: file not found: /path/to/missing/file.css")
 
         captured = capsys.readouterr()
         assert "💡 Suggestions:" in captured.out
@@ -728,9 +728,9 @@ class TestErrorSuggestionScenarios:
 
     def test_suggest_file_error_solutions_permission_denied(self, capsys: CaptureFixture[str]):
         """Test file error suggestions for permission issues."""
-        from django_tailwind_cli.management.commands.tailwind import _suggest_file_error_solutions
+        from django_tailwind_cli.management.commands._errors import suggest_file_error_solutions
 
-        _suggest_file_error_solutions("Error: permission denied accessing file")
+        suggest_file_error_solutions("Error: permission denied accessing file")
 
         captured = capsys.readouterr()
         assert "💡 Suggestions:" in captured.out
@@ -738,9 +738,9 @@ class TestErrorSuggestionScenarios:
 
     def test_suggest_file_error_solutions_directory_not_found(self, capsys: CaptureFixture[str]):
         """Test file error suggestions for directory issues."""
-        from django_tailwind_cli.management.commands.tailwind import _suggest_file_error_solutions
+        from django_tailwind_cli.management.commands._errors import suggest_file_error_solutions
 
-        _suggest_file_error_solutions("Error: directory not found or invalid")
+        suggest_file_error_solutions("Error: directory not found or invalid")
 
         captured = capsys.readouterr()
         assert "💡 Suggestions:" in captured.out
