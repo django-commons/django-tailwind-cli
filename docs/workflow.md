@@ -1,6 +1,6 @@
-# Development Workflow
+# Daily Workflow
 
-This guide covers development workflows for django-tailwind-cli.
+How to work with django-tailwind-cli day to day: starting the server, editing templates, wiring up your editor, and what to check when something looks wrong. For contributing to the package itself, see [Contributing](contributing.md).
 
 ## Initial Setup
 

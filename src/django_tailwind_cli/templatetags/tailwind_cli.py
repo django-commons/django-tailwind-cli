@@ -78,14 +78,12 @@ def tailwind_css(name: str | None = None) -> dict[str, bool | list[str]]:
 
         Single-file mode renders to:
         ```html
+        <link rel="preload" href="/static/css/tailwind.css" as="style">
         <link rel="stylesheet" href="/static/css/tailwind.css">
         ```
 
-        Multi-file mode (all files) renders to:
-        ```html
-        <link rel="stylesheet" href="/static/admin.output.css">
-        <link rel="stylesheet" href="/static/web.output.css">
-        ```
+        Multi-file mode (all files) renders one such pair per entry. The preload
+        link is dropped when DEBUG is True, where it buys nothing.
 
     Configuration:
         - TAILWIND_CLI_DIST_CSS: Single CSS file path (default: 'css/tailwind.css')

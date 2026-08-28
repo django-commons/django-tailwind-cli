@@ -139,12 +139,16 @@ filterwarnings = [
 # Coverage
 [tool.coverage.run]
 source = ["src"]
-branch = false
+branch = true
 parallel = false
 omit = ["*/migrations/*", "*/tests/*", "*/conftest.py"]
 
 [tool.coverage.report]
 show_missing = true
+# Branch coverage sits at 90.6%, so this leaves roughly nine uncovered lines of headroom.
+# Enforced by `mise run test`, which the `coverage` job in test.yml runs; the tox matrix does not
+# measure coverage.
+fail_under = 90
 exclude_lines = [
     "pragma: no cover",
     "def __repr__",

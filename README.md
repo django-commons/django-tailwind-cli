@@ -116,6 +116,9 @@ they are needed.
 | `runserver`    | Django dev server + watcher (forwards any runserver flag) | `python manage.py tailwind runserver` |
 | `config`       | Show current configuration                           | `python manage.py tailwind config`       |
 | `troubleshoot` | Debug common issues                                  | `python manage.py tailwind troubleshoot` |
+| `optimize`     | Performance tips for build and watch                 | `python manage.py tailwind optimize`     |
+| `download_cli` | Fetch the CLI binary without building                | `python manage.py tailwind download_cli` |
+| `remove_cli`   | Delete the downloaded CLI binary                     | `python manage.py tailwind remove_cli`   |
 
 `build` takes `--force` to rebuild regardless of change detection; `build` and `watch` both take
 `--verbose` for detailed diagnostics.

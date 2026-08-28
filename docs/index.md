@@ -11,7 +11,7 @@ settings
 template_tags
 base_template
 whitenoise
-development
+workflow
 contributing
 changelog
 ```
