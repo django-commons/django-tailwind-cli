@@ -185,25 +185,21 @@ def _preserve_hand_edits(src_css: Path) -> None:
 
 
 def ensure_source_css(*, verbose: bool = False) -> None:
-    """Write the managed source CSS, unless the file on disk is already what we would write.
+    """Write the managed source CSS for every configured entry.
 
-    Does nothing when TAILWIND_CLI_SRC_CSS points at a file the user owns and it already exists.
+    A single-file setup has one entry; `TAILWIND_CLI_CSS_MAP` has one per pair. Nothing happens for
+    an entry whose file the user owns and that already exists.
     """
     c = get_config()
 
     if verbose:
         typer.secho("📄 Checking Tailwind CSS source configuration...", fg=typer.colors.CYAN)
-        typer.secho(f"   • Source CSS path: {c.src_css}", fg=typer.colors.BLUE)
         typer.secho(f"   • Overwrite default: {c.overwrite_default_config}", fg=typer.colors.BLUE)
         typer.secho(f"   • DaisyUI enabled: {c.use_daisy_ui}", fg=typer.colors.BLUE)
 
-    if not c.src_css:
-        if verbose:
-            typer.secho("⏭️  No source CSS path configured, skipping creation", fg=typer.colors.YELLOW)
-        return
-
-    # Build content dynamically — includes auto @source directives for
-    # external apps when TAILWIND_CLI_AUTO_SOURCE_EXTERNAL_APPS is enabled.
+    # Built once: every entry gets the same seed, only the destination differs. A file that
+    # already exists keeps whatever is in it — with a CSS_MAP those files are the user's, so
+    # a later DaisyUI or @source change does not reach them. That is deliberate; the docs say so.
     content = build_source_css_content(
         use_daisy_ui=c.use_daisy_ui,
         inject_external_apps=c.auto_source_external_apps,
@@ -212,40 +208,43 @@ def ensure_source_css(*, verbose: bool = False) -> None:
     if verbose:
         typer.secho(f"📝 Content template: {'DaisyUI' if c.use_daisy_ui else 'Default'}", fg=typer.colors.BLUE)
 
-    # Only create/update if:
-    # 1. overwrite_default_config is True (meaning we're using default path) AND file doesn't exist
-    # 2. OR overwrite_default_config is True AND the content should be recreated
-    should_create = False
-    if c.overwrite_default_config:
-        # For default config, only create if file doesn't exist or content differs
-        should_create = _should_recreate_file(c.src_css, content)
-        if verbose:
-            existing_msg = "exists with different content" if c.src_css.exists() else "does not exist"
-            typer.secho(f"🔍 File check (default config): {existing_msg}", fg=typer.colors.BLUE)
+    for entry in c.css_entries:
+        _ensure_one_source_css(entry.src_css, content, manages_the_file=c.overwrite_default_config, verbose=verbose)
+
+
+def _ensure_one_source_css(src_css: Path, content: str, *, manages_the_file: bool, verbose: bool) -> None:
+    """Write one source CSS file, if it is ours to write and it is not already right.
+
+    `manages_the_file` is False for a path the user configured — we create it once and never touch
+    it again, because from then on it is theirs.
+    """
+    if manages_the_file:
+        should_create = _should_recreate_file(src_css, content)
+        existing_msg = "exists with different content" if src_css.exists() else "does not exist"
     else:
-        # For custom config path, only create if file doesn't exist
-        should_create = not c.src_css.exists()
+        should_create = not src_css.exists()
+        existing_msg = "exists (preserving)" if src_css.exists() else "does not exist"
+
+    if verbose:
+        kind = "default config" if manages_the_file else "custom config"
+        typer.secho(f"🔍 {src_css} ({kind}): {existing_msg}", fg=typer.colors.BLUE)
+
+    if not should_create:
         if verbose:
-            existing_msg = "exists (preserving)" if c.src_css.exists() else "does not exist"
-            typer.secho(f"🔍 File check (custom config): {existing_msg}", fg=typer.colors.BLUE)
+            typer.secho("⏭️  Source CSS file is up-to-date, no changes needed", fg=typer.colors.GREEN)
+        return
 
-    if should_create:
-        if c.overwrite_default_config and c.src_css.exists() and not _looks_auto_generated(c.src_css.read_text()):
-            _preserve_hand_edits(c.src_css)
+    if manages_the_file and src_css.exists() and not _looks_auto_generated(src_css.read_text()):
+        _preserve_hand_edits(src_css)
 
-        if verbose:
-            typer.secho("📝 Creating/updating source CSS file...", fg=typer.colors.CYAN)
+    if verbose:
+        typer.secho("📝 Creating/updating source CSS file...", fg=typer.colors.CYAN)
 
-        c.src_css.parent.mkdir(parents=True, exist_ok=True)
-        c.src_css.write_text(content)
+    src_css.parent.mkdir(parents=True, exist_ok=True)
+    src_css.write_text(content)
 
-        if verbose:
-            typer.secho(f"✅ Created directory: {c.src_css.parent}", fg=typer.colors.GREEN)
-            typer.secho(f"📄 Content length: {len(content)} characters", fg=typer.colors.BLUE)
+    if verbose:
+        typer.secho(f"✅ Created directory: {src_css.parent}", fg=typer.colors.GREEN)
+        typer.secho(f"📄 Content length: {len(content)} characters", fg=typer.colors.BLUE)
 
-        typer.secho(
-            f"Created Tailwind Source CSS at '{c.src_css}'",
-            fg=typer.colors.GREEN,
-        )
-    elif verbose:
-        typer.secho("⏭️  Source CSS file is up-to-date, no changes needed", fg=typer.colors.GREEN)
+    typer.secho(f"Created Tailwind Source CSS at '{src_css}'", fg=typer.colors.GREEN)

@@ -1001,3 +1001,59 @@ class TestConfigurationErrorsAreUserErrors:
 
         with pytest.raises(ValueError):
             get_config()
+
+
+class TestMultipleCssEntries:
+    """`build` iterates TAILWIND_CLI_CSS_MAP; setup and the source CSS only saw the first entry."""
+
+    @pytest.fixture(autouse=True)
+    def _project(self, settings: LazySettings, tmp_path: Path):
+        settings.BASE_DIR = tmp_path
+        settings.STATICFILES_DIRS = [tmp_path / "assets"]
+        cli = tmp_path / "cli"
+        cli.write_bytes(b"fake-cli-binary")
+        cli.chmod(0o755)
+        settings.TAILWIND_CLI_PATH = cli
+        settings.TAILWIND_CLI_VERSION = "4.0.0"
+        for name in ("TAILWIND_CLI_SRC_CSS", "TAILWIND_CLI_DIST_CSS"):
+            if hasattr(settings, name):
+                delattr(settings, name)
+        settings.TAILWIND_CLI_CSS_MAP = [("admin.css", "admin.out.css"), ("web.css", "web.out.css")]
+
+    def test_every_entry_gets_a_source_file(self, mocker: MockerFixture):
+        mocker.patch("subprocess.run", return_value=Mock(returncode=0, stdout="", stderr=""))
+
+        call_command("tailwind", "setup")
+
+        for entry in get_config().css_entries:
+            assert entry.src_css.exists(), f"{entry.name}: {entry.src_css} was not created"
+
+    def test_setup_builds_every_entry(self, mocker: MockerFixture):
+        run = mocker.patch("subprocess.run", return_value=Mock(returncode=0, stdout="", stderr=""))
+
+        call_command("tailwind", "setup")
+
+        outputs = " ".join(" ".join(c.args[0]) for c in run.call_args_list)
+        assert "admin.out.css" in outputs
+        assert "web.out.css" in outputs
+
+    def test_build_after_setup_never_runs_against_a_missing_input(self, mocker: MockerFixture):
+        """The point of the bean. Asserting the files exist afterwards proves nothing — build
+        recreates whatever setup missed — so this records whether each --input was there when the
+        CLI was invoked."""
+        inputs_present: list[tuple[str, bool]] = []
+
+        def record(cmd: list[str], *args: object, **kwargs: object) -> Mock:
+            # Not every call is a build — a user-supplied binary is also asked for its version.
+            if "--input" in cmd:
+                path = Path(cmd[cmd.index("--input") + 1])
+                inputs_present.append((path.name, path.exists()))
+            return Mock(returncode=0, stdout="", stderr="")
+
+        mocker.patch("subprocess.run", side_effect=record)
+
+        call_command("tailwind", "setup")
+        call_command("tailwind", "build", "--force")
+
+        assert len(inputs_present) == 4  # two entries, once for setup and once for build
+        assert all(present for _, present in inputs_present), inputs_present

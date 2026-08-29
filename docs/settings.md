@@ -172,6 +172,8 @@ A list of tuples defining multiple CSS source/destination pairs. Each tuple cont
 
 Source paths are resolved like [`TAILWIND_CLI_SRC_CSS`](#tailwind_cli_src_css), tilde included, and every one of them has to stay outside `STATICFILES_DIRS` for the reason given there. The check `django_tailwind_cli.W001` reports each source that does not.
 
+Each source file is created once, with the same minimal content, if it does not exist yet — a starting point you then edit. From that moment the file is yours: the library never rewrites it, so a later `TAILWIND_CLI_USE_DAISY_UI` or `TAILWIND_CLI_AUTO_SOURCE_EXTERNAL_APPS` change does not reach it and has to be made by hand.
+
 ```python
 TAILWIND_CLI_CSS_MAP = [
     ("admin.css", "admin.output.css"),
