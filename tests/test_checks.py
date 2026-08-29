@@ -4,7 +4,11 @@ import pytest
 from pytest_django import Settings
 from pytest_mock import MockerFixture
 
+from django.core.management import call_command
+from django.core.management.base import BaseCommand
+
 from django_tailwind_cli.checks import check_src_css_outside_static_dirs
+from django_tailwind_cli.management.commands.tailwind import app
 
 
 pytestmark = pytest.mark.usefixtures("fake_project_settings")
@@ -121,3 +125,73 @@ def test_rendering_the_template_tag_emits_no_warning(settings: Settings, recwarn
 
     assert "css/tailwind.css" in rendered
     assert [w for w in recwarn.list if "static files directory" in str(w.message)] == []
+
+
+def test_a_subcommand_on_the_command_line_runs_the_system_checks(mocker: MockerFixture):
+    """django-click skips Django's checks entirely, so the group has to run them itself.
+
+    Without this, W001 would fire only on `manage.py check` and `runserver` — and nothing else in
+    the suite would notice, because every other check test calls the function directly.
+    """
+    check = mocker.patch.object(BaseCommand, "check")
+
+    app.run_from_argv(["manage.py", "tailwind", "config"])
+
+    check.assert_called_once()
+
+
+def test_call_command_skips_the_checks_as_django_does(mocker: MockerFixture):
+    """`call_command` sets skip_checks=True unless told otherwise; this command is not special."""
+    check = mocker.patch.object(BaseCommand, "check")
+
+    call_command("tailwind", "config")
+
+    check.assert_not_called()
+
+
+def test_call_command_runs_the_checks_when_asked(mocker: MockerFixture):
+    check = mocker.patch.object(BaseCommand, "check")
+
+    call_command("tailwind", "config", skip_checks=False)
+
+    check.assert_called_once()
+
+
+def test_a_subcommand_help_screen_does_not_run_the_checks(mocker: MockerFixture, capsys: pytest.CaptureFixture[str]):
+    """`--help` is the one command reached for when a project is broken.
+
+    Django never runs the checks for a help screen. click resolves a subcommand's `--help` while
+    building that subcommand's context, which is after the group callback, so checks hung off the
+    callback would kill `tailwind build --help` on a project whose checks fail.
+    """
+    check = mocker.patch.object(BaseCommand, "check")
+
+    app.run_from_argv(["manage.py", "tailwind", "build", "--help"])
+
+    assert "Usage:" in capsys.readouterr().out
+    check.assert_not_called()
+
+
+def test_skip_checks_on_the_command_line_skips_them(mocker: MockerFixture):
+    """Every Django management command takes --skip-checks; django-click leaves it out."""
+    check = mocker.patch.object(BaseCommand, "check")
+
+    app.run_from_argv(["manage.py", "tailwind", "--skip-checks", "config"])
+
+    check.assert_not_called()
+
+
+def test_force_color_reaches_the_system_checks(mocker: MockerFixture):
+    """The colour keywords have to survive `call_command`.
+
+    django-click's --color callback runs while the context is built, but call_command pushes its
+    keywords into the context afterwards, so the callback never sees them. Asserted through
+    force_color, which cannot be true by accident: pytest's captured stdout is not a terminal, so
+    an unstyled result is what every other path produces.
+    """
+    check = mocker.patch.object(BaseCommand, "check", autospec=True)
+
+    call_command("tailwind", "config", skip_checks=False, force_color=True)
+
+    command = check.call_args[0][0]
+    assert command.style.ERROR("boom") != "boom"

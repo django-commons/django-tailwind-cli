@@ -18,7 +18,7 @@ from collections.abc import Callable
 from types import FrameType
 from typing import IO
 
-import typer
+import click
 from django.conf import settings
 
 from django_tailwind_cli.config import Config
@@ -95,7 +95,7 @@ class _BaseProcessManager:
         """
         if self.shutdown_requested:
             return
-        typer.secho(self._SHUTDOWN_MESSAGE, fg=typer.colors.YELLOW)
+        click.secho(self._SHUTDOWN_MESSAGE, fg="yellow")
         self.shutdown_requested = True
 
     def _monitor_processes(self) -> None:
@@ -106,7 +106,7 @@ class _BaseProcessManager:
             # Check if any process has exited unexpectedly
             for index, process in enumerate(self.processes):
                 if process.poll() is not None and process.returncode != 0:
-                    typer.secho(self._exit_notice(index, process.returncode), fg=typer.colors.RED)
+                    click.secho(self._exit_notice(index, process.returncode), fg="red")
                     self.shutdown_requested = True
                     break
 
@@ -130,7 +130,7 @@ class _BaseProcessManager:
         self.processes.clear()
 
         if self._SHUTDOWN_NOTICE:
-            typer.secho(self._SHUTDOWN_NOTICE, fg=typer.colors.GREEN)
+            click.secho(self._SHUTDOWN_NOTICE, fg="green")
 
     def _exit_notice(self, index: int, returncode: int) -> str:  # noqa: ARG002
         """Describe a process that died on its own. Overridden where the index means something."""
@@ -164,7 +164,7 @@ class ProcessManager(_BaseProcessManager):
                 text=True,
             )
             self.processes.append(watch_process)
-            typer.secho("Started Tailwind CSS watch process", fg=typer.colors.GREEN)
+            click.secho("Started Tailwind CSS watch process", fg="green")
 
             # Give Tailwind a moment to start
             time.sleep(1)
@@ -176,13 +176,13 @@ class ProcessManager(_BaseProcessManager):
                 text=True,
             )
             self.processes.append(server_process)
-            typer.secho("Started Django development server", fg=typer.colors.GREEN)
+            click.secho("Started Django development server", fg="green")
 
             self._monitor_processes()
         except KeyboardInterrupt:
             self._request_shutdown()
         except Exception as e:
-            typer.secho(f"Error starting processes: {e}", fg=typer.colors.RED)
+            click.secho(f"Error starting processes: {e}", fg="red")
             raise
         finally:
             self._cleanup_processes()
@@ -217,8 +217,8 @@ class MultiWatchProcessManager(_BaseProcessManager):
 
                 watch_cmd = config.get_watch_cmd(entry)
                 if verbose:
-                    typer.secho(f"🚀 Starting watch for '{entry.name}'...", fg=typer.colors.CYAN)
-                    typer.secho(f"   • Command: {' '.join(watch_cmd)}", fg=typer.colors.BLUE)
+                    click.secho(f"🚀 Starting watch for '{entry.name}'...", fg="cyan")
+                    click.secho(f"   • Command: {' '.join(watch_cmd)}", fg="blue")
 
                 # Inherit stdout (high-volume rebuild progress) to avoid a pipe-fill
                 # deadlock — the OS pipe buffer would otherwise block the watcher
@@ -239,13 +239,13 @@ class MultiWatchProcessManager(_BaseProcessManager):
                         args=(process.stderr, lambda: self.shutdown_requested),
                         daemon=True,
                     ).start()
-                typer.secho(f"Watching '{entry.name}': {entry.src_css}", fg=typer.colors.GREEN)
+                click.secho(f"Watching '{entry.name}': {entry.src_css}", fg="green")
 
             self._monitor_processes()
         except KeyboardInterrupt:
             self._request_shutdown()
         except Exception as e:
-            typer.secho(f"Error starting watch processes: {e}", fg=typer.colors.RED)
+            click.secho(f"Error starting watch processes: {e}", fg="red")
             raise
         finally:
             self._cleanup_processes()

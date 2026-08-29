@@ -74,7 +74,7 @@ bump — mention it in the pull request instead of working around it.
 ```
 feat(management): add purge command for cleaning CSS
 fix(config): handle prefixed staticfile directories
-chore(deps): bump django-typer to 2.1.2
+chore(deps): bump django-click to 2.5.0
 ```
 
 Use the scope that names the area you touched. `config`, `management`, `build`, `watch`,

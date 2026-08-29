@@ -1,21 +1,17 @@
 """`tailwind` management command."""
 
-# click >= 8.4 made ParamType generic, while typer (capped below 0.26 by
-# django-typer) still references it bare, so every typer.Option call below
-# reads as partially unknown. reportUnnecessaryTypeIgnoreComment fails the
-# lint once that is fixed upstream, which is the signal to delete them.
-
 import importlib.util
 import sys
 import time
 from pathlib import Path
 
-import typer
+import click
 from django.conf import settings
 from django.core.management.base import CommandError
-from django_typer.management import Typer
 
+from django_tailwind_cli import __version__
 from django_tailwind_cli.config import get_config
+from django_tailwind_cli.management.commands._group import group
 from django_tailwind_cli.management.commands._errors import handle_command_errors
 from django_tailwind_cli.management.commands._build import (
     execute_tailwind_command,
@@ -34,56 +30,51 @@ from django_tailwind_cli.management.commands._guides import (
     print_troubleshooting_guide,
 )
 
-app = Typer(  # pyright: ignore[reportUnknownVariableType]
-    name="tailwind",
-    help="""Tailwind CSS integration for Django projects.
 
-This command provides seamless integration between Django and Tailwind CSS,
-allowing you to build, watch, and serve your Tailwind styles without Node.js.
+# The command name comes from the module name, which is why this file is tailwind.py. Everything
+# django-click leaves out of Django's command contract — the system checks among them — is restored
+# in _group.py, so nothing about it leaks into this module.
+@group(version=__version__)
+def app():
+    """Tailwind CSS integration for Django projects.
 
-Examples:
-  python manage.py tailwind setup          # Guided setup (start here)
-  python manage.py tailwind build          # Build production CSS
-  python manage.py tailwind build --force  # Force rebuild ignoring cache
-  python manage.py tailwind watch          # Watch for changes during development
-  python manage.py tailwind runserver      # Run Django with Tailwind watch mode
-  python manage.py tailwind download_cli   # Download Tailwind CLI binary
-  python manage.py tailwind config         # Show current configuration
-  python manage.py tailwind troubleshoot   # Troubleshooting guide
-  python manage.py tailwind optimize       # Performance optimization tips
+    This command provides seamless integration between Django and Tailwind CSS,
+    allowing you to build, watch, and serve your Tailwind styles without Node.js.
 
-For more information about a specific command, use:
-  python manage.py tailwind COMMAND --help""",
-    rich_markup_mode="markdown",
-)
+    \b
+    Examples:
+      python manage.py tailwind setup          # Guided setup (start here)
+      python manage.py tailwind build          # Build production CSS
+      python manage.py tailwind build --force  # Force rebuild ignoring cache
+      python manage.py tailwind watch          # Watch for changes during development
+      python manage.py tailwind runserver      # Run Django with Tailwind watch mode
+      python manage.py tailwind download_cli   # Download Tailwind CLI binary
+      python manage.py tailwind config         # Show current configuration
+      python manage.py tailwind troubleshoot   # Troubleshooting guide
+      python manage.py tailwind optimize       # Performance optimization tips
+
+    \b
+    For more information about a specific command, use:
+      python manage.py tailwind COMMAND --help
+    """
+
 
 # COMMANDS ---------------------------------------------------------------------
 
 
 @app.command()
+@click.option("--force", is_flag=True, help="Force rebuild even if output is up to date.")
+@click.option("--verbose", "-v", is_flag=True, help="Show detailed build information and diagnostics.")
+@click.option(
+    "--minify/--no-minify",
+    default=None,
+    help=(
+        "Produce a minified stylesheet. Defaults to the value of the "
+        "TAILWIND_CLI_AUTOMATIC_MINIFY Django setting (True if unset)."
+    ),
+)
 @handle_command_errors
-def build(
-    *,
-    force: bool = typer.Option(  # pyright: ignore[reportUnknownMemberType]
-        False,
-        "--force",
-        help="Force rebuild even if output is up to date.",
-    ),
-    verbose: bool = typer.Option(  # pyright: ignore[reportUnknownMemberType]
-        False,
-        "--verbose",
-        "-v",
-        help="Show detailed build information and diagnostics.",
-    ),
-    minify: bool | None = typer.Option(  # pyright: ignore[reportUnknownMemberType]
-        None,
-        "--minify/--no-minify",
-        help=(
-            "Produce a minified stylesheet. Defaults to the value of the "
-            "TAILWIND_CLI_AUTOMATIC_MINIFY Django setting (True if unset)."
-        ),
-    ),
-) -> None:
+def build(*, force: bool, verbose: bool, minify: bool | None) -> None:
     """Build production-ready CSS file(s).
 
     This command processes your Tailwind CSS input file(s) and generates optimized
@@ -122,13 +113,13 @@ def build(
     )
 
     if verbose:
-        typer.secho("🏗️  Starting Tailwind CSS build process...", fg=typer.colors.CYAN)
-        typer.secho(f"   • CSS entries: {len(config.css_entries)}", fg=typer.colors.BLUE)
+        click.secho("🏗️  Starting Tailwind CSS build process...", fg="cyan")
+        click.secho(f"   • CSS entries: {len(config.css_entries)}", fg="blue")
         for entry in config.css_entries:
-            typer.secho(f"   • [{entry.name}] {entry.src_css} -> {entry.dist_css}", fg=typer.colors.BLUE)
-        typer.secho(f"   • CLI Path: {config.cli_path}", fg=typer.colors.BLUE)
-        typer.secho(f"   • Version: {config.version_str}", fg=typer.colors.BLUE)
-        typer.secho(f"   • DaisyUI: {'enabled' if config.use_daisy_ui else 'disabled'}", fg=typer.colors.BLUE)
+            click.secho(f"   • [{entry.name}] {entry.src_css} -> {entry.dist_css}", fg="blue")
+        click.secho(f"   • CLI Path: {config.cli_path}", fg="blue")
+        click.secho(f"   • Version: {config.version_str}", fg="blue")
+        click.secho(f"   • DaisyUI: {'enabled' if config.use_daisy_ui else 'disabled'}", fg="blue")
 
     setup_tailwind_environment(verbose=verbose)
 
@@ -141,18 +132,18 @@ def build(
         if not force and not should_rebuild_css(entry.src_css, entry.dist_css):
             entries_skipped += 1
             if verbose:
-                typer.secho(f"⏭️  [{entry.name}] Build skipped: output is up-to-date", fg=typer.colors.YELLOW)
+                click.secho(f"⏭️  [{entry.name}] Build skipped: output is up-to-date", fg="yellow")
                 if entry.src_css.exists() and entry.dist_css.exists():
                     src_mtime = entry.src_css.stat().st_mtime
                     dist_mtime = entry.dist_css.stat().st_mtime
-                    typer.secho(f"   • Source modified: {time.ctime(src_mtime)}", fg=typer.colors.BLUE)
-                    typer.secho(f"   • Output modified: {time.ctime(dist_mtime)}", fg=typer.colors.BLUE)
+                    click.secho(f"   • Source modified: {time.ctime(src_mtime)}", fg="blue")
+                    click.secho(f"   • Output modified: {time.ctime(dist_mtime)}", fg="blue")
             continue
 
         if verbose:
             build_cmd = config.get_build_cmd(entry, minify=effective_minify)
-            typer.secho(f"⚡ [{entry.name}] Executing Tailwind CSS build command...", fg=typer.colors.CYAN)
-            typer.secho(f"   • Command: {' '.join(build_cmd)}", fg=typer.colors.BLUE)
+            click.secho(f"⚡ [{entry.name}] Executing Tailwind CSS build command...", fg="cyan")
+            click.secho(f"   • Command: {' '.join(build_cmd)}", fg="blue")
 
         execute_tailwind_command(
             config.get_build_cmd(entry, minify=effective_minify),
@@ -164,35 +155,24 @@ def build(
 
     # Summary
     if entries_skipped > 0 and entries_built == 0:
-        typer.secho(
+        click.secho(
             f"All {entries_skipped} stylesheet(s) are up to date. Use --force to rebuild.",
-            fg=typer.colors.CYAN,
+            fg="cyan",
         )
     elif verbose:
         end_time = time.time()
         build_duration = end_time - start_time
-        typer.secho(
+        click.secho(
             f"✅ Build completed in {build_duration:.3f}s ({entries_built} built, {entries_skipped} skipped)",
-            fg=typer.colors.GREEN,
+            fg="green",
         )
 
 
 @app.command()
+@click.option("--verbose", "-v", is_flag=True, help="Show detailed watch information and diagnostics.")
+@click.option("--noreload", "no_reloader", is_flag=True, help="Disable auto-reload on Python file changes.")
 @handle_command_errors
-def watch(
-    *,
-    verbose: bool = typer.Option(  # pyright: ignore[reportUnknownMemberType]
-        False,
-        "--verbose",
-        "-v",
-        help="Show detailed watch information and diagnostics.",
-    ),
-    no_reloader: bool = typer.Option(  # pyright: ignore[reportUnknownMemberType]
-        False,
-        "--noreload",
-        help="Disable auto-reload on Python file changes.",
-    ),
-):
+def watch(*, verbose: bool, no_reloader: bool):
     """Start Tailwind CSS in watch mode for development.
 
     \b
@@ -346,74 +326,67 @@ def setup_guide():
     Useful for a first-time setup, for checking a configuration that is not
     behaving, or for seeing which pieces are already in place.
     """
-    typer.secho("\n🚀 Django Tailwind CLI Setup Guide", fg=typer.colors.CYAN, bold=True)
-    typer.secho("=" * 50, fg=typer.colors.CYAN)
+    click.secho("\n🚀 Django Tailwind CLI Setup Guide", fg="cyan", bold=True)
+    click.secho("=" * 50, fg="cyan")
 
     # Step 1: Check installation
-    typer.secho("\n📦 Step 1: Installation Check", fg=typer.colors.YELLOW, bold=True)
-    try:
-        from django_tailwind_cli import __version__
-
-        typer.secho(f"   ✅ django-tailwind-cli is installed (version: {__version__})", fg=typer.colors.GREEN)
-    except ImportError:
-        typer.secho("   ❌ django-tailwind-cli not found", fg=typer.colors.RED)
-        typer.secho("   Run: pip install django-tailwind-cli", fg=typer.colors.BLUE)
-        return
+    click.secho("\n📦 Step 1: Installation Check", fg="yellow", bold=True)
+    click.secho(f"   ✅ django-tailwind-cli is installed (version: {__version__})", fg="green")
 
     # Step 2: Check Django settings
-    typer.secho("\n⚙️ Step 2: Django Settings Check", fg=typer.colors.YELLOW, bold=True)
+    click.secho("\n⚙️ Step 2: Django Settings Check", fg="yellow", bold=True)
 
     # Check INSTALLED_APPS
     installed_apps = getattr(settings, "INSTALLED_APPS", [])
     if "django_tailwind_cli" in installed_apps:
-        typer.secho("   ✅ 'django_tailwind_cli' in INSTALLED_APPS", fg=typer.colors.GREEN)
+        click.secho("   ✅ 'django_tailwind_cli' in INSTALLED_APPS", fg="green")
     else:
-        typer.secho("   ❌ 'django_tailwind_cli' not in INSTALLED_APPS", fg=typer.colors.RED)
-        typer.secho("   Add to your settings.py:", fg=typer.colors.BLUE)
-        typer.secho("   INSTALLED_APPS = [", fg=typer.colors.GREEN)
-        typer.secho("       ...", fg=typer.colors.GREEN)
-        typer.secho("       'django_tailwind_cli',", fg=typer.colors.GREEN)
-        typer.secho("   ]", fg=typer.colors.GREEN)
+        click.secho("   ❌ 'django_tailwind_cli' not in INSTALLED_APPS", fg="red")
+        click.secho("   Add to your settings.py:", fg="blue")
+        click.secho("   INSTALLED_APPS = [", fg="green")
+        click.secho("       ...", fg="green")
+        click.secho("       'django_tailwind_cli',", fg="green")
+        click.secho("   ]", fg="green")
 
     # Check STATICFILES_DIRS
     staticfiles_dirs = getattr(settings, "STATICFILES_DIRS", None)
     if staticfiles_dirs and len(staticfiles_dirs) > 0:
-        typer.secho(f"   ✅ STATICFILES_DIRS configured: {staticfiles_dirs[0]}", fg=typer.colors.GREEN)
+        click.secho(f"   ✅ STATICFILES_DIRS configured: {staticfiles_dirs[0]}", fg="green")
     else:
-        typer.secho("   ❌ STATICFILES_DIRS not configured", fg=typer.colors.RED)
-        typer.secho("   Add to your settings.py:", fg=typer.colors.BLUE)
-        typer.secho("   STATICFILES_DIRS = [BASE_DIR / 'assets']", fg=typer.colors.GREEN)
-        typer.secho("   (or any directory name you prefer)", fg=typer.colors.BLUE)
+        click.secho("   ❌ STATICFILES_DIRS not configured", fg="red")
+        click.secho("   Add to your settings.py:", fg="blue")
+        click.secho("   STATICFILES_DIRS = [BASE_DIR / 'assets']", fg="green")
+        click.secho("   (or any directory name you prefer)", fg="blue")
         return
 
     # Step 3: Configuration check
-    typer.secho("\n🔧 Step 3: Configuration Status", fg=typer.colors.YELLOW, bold=True)
+    click.secho("\n🔧 Step 3: Configuration Status", fg="yellow", bold=True)
     try:
         config = get_config()
-        typer.secho("   ✅ Configuration loaded successfully", fg=typer.colors.GREEN)
-        typer.secho(f"   Version: {config.version_str}", fg=typer.colors.BLUE)
-        typer.secho(f"   CLI Path: {config.cli_path}", fg=typer.colors.BLUE)
+        click.secho("   ✅ Configuration loaded successfully", fg="green")
+        click.secho(f"   Version: {config.version_str}", fg="blue")
+        click.secho(f"   CLI Path: {config.cli_path}", fg="blue")
         for entry in config.css_entries:
-            typer.secho(f"   CSS Output: {entry.dist_css}", fg=typer.colors.BLUE)
+            click.secho(f"   CSS Output: {entry.dist_css}", fg="blue")
     except Exception as e:
-        typer.secho(f"   ❌ Configuration error: {e}", fg=typer.colors.RED)
+        click.secho(f"   ❌ Configuration error: {e}", fg="red")
         return
 
     # Step 4: CLI Binary check
-    typer.secho("\n💾 Step 4: Tailwind CLI Binary", fg=typer.colors.YELLOW, bold=True)
+    click.secho("\n💾 Step 4: Tailwind CLI Binary", fg="yellow", bold=True)
     if config.cli_path.exists():
-        typer.secho("   ✅ Tailwind CLI binary exists", fg=typer.colors.GREEN)
+        click.secho("   ✅ Tailwind CLI binary exists", fg="green")
     else:
-        typer.secho("   ⬇️  Downloading Tailwind CLI binary...", fg=typer.colors.YELLOW)
+        click.secho("   ⬇️  Downloading Tailwind CLI binary...", fg="yellow")
         try:
             ensure_cli_binary(force_download=True)
-            typer.secho("   ✅ Tailwind CLI binary downloaded", fg=typer.colors.GREEN)
+            click.secho("   ✅ Tailwind CLI binary downloaded", fg="green")
         except Exception as e:
-            typer.secho(f"   ❌ Download failed: {e}", fg=typer.colors.RED)
+            click.secho(f"   ❌ Download failed: {e}", fg="red")
             return
 
     # Step 5: CSS files check
-    typer.secho("\n🎨 Step 5: CSS Files Setup", fg=typer.colors.YELLOW, bold=True)
+    click.secho("\n🎨 Step 5: CSS Files Setup", fg="yellow", bold=True)
     # The same calls `build` makes, so what setup leaves behind is what build expects — including
     # the @source directives when TAILWIND_CLI_AUTO_SOURCE_EXTERNAL_APPS is on, and the .gitignore
     # that keeps the downloaded binary out of `git add .`.
@@ -425,19 +398,19 @@ def setup_guide():
     ensure_default_gitignore()
     for entry in config.css_entries:
         if entry.src_css not in written:
-            typer.secho(f"   ✅ [{entry.name}] Source CSS file is up to date", fg=typer.colors.GREEN)
+            click.secho(f"   ✅ [{entry.name}] Source CSS file is up to date", fg="green")
 
     # Step 6: First build
-    typer.secho("\n🏗️ Step 6: First Build", fg=typer.colors.YELLOW, bold=True)
+    click.secho("\n🏗️ Step 6: First Build", fg="yellow", bold=True)
     minify = bool(getattr(settings, "TAILWIND_CLI_AUTOMATIC_MINIFY", True))
     for entry in config.css_entries:
         # One entry in a single-file setup, one per pair with TAILWIND_CLI_CSS_MAP. Building only
         # the first left the rest missing, and the next `build` then failed on them.
         if not should_rebuild_css(entry.src_css, entry.dist_css):
-            typer.secho(f"   ✅ [{entry.name}] CSS output file is up to date", fg=typer.colors.GREEN)
+            click.secho(f"   ✅ [{entry.name}] CSS output file is up to date", fg="green")
             continue
 
-        typer.secho(f"   🔨 [{entry.name}] Building CSS for the first time...", fg=typer.colors.YELLOW)
+        click.secho(f"   🔨 [{entry.name}] Building CSS for the first time...", fg="yellow")
         entry.dist_css.parent.mkdir(parents=True, exist_ok=True)
         # execute_tailwind_command swallows Ctrl+C, so without checking the result the guide would
         # walk on to its closing "Setup Complete" over a stylesheet that never got built.
@@ -448,45 +421,45 @@ def setup_guide():
             error_message=f"Failed to run the first build for [{entry.name}]",
         )
         if not completed:
-            typer.secho(f"\n⏹️  Setup stopped during the [{entry.name}] build.", fg=typer.colors.YELLOW)
+            click.secho(f"\n⏹️  Setup stopped during the [{entry.name}] build.", fg="yellow")
             return
 
     # Step 7: Template integration guide
-    typer.secho("\n📄 Step 7: Template Integration", fg=typer.colors.YELLOW, bold=True)
-    typer.secho("   Add this to your base template:", fg=typer.colors.BLUE)
-    typer.secho("", fg=typer.colors.BLUE)
-    typer.secho("   {% load static tailwind_cli %}", fg=typer.colors.GREEN)
-    typer.secho("   <!DOCTYPE html>", fg=typer.colors.GREEN)
-    typer.secho("   <html>", fg=typer.colors.GREEN)
-    typer.secho("   <head>", fg=typer.colors.GREEN)
-    typer.secho("       <title>My Site</title>", fg=typer.colors.GREEN)
-    typer.secho("       {% tailwind_css %}", fg=typer.colors.GREEN)
-    typer.secho("   </head>", fg=typer.colors.GREEN)
-    typer.secho('   <body class="bg-gray-100">', fg=typer.colors.GREEN)
-    typer.secho('       <h1 class="text-3xl font-bold text-blue-600">Hello Tailwind!</h1>', fg=typer.colors.GREEN)
-    typer.secho("   </body>", fg=typer.colors.GREEN)
-    typer.secho("   </html>", fg=typer.colors.GREEN)
+    click.secho("\n📄 Step 7: Template Integration", fg="yellow", bold=True)
+    click.secho("   Add this to your base template:", fg="blue")
+    click.secho("", fg="blue")
+    click.secho("   {% load static tailwind_cli %}", fg="green")
+    click.secho("   <!DOCTYPE html>", fg="green")
+    click.secho("   <html>", fg="green")
+    click.secho("   <head>", fg="green")
+    click.secho("       <title>My Site</title>", fg="green")
+    click.secho("       {% tailwind_css %}", fg="green")
+    click.secho("   </head>", fg="green")
+    click.secho('   <body class="bg-gray-100">', fg="green")
+    click.secho('       <h1 class="text-3xl font-bold text-blue-600">Hello Tailwind!</h1>', fg="green")
+    click.secho("   </body>", fg="green")
+    click.secho("   </html>", fg="green")
 
     # Step 8: Development workflow
-    typer.secho("\n🔄 Step 8: Development Workflow", fg=typer.colors.YELLOW, bold=True)
-    typer.secho("   For development, use one of these workflows:", fg=typer.colors.BLUE)
-    typer.secho("", fg=typer.colors.BLUE)
-    typer.secho("   Option 1 - Single command (recommended):", fg=typer.colors.CYAN)
-    typer.secho("   python manage.py tailwind runserver", fg=typer.colors.GREEN)
-    typer.secho("", fg=typer.colors.BLUE)
-    typer.secho("   Option 2 - Separate terminals:", fg=typer.colors.CYAN)
-    typer.secho("   Terminal 1: python manage.py tailwind watch", fg=typer.colors.GREEN)
-    typer.secho("   Terminal 2: python manage.py runserver", fg=typer.colors.GREEN)
-    typer.secho("", fg=typer.colors.BLUE)
-    typer.secho("   For production builds, in this order:", fg=typer.colors.CYAN)
-    typer.secho("   python manage.py tailwind build", fg=typer.colors.GREEN)
-    typer.secho("   python manage.py collectstatic --noinput", fg=typer.colors.GREEN)
+    click.secho("\n🔄 Step 8: Development Workflow", fg="yellow", bold=True)
+    click.secho("   For development, use one of these workflows:", fg="blue")
+    click.secho("", fg="blue")
+    click.secho("   Option 1 - Single command (recommended):", fg="cyan")
+    click.secho("   python manage.py tailwind runserver", fg="green")
+    click.secho("", fg="blue")
+    click.secho("   Option 2 - Separate terminals:", fg="cyan")
+    click.secho("   Terminal 1: python manage.py tailwind watch", fg="green")
+    click.secho("   Terminal 2: python manage.py runserver", fg="green")
+    click.secho("", fg="blue")
+    click.secho("   For production builds, in this order:", fg="cyan")
+    click.secho("   python manage.py tailwind build", fg="green")
+    click.secho("   python manage.py collectstatic --noinput", fg="green")
 
     # Success message
-    typer.secho("\n🎉 Setup Complete!", fg=typer.colors.GREEN, bold=True)
-    typer.secho("   Your Django project is now ready to use Tailwind CSS!", fg=typer.colors.GREEN)
-    typer.secho("   Start development with: python manage.py tailwind runserver", fg=typer.colors.CYAN)
-    typer.secho("   For help anytime: python manage.py tailwind --help", fg=typer.colors.BLUE)
+    click.secho("\n🎉 Setup Complete!", fg="green", bold=True)
+    click.secho("   Your Django project is now ready to use Tailwind CSS!", fg="green")
+    click.secho("   Start development with: python manage.py tailwind runserver", fg="cyan")
+    click.secho("   For help anytime: python manage.py tailwind --help", fg="blue")
 
 
 @app.command(name="troubleshoot")
@@ -560,19 +533,19 @@ def remove_cli():
     c = get_config()
 
     if c.uses_system_binary:
-        typer.secho(
+        click.secho(
             f"Refusing to remove system Tailwind CSS CLI at '{c.cli_path}'. "
             "It was installed outside of django-tailwind-cli (e.g. via Homebrew) and must be "
             "uninstalled the same way.",
-            fg=typer.colors.YELLOW,
+            fg="yellow",
         )
         return
 
     if c.cli_path.exists():
         c.cli_path.unlink()
-        typer.secho(f"Removed Tailwind CSS CLI at '{c.cli_path}'.", fg=typer.colors.GREEN)
+        click.secho(f"Removed Tailwind CSS CLI at '{c.cli_path}'.", fg="green")
     else:
-        typer.secho(f"Tailwind CSS CLI not found at '{c.cli_path}'.", fg=typer.colors.RED)
+        click.secho(f"Tailwind CSS CLI not found at '{c.cli_path}'.", fg="red")
 
 
 @app.command(
@@ -581,14 +554,13 @@ def remove_cli():
         "allow_extra_args": True,
     },
 )
-def runserver(
-    ctx: typer.Context,
-    *,
-    force_default_runserver: bool = typer.Option(  # pyright: ignore[reportUnknownMemberType]
-        False,
-        help="Force vanilla runserver even if django-extensions is installed.",
-    ),
-):
+@click.option(
+    "--force-default-runserver",
+    is_flag=True,
+    help="Force vanilla runserver even if django-extensions is installed.",
+)
+@click.pass_context
+def runserver(ctx: click.Context, *, force_default_runserver: bool):
     """Run Django development server with Tailwind CSS watch mode.
 
     Combines `tailwind watch` and Django's runserver in one terminal, with

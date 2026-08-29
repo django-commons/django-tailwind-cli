@@ -15,7 +15,7 @@ import site
 import sysconfig
 from pathlib import Path
 
-import typer
+import click
 from django.apps import apps
 from django.conf import settings
 
@@ -167,20 +167,20 @@ def _preserve_hand_edits(src_css: Path) -> None:
     backup = src_css.with_suffix(".css.bak")
     backup.write_text(src_css.read_text())
 
-    typer.secho(
+    click.secho(
         f"⚠️  '{src_css}' has hand edits that are about to be replaced.",
-        fg=typer.colors.YELLOW,
+        fg="yellow",
         bold=True,
     )
-    typer.secho(
+    click.secho(
         "   This file is managed by django-tailwind-cli and regenerated on every build.",
-        fg=typer.colors.YELLOW,
+        fg="yellow",
     )
-    typer.secho(f"   Your version has been copied to '{backup}'.", fg=typer.colors.YELLOW)
-    typer.secho(
+    click.secho(f"   Your version has been copied to '{backup}'.", fg="yellow")
+    click.secho(
         "   To own it yourself, point TAILWIND_CLI_SRC_CSS at a file of your own — the library\n"
         "   never overwrites that one.",
-        fg=typer.colors.YELLOW,
+        fg="yellow",
     )
 
 
@@ -195,9 +195,9 @@ def ensure_source_css(*, verbose: bool = False) -> set[Path]:
     c = get_config()
 
     if verbose:
-        typer.secho("📄 Checking Tailwind CSS source configuration...", fg=typer.colors.CYAN)
-        typer.secho(f"   • Overwrite default: {c.overwrite_default_config}", fg=typer.colors.BLUE)
-        typer.secho(f"   • DaisyUI enabled: {c.use_daisy_ui}", fg=typer.colors.BLUE)
+        click.secho("📄 Checking Tailwind CSS source configuration...", fg="cyan")
+        click.secho(f"   • Overwrite default: {c.overwrite_default_config}", fg="blue")
+        click.secho(f"   • DaisyUI enabled: {c.use_daisy_ui}", fg="blue")
 
     # Built once: every entry gets the same seed, only the destination differs. A file that
     # already exists keeps whatever is in it — with a CSS_MAP those files are the user's, so
@@ -208,7 +208,7 @@ def ensure_source_css(*, verbose: bool = False) -> set[Path]:
     )
 
     if verbose:
-        typer.secho(f"📝 Content template: {'DaisyUI' if c.use_daisy_ui else 'Default'}", fg=typer.colors.BLUE)
+        click.secho(f"📝 Content template: {'DaisyUI' if c.use_daisy_ui else 'Default'}", fg="blue")
 
     return {
         entry.src_css
@@ -232,25 +232,25 @@ def _ensure_one_source_css(src_css: Path, content: str, *, manages_the_file: boo
 
     if verbose:
         kind = "default config" if manages_the_file else "custom config"
-        typer.secho(f"🔍 {src_css} ({kind}): {existing_msg}", fg=typer.colors.BLUE)
+        click.secho(f"🔍 {src_css} ({kind}): {existing_msg}", fg="blue")
 
     if not should_create:
         if verbose:
-            typer.secho("⏭️  Source CSS file is up-to-date, no changes needed", fg=typer.colors.GREEN)
+            click.secho("⏭️  Source CSS file is up-to-date, no changes needed", fg="green")
         return False
 
     if manages_the_file and src_css.exists() and not _looks_auto_generated(src_css.read_text()):
         _preserve_hand_edits(src_css)
 
     if verbose:
-        typer.secho("📝 Creating/updating source CSS file...", fg=typer.colors.CYAN)
+        click.secho("📝 Creating/updating source CSS file...", fg="cyan")
 
     src_css.parent.mkdir(parents=True, exist_ok=True)
     src_css.write_text(content)
 
     if verbose:
-        typer.secho(f"✅ Created directory: {src_css.parent}", fg=typer.colors.GREEN)
-        typer.secho(f"📄 Content length: {len(content)} characters", fg=typer.colors.BLUE)
+        click.secho(f"✅ Created directory: {src_css.parent}", fg="green")
+        click.secho(f"📄 Content length: {len(content)} characters", fg="blue")
 
-    typer.secho(f"Created Tailwind Source CSS at '{src_css}'", fg=typer.colors.GREEN)
+    click.secho(f"Created Tailwind Source CSS at '{src_css}'", fg="green")
     return True

@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### 💥 Dependencies
+- **`django-typer` replaced by `django-click`**, which drops `typer` from the dependency tree entirely. django-typer caps `typer<0.26.0`, `click<8.5` and `django<6.2`; django-click requires only `click>=7.1` with no upper bound, so those caps no longer reach into your environment. The nine subcommands, their options and the `runserver` passthrough are unchanged, `call_command` still accepts options both as keywords and as strings, and `CommandError` still reaches a programmatic caller. Help text is now rendered by click rather than by typer's markdown mode, so backticks in `--help` appear literally.
+- **`call_command("tailwind", ..., verbosity=0)` no longer raises `TypeError`.** Django's own command options were rejected by the command group, which made the command unusable from a script that passes them — as deploy scripts and other packages' test suites routinely do. `stdout` and `stderr` are honoured rather than merely accepted, so a caller can capture the output.
+- **An option meant for another subcommand is refused instead of ignored.** `call_command("tailwind", "config", verbose=True)` used to run and do nothing with `verbose`; it now raises `TypeError`, as Django does for an option a command does not have.
+- **`manage.py tailwind` with no subcommand exits 2** rather than 1, click's code for a usage error. It still prints the help text.
+- **`manage.py tailwind --version` reports this package's version**, not Django's.
+
 ### 🎯 New Features
 - **A source CSS inside `STATICFILES_DIRS` is reported by the system check `django_tailwind_cli.W001`** instead of failing on deploy. Such a file is collected by `collectstatic`, and a manifest storage backend then cannot resolve the `@import "tailwindcss";` it contains. It stays a warning, not an error — without a manifest backend the file is merely published alongside the build output — and `SILENCED_SYSTEM_CHECKS` turns it off.
 - **Hand edits to the managed `source.css` no longer vanish silently**: the command says what it is about to replace, keeps your version as `source.css.bak`, and points at `TAILWIND_CLI_SRC_CSS` as the way to own the file. Toggling DaisyUI or a changed set of auto-`@source`d apps does not trip it — only content this library could not have written does.

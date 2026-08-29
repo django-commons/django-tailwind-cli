@@ -10,7 +10,7 @@ import subprocess
 import time
 from pathlib import Path
 
-import typer
+import click
 from django.conf import settings
 from django.core.management.base import CommandError
 
@@ -33,17 +33,17 @@ def run_watch_loop(*, verbose: bool = False) -> None:
     config = get_config()
 
     if verbose:
-        typer.secho("👀 Starting Tailwind CSS watch mode...", fg=typer.colors.CYAN)
-        typer.secho(f"   • CSS entries: {len(config.css_entries)}", fg=typer.colors.BLUE)
+        click.secho("👀 Starting Tailwind CSS watch mode...", fg="cyan")
+        click.secho(f"   • CSS entries: {len(config.css_entries)}", fg="blue")
         for entry in config.css_entries:
-            typer.secho(f"   • [{entry.name}] {entry.src_css} -> {entry.dist_css}", fg=typer.colors.BLUE)
-        typer.secho(f"   • CLI Path: {config.cli_path}", fg=typer.colors.BLUE)
-        typer.secho(f"   • Version: {config.version_str}", fg=typer.colors.BLUE)
+            click.secho(f"   • [{entry.name}] {entry.src_css} -> {entry.dist_css}", fg="blue")
+        click.secho(f"   • CLI Path: {config.cli_path}", fg="blue")
+        click.secho(f"   • Version: {config.version_str}", fg="blue")
 
     setup_tailwind_environment(verbose=verbose)
 
     if verbose:
-        typer.secho("🔄 Starting file watcher...", fg=typer.colors.CYAN)
+        click.secho("🔄 Starting file watcher...", fg="cyan")
 
     if len(config.css_entries) == 1:
         # Single entry - use existing simple approach
@@ -88,7 +88,7 @@ def should_rebuild_css(src_css: Path, dist_css: Path) -> bool:
 def setup_tailwind_environment(*, verbose: bool = False) -> None:
     """Put everything `build` and `watch` need in place: the binary, the source CSS, the gitignore."""
     if verbose:
-        typer.secho("⚙️  Setting up Tailwind environment...", fg=typer.colors.CYAN)
+        click.secho("⚙️  Setting up Tailwind environment...", fg="cyan")
     ensure_cli_binary(verbose=verbose)
     ensure_source_css(verbose=verbose)
     ensure_default_gitignore()
@@ -118,44 +118,44 @@ def execute_tailwind_command(
     """
     try:
         if verbose:
-            typer.secho(f"🚀 Executing: {' '.join(cmd)}", fg=typer.colors.CYAN)
-            typer.secho(f"   • Working directory: {settings.BASE_DIR}", fg=typer.colors.BLUE)
-            typer.secho(f"   • Capture output: {capture_output}", fg=typer.colors.BLUE)
+            click.secho(f"🚀 Executing: {' '.join(cmd)}", fg="cyan")
+            click.secho(f"   • Working directory: {settings.BASE_DIR}", fg="blue")
+            click.secho(f"   • Capture output: {capture_output}", fg="blue")
 
         start_time = time.time()
 
         if capture_output:
             result = subprocess.run(cmd, cwd=settings.BASE_DIR, check=True, capture_output=True, text=True)
             if verbose and result.stdout:
-                typer.secho("📤 Command output:", fg=typer.colors.BLUE)
-                typer.echo(result.stdout)
+                click.secho("📤 Command output:", fg="blue")
+                click.echo(result.stdout)
         else:
             subprocess.run(cmd, cwd=settings.BASE_DIR, check=True)
 
         if verbose:
             end_time = time.time()
             execution_time = end_time - start_time
-            typer.secho(f"⏱️  Command completed in {execution_time:.3f}s", fg=typer.colors.GREEN)
+            click.secho(f"⏱️  Command completed in {execution_time:.3f}s", fg="green")
 
-        typer.secho(success_message, fg=typer.colors.GREEN)
+        click.secho(success_message, fg="green")
         return True
     except KeyboardInterrupt:
         if "build" in error_message.lower():
-            typer.secho("Canceled building production stylesheet.", fg=typer.colors.RED)
+            click.secho("Canceled building production stylesheet.", fg="red")
         elif "watch" in error_message.lower():
-            typer.secho("Stopped watching for changes.", fg=typer.colors.RED)
+            click.secho("Stopped watching for changes.", fg="red")
         else:
-            typer.secho(f"Canceled {error_message.lower()}.", fg=typer.colors.RED)
+            click.secho(f"Canceled {error_message.lower()}.", fg="red")
         return False
     except subprocess.CalledProcessError as e:  # pragma: no cover
         if verbose:
-            typer.secho(f"❌ Command failed with exit code {e.returncode}", fg=typer.colors.RED)
+            click.secho(f"❌ Command failed with exit code {e.returncode}", fg="red")
             if e.stdout:
-                typer.secho("📤 Standard output:", fg=typer.colors.BLUE)
-                typer.echo(e.stdout)
+                click.secho("📤 Standard output:", fg="blue")
+                click.echo(e.stdout)
             if e.stderr:
-                typer.secho("📢 Standard error:", fg=typer.colors.RED)
-                typer.echo(e.stderr)
+                click.secho("📢 Standard error:", fg="red")
+                click.echo(e.stderr)
 
         error_detail = e.stderr if e.stderr else "An unknown error occurred."
         # Raised rather than exited: SystemExit is a BaseException, so handle_command_errors would

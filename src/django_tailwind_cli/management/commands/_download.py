@@ -10,7 +10,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-import typer
+import click
 from django.conf import settings
 from django.core.management.base import CommandError
 
@@ -53,13 +53,13 @@ def _download_cli_with_progress(url: str, filepath: Path) -> None:
         nonlocal last_progress
         # Show progress every 10%
         if total_size > 0 and int(progress / 10) > int(last_progress / 10):
-            typer.secho(f"Progress: {progress:.1f}% ({downloaded}/{total_size} bytes)", fg=typer.colors.CYAN)
+            click.secho(f"Progress: {progress:.1f}% ({downloaded}/{total_size} bytes)", fg="cyan")
             last_progress = progress
 
     try:
-        typer.secho("Downloading Tailwind CSS CLI...", fg=typer.colors.YELLOW)
+        click.secho("Downloading Tailwind CSS CLI...", fg="yellow")
         http.download_with_progress(url, filepath, timeout=30, progress_callback=progress_callback)
-        typer.secho("Download completed!", fg=typer.colors.GREEN)
+        click.secho("Download completed!", fg="green")
 
     except http.RequestError as e:
         raise CommandError(f"Failed to download Tailwind CSS CLI: {e}") from e
@@ -80,11 +80,11 @@ def ensure_cli_binary(*, verbose: bool = False, force_download: bool = False) ->
     c = get_config()
 
     if verbose:
-        typer.secho("🔍 Checking Tailwind CSS CLI availability...", fg=typer.colors.CYAN)
-        typer.secho(f"   • CLI Path: {c.cli_path}", fg=typer.colors.BLUE)
-        typer.secho(f"   • Version: {c.version_str}", fg=typer.colors.BLUE)
-        typer.secho(f"   • Download URL: {c.download_url}", fg=typer.colors.BLUE)
-        typer.secho(f"   • Automatic download: {c.automatic_download}", fg=typer.colors.BLUE)
+        click.secho("🔍 Checking Tailwind CSS CLI availability...", fg="cyan")
+        click.secho(f"   • CLI Path: {c.cli_path}", fg="blue")
+        click.secho(f"   • Version: {c.version_str}", fg="blue")
+        click.secho(f"   • Download URL: {c.download_url}", fg="blue")
+        click.secho(f"   • Automatic download: {c.automatic_download}", fg="blue")
 
     # A binary that is not ours — a system binary, or a file placed at TAILWIND_CLI_PATH — carries
     # no version in its name, so the only way to notice a TAILWIND_CLI_VERSION bump is to ask the
@@ -96,52 +96,52 @@ def ensure_cli_binary(*, verbose: bool = False, force_download: bool = False) ->
     # System-binary mode: the CLI lives on PATH, never download it.
     if c.uses_system_binary:
         if verbose:
-            typer.secho("✅ Using system Tailwind CSS CLI — download skipped", fg=typer.colors.GREEN)
-        typer.secho(
+            click.secho("✅ Using system Tailwind CSS CLI — download skipped", fg="green")
+        click.secho(
             f"Using system Tailwind CSS CLI at '{c.cli_path}'.",
-            fg=typer.colors.GREEN,
+            fg="green",
         )
         return
 
     if not force_download and not c.automatic_download:
         if not c.cli_path.exists():
             if verbose:
-                typer.secho("❌ CLI not found and automatic download is disabled", fg=typer.colors.RED)
+                click.secho("❌ CLI not found and automatic download is disabled", fg="red")
             raise CommandError(
                 "Automatic download of Tailwind CSS CLI is deactivated. Please download the Tailwind CSS CLI manually."
             )
         if verbose:
-            typer.secho("✅ CLI found, automatic download not needed", fg=typer.colors.GREEN)
+            click.secho("✅ CLI found, automatic download not needed", fg="green")
         return
 
     # Use optimized CLI check for existing installations
     if not force_download and _is_cli_usable(c.cli_path):
         if verbose:
-            typer.secho("✅ CLI is up-to-date and functional", fg=typer.colors.GREEN)
-        typer.secho(
+            click.secho("✅ CLI is up-to-date and functional", fg="green")
+        click.secho(
             f"Tailwind CSS CLI already exists at '{c.cli_path}'.",
-            fg=typer.colors.GREEN,
+            fg="green",
         )
         return
 
     if verbose:
-        typer.secho("📥 Starting CLI download...", fg=typer.colors.CYAN)
+        click.secho("📥 Starting CLI download...", fg="cyan")
 
     if not c.manages_cli_binary and c.cli_path.exists():
-        typer.secho(
+        click.secho(
             f"⚠️  Replacing '{c.cli_path}', which was not downloaded by django-tailwind-cli.",
-            fg=typer.colors.YELLOW,
+            fg="yellow",
             bold=True,
         )
-        typer.secho(
+        click.secho(
             "   TAILWIND_CLI_PATH points straight at this file, so the download overwrites it.\n"
             "   Point TAILWIND_CLI_PATH at a directory to keep your own build alongside.",
-            fg=typer.colors.YELLOW,
+            fg="yellow",
         )
     else:
-        typer.secho("Tailwind CSS CLI not found.", fg=typer.colors.RED)
+        click.secho("Tailwind CSS CLI not found.", fg="red")
 
-    typer.secho(f"Downloading Tailwind CSS CLI from '{c.download_url}'.", fg=typer.colors.YELLOW)
+    click.secho(f"Downloading Tailwind CSS CLI from '{c.download_url}'.", fg="yellow")
 
     # Download with progress indication
     _download_cli_with_progress(c.download_url, c.cli_path)
@@ -157,7 +157,7 @@ def ensure_cli_binary(*, verbose: bool = False, force_download: bool = False) ->
         import stat
 
         file_stats = c.cli_path.stat()
-        typer.secho(f"📁 File permissions: {stat.filemode(file_stats.st_mode)}", fg=typer.colors.BLUE)
-        typer.secho(f"📏 File size: {file_stats.st_size:,} bytes", fg=typer.colors.BLUE)
+        click.secho(f"📁 File permissions: {stat.filemode(file_stats.st_mode)}", fg="blue")
+        click.secho(f"📏 File size: {file_stats.st_size:,} bytes", fg="blue")
 
-    typer.secho(f"Downloaded Tailwind CSS CLI to '{c.cli_path}'.", fg=typer.colors.GREEN)
+    click.secho(f"Downloaded Tailwind CSS CLI to '{c.cli_path}'.", fg="green")

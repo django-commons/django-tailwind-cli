@@ -26,7 +26,7 @@ classifiers = [
 ]
 dynamic = ["version"]
 requires-python = ">=3.10"
-dependencies = ["django>=4.2,!=5.0.*,!=5.1.*", "django-typer>=2.1.2", "semver>=3.0.4"]
+dependencies = ["django>=4.2,!=5.0.*,!=5.1.*", "django-click>=2.5.0", "semver>=3.0.4"]
 
 [project.optional-dependencies]
 django-extensions = ["django-extensions>=3.2", "werkzeug>=3.0"]
@@ -131,9 +131,6 @@ pythonpath = [".", "src"]
 testpaths = ["tests"]
 markers = [
     "unpatched_http: test exercises django_tailwind_cli.utils.http itself, so conftest must not patch it",
-]
-filterwarnings = [
-    "ignore:In Typer, only the parameter 'autocompletion' is supported.:DeprecationWarning",
 ]
 
 # Coverage

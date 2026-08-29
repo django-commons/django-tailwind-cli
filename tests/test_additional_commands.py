@@ -5,10 +5,12 @@ specifically targeting the config, troubleshoot, and optimize commands.
 Also includes tests for error handling and edge cases.
 """
 
+import io
 from pathlib import Path
 
 from functools import partial
 
+import click
 import pytest
 from django.conf import LazySettings
 from django.core.management import CommandError, call_command
@@ -16,7 +18,8 @@ from pytest import CaptureFixture
 from pytest_mock import MockerFixture
 
 from django_tailwind_cli.config import get_config
-from django_tailwind_cli.management.commands.tailwind import handle_command_errors
+from django_tailwind_cli.management.commands._group import TailwindGroup, keyword_argv
+from django_tailwind_cli.management.commands.tailwind import app, handle_command_errors
 from tests.helpers import write_fake_cli
 
 
@@ -218,7 +221,7 @@ class TestErrorHandling:
 
     def test_handle_command_errors_decorator_command_error(self, mocker: MockerFixture):
         """The hint is printed, then the failure continues as a CommandError for Django to render."""
-        mock_secho = mocker.patch("typer.secho")
+        mock_secho = mocker.patch("click.secho")
 
         @handle_command_errors
         def failing_function():
@@ -231,7 +234,7 @@ class TestErrorHandling:
 
     def test_handle_command_errors_decorator_file_not_found(self, mocker: MockerFixture):
         """The hint is printed, then the failure continues as a CommandError for Django to render."""
-        mock_secho = mocker.patch("typer.secho")
+        mock_secho = mocker.patch("click.secho")
 
         @handle_command_errors
         def failing_function():
@@ -244,7 +247,7 @@ class TestErrorHandling:
 
     def test_handle_command_errors_decorator_permission_error(self, mocker: MockerFixture):
         """The hint is printed, then the failure continues as a CommandError for Django to render."""
-        mock_secho = mocker.patch("typer.secho")
+        mock_secho = mocker.patch("click.secho")
 
         @handle_command_errors
         def failing_function():
@@ -255,9 +258,21 @@ class TestErrorHandling:
 
         assert [c for c in mock_secho.call_args_list if "❌ Permission denied:" in str(c)]
 
+    def test_click_control_flow_is_not_announced_as_an_error(self, capsys: CaptureFixture[str]):
+        """`ctx.exit()` is a normal exit; it used to be reported as "❌ Unexpected error: Exit: 0"."""
+
+        @handle_command_errors
+        def exiting_function():
+            raise click.exceptions.Exit(0)
+
+        with pytest.raises(click.exceptions.Exit):
+            exiting_function()
+
+        assert capsys.readouterr().err == ""
+
     def test_handle_command_errors_decorator_generic_exception(self, mocker: MockerFixture):
         """A bug is not a user error: the hint is printed, the exception keeps its type."""
-        mock_secho = mocker.patch("typer.secho")
+        mock_secho = mocker.patch("click.secho")
 
         @handle_command_errors
         def failing_function():
@@ -307,7 +322,7 @@ class TestErrorHandling:
 
 
 class TestCommandErrorHandlingIsWiredUp:
-    """handle_command_errors has to sit between typer and the command, not beside it."""
+    """handle_command_errors has to sit between click and the command, not beside it."""
 
     @pytest.fixture(autouse=True)
     def _project(self, settings: LazySettings, tmp_path: Path, mocker: MockerFixture):
@@ -316,23 +331,20 @@ class TestCommandErrorHandlingIsWiredUp:
         (tmp_path / "manage.py").touch()
         mocker.patch("subprocess.run")
 
-    def test_every_command_has_the_decorator_inside_the_typer_registration(self):
+    def test_every_command_has_the_decorator_inside_the_click_registration(self):
         """The original bug was a decorator stacked the wrong way round, on eight commands at once.
 
         A test that drives one command pins one command; this pins the shape for all of them.
+        The marker is checked rather than plain wrapping, because click.pass_context wraps too —
+        runserver would otherwise look decorated when it is not.
         """
-        from typer.models import CommandInfo
+        from django_tailwind_cli.management.commands.tailwind import app
 
-        # typer's own generics are only partially typed — same gap as the pyright ignores on
-        # typer.Option in tailwind.py.
-        from django_tailwind_cli.management.commands.tailwind import app  # pyright: ignore[reportUnknownVariableType]
-
-        registered: list[CommandInfo] = app.registered_commands
-        undecorated = [
-            info.callback.__name__
-            for info in registered
-            if info.callback is not None and not hasattr(info.callback, "__wrapped__")
-        ]
+        undecorated = sorted(
+            name
+            for name, command in app.commands.items()
+            if command.callback is not None and not getattr(command.callback, "handles_command_errors", False)
+        )
 
         assert undecorated == ["runserver"], (
             "runserver is deliberately undecorated — it raises CommandError with its own remedy. "
@@ -365,3 +377,102 @@ class TestCommandErrorHandlingIsWiredUp:
             call_command("tailwind", "config")
 
         assert heading in capsys.readouterr().err
+
+
+class TestCallCommandKeywordOptions:
+    """`call_command` accepts options as keywords, not only as positional strings.
+
+    Django supports both spellings and this package did too under django-typer, verified against
+    that tree. django-click pushes every keyword into the *group's* context, where a subcommand's
+    option is unknown and Django's own options crash the group callback — so both directions need
+    restoring, and the whole existing suite passes options positionally and would not notice.
+    """
+
+    def test_a_subcommand_flag_passed_as_a_keyword_takes_effect(self, capsys: CaptureFixture[str]):
+        """Not merely accepted — it has to actually reach the command."""
+        call_command("tailwind", "build", verbose=True)
+
+        assert "Starting Tailwind CSS build process" in capsys.readouterr().out
+
+    def test_a_subcommand_flag_left_out_stays_off(self, capsys: CaptureFixture[str]):
+        call_command("tailwind", "build")
+
+        assert "Starting Tailwind CSS build process" not in capsys.readouterr().out
+
+    @pytest.mark.parametrize(
+        "option",
+        [
+            {"verbosity": 0},
+            {"traceback": True},
+            {"color": False},
+            {"no_color": True},
+            {"force_color": True},
+            {"stdout": io.StringIO()},
+            {"stderr": io.StringIO()},
+        ],
+    )
+    def test_djangos_own_options_do_not_crash_the_group(self, option: dict[str, object]):
+        """`verbosity=0` is the common one — deploy scripts and other suites pass it routinely.
+
+        The list is Django's own `base_stealth_options` plus the parsed options every management
+        command carries; all seven were accepted under django-typer.
+        """
+        call_command("tailwind", "config", **option)
+
+    def test_output_goes_to_a_supplied_stdout(self):
+        """Accepting `stdout` and then writing past it would be the silent drop this class exists
+        to prevent, so it is redirected rather than swallowed."""
+        buffer = io.StringIO()
+
+        call_command("tailwind", "config", stdout=buffer)
+
+        assert "Django Tailwind CLI Configuration" in buffer.getvalue()
+
+    def test_djangos_group_options_reach_the_click_context(self, mocker: MockerFixture):
+        """Not merely accepted — they have to arrive.
+
+        `call_command` pushes its keywords into the context *after* django-click has built it, so
+        an option whose only effect is a parse callback is inert unless it goes back through argv.
+        """
+        seen: dict[str, object] = {}
+        original = TailwindGroup.invoke
+
+        def record(self: TailwindGroup, ctx: click.Context):
+            # django-click records both on the context in a parse callback, so they are untyped
+            # attributes rather than declared ones.
+            seen["traceback"] = getattr(ctx, "traceback")  # noqa: B009
+            seen["verbosity"] = getattr(ctx, "verbosity")  # noqa: B009
+            return original(self, ctx)
+
+        mocker.patch.object(TailwindGroup, "invoke", record)
+
+        call_command("tailwind", "config", traceback=True, verbosity=0)
+
+        assert seen == {"traceback": True, "verbosity": 0}
+
+    def test_the_negative_spelling_of_a_flag_is_accepted(self):
+        """`no_color` worked only because it was hand-listed; `no_traceback` is the same shape."""
+        call_command("tailwind", "config", no_traceback=True)
+
+    def test_a_keyword_belonging_to_another_subcommand_is_refused(self):
+        """`verbose` is an option of `build`, not of `config`.
+
+        Django's guard passes it, because the group reports every subcommand's options as valid,
+        and the router then has nowhere to put it. Refusing beats dropping it in silence.
+        """
+        with pytest.raises(TypeError, match="verbose") as excinfo:
+            call_command("tailwind", "config", verbose=True)
+
+        # `config` declares no options of its own, and an empty "Valid options are: ." helps nobody.
+        assert str(excinfo.value).endswith("It takes no options.")
+
+
+def test_group_options_are_spelled_back_as_argv():
+    """The one mechanism behind both directions: a keyword name, its negative spelling, and the
+    argv click's own parser would have read."""
+    kwargs: dict[str, object] = {"verbosity": 0, "no_traceback": True, "force_color": True}
+
+    argv = keyword_argv(app.params, kwargs)
+
+    assert argv == ["-v", "0", "--no-traceback", "--force-color"]
+    assert kwargs == {}
