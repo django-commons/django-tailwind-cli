@@ -19,9 +19,12 @@ src/django_tailwind_cli/
 ├── config.py                   # Central configuration (Config class)
 ├── management/commands/
 │   ├── tailwind.py             # the typer app and the nine command functions
+│   ├── _build.py               # running the CLI, watch, and the build/watch bootstrap
+│   ├── _download.py            # getting the binary onto disk, and the managed directory
 │   ├── _errors.py              # handle_command_errors and the hints it prints
 │   ├── _guides.py              # what troubleshoot, optimize and config print
-│   └── _process.py             # spawning and shutting down the watcher processes
+│   ├── _process.py             # spawning and shutting down the watcher processes
+│   └── _source_css.py          # writing the managed source.css and protecting hand edits
 ├── templates/tailwind_cli/     # base.html and the tailwind_css.html partial
 ├── templatetags/               # {% tailwind_css %}
 └── utils/http.py               # urllib download helpers

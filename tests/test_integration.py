@@ -33,7 +33,7 @@ from django_tailwind_cli.management.commands._process import (
 from django_tailwind_cli.management.commands.tailwind import (
     DAISY_UI_SOURCE_CSS,
     DEFAULT_SOURCE_CSS,
-    _run_watch_loop,
+    run_watch_loop,
 )
 from tests.helpers import write_fake_cli
 
@@ -330,7 +330,7 @@ class TestWatchModeIntegration:
 
             def runner() -> None:
                 try:
-                    _run_watch_loop(verbose=False)
+                    run_watch_loop(verbose=False)
                 except BaseException as exc:
                     errors.append(exc)
 
@@ -338,8 +338,8 @@ class TestWatchModeIntegration:
             worker.start()
             worker.join(timeout=5)
 
-            assert not worker.is_alive(), "_run_watch_loop did not terminate within 5s"
-            assert not errors, f"_run_watch_loop crashed in worker thread: {errors[0]!r}"
+            assert not worker.is_alive(), "run_watch_loop did not terminate within 5s"
+            assert not errors, f"run_watch_loop crashed in worker thread: {errors[0]!r}"
 
     @pytest.mark.parametrize(
         "entry_count,expected_staggers",

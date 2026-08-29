@@ -20,10 +20,10 @@ from pytest_mock import MockerFixture
 from semver import Version
 
 from django_tailwind_cli.config import get_config
-from django_tailwind_cli.management.commands.tailwind import (
+from django_tailwind_cli.management.commands._source_css import (
     DAISY_UI_SOURCE_CSS,
     DEFAULT_SOURCE_CSS,
-    _create_standard_config_with_verbose,
+    ensure_source_css,
 )
 from tests.helpers import write_fake_cli
 
@@ -412,28 +412,28 @@ class TestAutoSourceExternalApps:
 
     def test_build_source_css_default_is_backward_compatible(self):
         """With inject_external_apps=False the content equals DEFAULT_SOURCE_CSS."""
-        from django_tailwind_cli.management.commands.tailwind import _build_source_css_content
+        from django_tailwind_cli.management.commands._source_css import build_source_css_content
 
-        content = _build_source_css_content(use_daisy_ui=False, inject_external_apps=False)
+        content = build_source_css_content(use_daisy_ui=False, inject_external_apps=False)
         assert content == DEFAULT_SOURCE_CSS
 
     def test_build_source_css_daisyui_default_is_backward_compatible(self):
         """DaisyUI variant with inject_external_apps=False equals DAISY_UI_SOURCE_CSS."""
-        from django_tailwind_cli.management.commands.tailwind import _build_source_css_content
+        from django_tailwind_cli.management.commands._source_css import build_source_css_content
 
-        content = _build_source_css_content(use_daisy_ui=True, inject_external_apps=False)
+        content = build_source_css_content(use_daisy_ui=True, inject_external_apps=False)
         assert content == DAISY_UI_SOURCE_CSS
 
     def test_build_source_css_injects_external_app(self, mocker: MockerFixture):
         """With an external app present, an @source directive is added."""
-        from django_tailwind_cli.management.commands.tailwind import _build_source_css_content
+        from django_tailwind_cli.management.commands._source_css import build_source_css_content
 
         mocker.patch(
-            "django_tailwind_cli.management.commands.tailwind._discover_external_app_base_dirs",
+            "django_tailwind_cli.management.commands._source_css.discover_external_app_base_dirs",
             return_value=[Path("/opt/editable/extra")],
         )
 
-        content = _build_source_css_content(use_daisy_ui=False, inject_external_apps=True)
+        content = build_source_css_content(use_daisy_ui=False, inject_external_apps=True)
 
         assert content.startswith('@import "tailwindcss";\n')
         assert '@source "/opt/editable/extra";' in content
@@ -441,14 +441,14 @@ class TestAutoSourceExternalApps:
 
     def test_build_source_css_injects_multiple_external_apps_in_sorted_order(self, mocker: MockerFixture):
         """Multiple external apps each get their own @source, sorted."""
-        from django_tailwind_cli.management.commands.tailwind import _build_source_css_content
+        from django_tailwind_cli.management.commands._source_css import build_source_css_content
 
         mocker.patch(
-            "django_tailwind_cli.management.commands.tailwind._discover_external_app_base_dirs",
+            "django_tailwind_cli.management.commands._source_css.discover_external_app_base_dirs",
             return_value=[Path("/opt/editable/alpha"), Path("/opt/editable/beta")],
         )
 
-        content = _build_source_css_content(use_daisy_ui=False, inject_external_apps=True)
+        content = build_source_css_content(use_daisy_ui=False, inject_external_apps=True)
 
         lines = content.splitlines()
         assert '@source "/opt/editable/alpha";' in lines
@@ -459,24 +459,24 @@ class TestAutoSourceExternalApps:
 
     def test_build_source_css_idempotent(self, mocker: MockerFixture):
         """Calling the builder twice with the same discovery yields identical output."""
-        from django_tailwind_cli.management.commands.tailwind import _build_source_css_content
+        from django_tailwind_cli.management.commands._source_css import build_source_css_content
 
         mocker.patch(
-            "django_tailwind_cli.management.commands.tailwind._discover_external_app_base_dirs",
+            "django_tailwind_cli.management.commands._source_css.discover_external_app_base_dirs",
             return_value=[Path("/opt/editable/extra")],
         )
 
-        first = _build_source_css_content(use_daisy_ui=True, inject_external_apps=True)
-        second = _build_source_css_content(use_daisy_ui=True, inject_external_apps=True)
+        first = build_source_css_content(use_daisy_ui=True, inject_external_apps=True)
+        second = build_source_css_content(use_daisy_ui=True, inject_external_apps=True)
         assert first == second
 
     def test_build_source_css_flag_disabled_skips_injection(self, mocker: MockerFixture):
         """With inject_external_apps=False, discovery is not invoked and no @source is added."""
-        from django_tailwind_cli.management.commands.tailwind import _build_source_css_content
+        from django_tailwind_cli.management.commands._source_css import build_source_css_content
 
-        discover = mocker.patch("django_tailwind_cli.management.commands.tailwind._discover_external_app_base_dirs")
+        discover = mocker.patch("django_tailwind_cli.management.commands._source_css.discover_external_app_base_dirs")
 
-        content = _build_source_css_content(use_daisy_ui=False, inject_external_apps=False)
+        content = build_source_css_content(use_daisy_ui=False, inject_external_apps=False)
 
         discover.assert_not_called()
         assert "@source" not in content
@@ -485,7 +485,7 @@ class TestAutoSourceExternalApps:
         self, settings: LazySettings, tmp_path: Path, mocker: MockerFixture
     ):
         """Apps whose path lies under BASE_DIR are not returned."""
-        from django_tailwind_cli.management.commands.tailwind import _discover_external_app_base_dirs
+        from django_tailwind_cli.management.commands._source_css import discover_external_app_base_dirs
 
         settings.BASE_DIR = tmp_path
         internal_app = tmp_path / "myapp"
@@ -496,13 +496,13 @@ class TestAutoSourceExternalApps:
             return_value=[Mock(path=str(internal_app))],
         )
 
-        assert _discover_external_app_base_dirs() == []
+        assert discover_external_app_base_dirs() == []
 
     def test_discover_external_app_ignores_site_packages(
         self, settings: LazySettings, tmp_path: Path, mocker: MockerFixture
     ):
         """Apps installed in a standard site-packages dir are not returned."""
-        from django_tailwind_cli.management.commands.tailwind import _discover_external_app_base_dirs
+        from django_tailwind_cli.management.commands._source_css import discover_external_app_base_dirs
 
         settings.BASE_DIR = tmp_path / "project"
         settings.BASE_DIR.mkdir()
@@ -513,7 +513,7 @@ class TestAutoSourceExternalApps:
         installed_app.mkdir()
 
         mocker.patch(
-            "django_tailwind_cli.management.commands.tailwind._get_site_packages_paths",
+            "django_tailwind_cli.management.commands._source_css._get_site_packages_paths",
             return_value=[fake_site_packages],
         )
         mocker.patch(
@@ -521,13 +521,13 @@ class TestAutoSourceExternalApps:
             return_value=[Mock(path=str(installed_app))],
         )
 
-        assert _discover_external_app_base_dirs() == []
+        assert discover_external_app_base_dirs() == []
 
     def test_discover_external_app_returns_editable_install(
         self, settings: LazySettings, tmp_path: Path, mocker: MockerFixture
     ):
         """An app outside both BASE_DIR and site-packages is returned (the target case)."""
-        from django_tailwind_cli.management.commands.tailwind import _discover_external_app_base_dirs
+        from django_tailwind_cli.management.commands._source_css import discover_external_app_base_dirs
 
         settings.BASE_DIR = tmp_path / "project"
         settings.BASE_DIR.mkdir()
@@ -539,7 +539,7 @@ class TestAutoSourceExternalApps:
         editable_app.mkdir(parents=True)
 
         mocker.patch(
-            "django_tailwind_cli.management.commands.tailwind._get_site_packages_paths",
+            "django_tailwind_cli.management.commands._source_css._get_site_packages_paths",
             return_value=[fake_site_packages],
         )
         mocker.patch(
@@ -547,14 +547,14 @@ class TestAutoSourceExternalApps:
             return_value=[Mock(path=str(editable_app))],
         )
 
-        result = _discover_external_app_base_dirs()
+        result = discover_external_app_base_dirs()
         assert result == [editable_app.resolve()]
 
     def test_discover_external_app_mixed_internal_and_external(
         self, settings: LazySettings, tmp_path: Path, mocker: MockerFixture
     ):
         """Only the external app is returned when internal + site-packages + external coexist."""
-        from django_tailwind_cli.management.commands.tailwind import _discover_external_app_base_dirs
+        from django_tailwind_cli.management.commands._source_css import discover_external_app_base_dirs
 
         settings.BASE_DIR = tmp_path / "project"
         settings.BASE_DIR.mkdir()
@@ -571,7 +571,7 @@ class TestAutoSourceExternalApps:
         editable_app.mkdir(parents=True)
 
         mocker.patch(
-            "django_tailwind_cli.management.commands.tailwind._get_site_packages_paths",
+            "django_tailwind_cli.management.commands._source_css._get_site_packages_paths",
             return_value=[fake_site_packages],
         )
         mocker.patch(
@@ -583,7 +583,7 @@ class TestAutoSourceExternalApps:
             ],
         )
 
-        result = _discover_external_app_base_dirs()
+        result = discover_external_app_base_dirs()
         assert result == [editable_app.resolve()]
 
     def test_watch_without_noreload_uses_autoreload(self, mocker: MockerFixture):
@@ -596,7 +596,7 @@ class TestAutoSourceExternalApps:
             "django.utils.autoreload.run_with_reloader",
             side_effect=_noop,
         )
-        run_watch_loop = mocker.patch("django_tailwind_cli.management.commands.tailwind._run_watch_loop")
+        run_watch_loop = mocker.patch("django_tailwind_cli.management.commands.tailwind.run_watch_loop")
 
         call_command("tailwind", "watch")
 
@@ -609,7 +609,7 @@ class TestAutoSourceExternalApps:
     def test_watch_with_noreload_calls_loop_directly(self, mocker: MockerFixture):
         """--noreload bypasses autoreload and runs the loop in the current process."""
         run_with_reloader = mocker.patch("django.utils.autoreload.run_with_reloader")
-        run_watch_loop = mocker.patch("django_tailwind_cli.management.commands.tailwind._run_watch_loop")
+        run_watch_loop = mocker.patch("django_tailwind_cli.management.commands.tailwind.run_watch_loop")
 
         call_command("tailwind", "watch", "--noreload")
 
@@ -631,7 +631,7 @@ class TestAutoSourceExternalApps:
 
         mocker.patch("subprocess.run")
         mocker.patch(
-            "django_tailwind_cli.management.commands.tailwind._discover_external_app_base_dirs",
+            "django_tailwind_cli.management.commands._source_css.discover_external_app_base_dirs",
             return_value=[editable_app],
         )
 
@@ -647,18 +647,18 @@ class TestAutoSourceExternalApps:
 
 
 class TestDefaultGitignore:
-    """Tests for _ensure_default_gitignore() — the auto .gitignore drop-in."""
+    """Tests for ensure_default_gitignore() — the auto .gitignore drop-in."""
 
     def test_ensure_default_gitignore_creates_star_file(self, settings: LazySettings, tmp_path: Path):
         """In default mode the helper writes '*\\n' into .django_tailwind_cli/.gitignore."""
-        from django_tailwind_cli.management.commands.tailwind import _ensure_default_gitignore
+        from django_tailwind_cli.management.commands._download import ensure_default_gitignore
 
         settings.BASE_DIR = tmp_path
         # TAILWIND_CLI_PATH intentionally not set → default mode
         default_dir = tmp_path / ".django_tailwind_cli"
         default_dir.mkdir()
 
-        _ensure_default_gitignore()
+        ensure_default_gitignore()
 
         gitignore = default_dir / ".gitignore"
         assert gitignore.exists()
@@ -666,7 +666,7 @@ class TestDefaultGitignore:
 
     def test_ensure_default_gitignore_skipped_for_custom_path(self, settings: LazySettings, tmp_path: Path):
         """With a custom TAILWIND_CLI_PATH, the helper is a no-op."""
-        from django_tailwind_cli.management.commands.tailwind import _ensure_default_gitignore
+        from django_tailwind_cli.management.commands._download import ensure_default_gitignore
 
         settings.BASE_DIR = tmp_path
         settings.TAILWIND_CLI_PATH = str(tmp_path / "custom" / "tailwindcss")
@@ -676,13 +676,13 @@ class TestDefaultGitignore:
         default_dir = tmp_path / ".django_tailwind_cli"
         default_dir.mkdir()
 
-        _ensure_default_gitignore()
+        ensure_default_gitignore()
 
         assert not (default_dir / ".gitignore").exists()
 
     def test_ensure_default_gitignore_preserves_existing_file(self, settings: LazySettings, tmp_path: Path):
         """If the user already wrote a .gitignore, we don't overwrite it."""
-        from django_tailwind_cli.management.commands.tailwind import _ensure_default_gitignore
+        from django_tailwind_cli.management.commands._download import ensure_default_gitignore
 
         settings.BASE_DIR = tmp_path
         default_dir = tmp_path / ".django_tailwind_cli"
@@ -690,18 +690,18 @@ class TestDefaultGitignore:
         existing = default_dir / ".gitignore"
         existing.write_text("# hand-written\n*.log\n")
 
-        _ensure_default_gitignore()
+        ensure_default_gitignore()
 
         assert existing.read_text() == "# hand-written\n*.log\n"
 
     def test_ensure_default_gitignore_noop_when_dir_missing(self, settings: LazySettings, tmp_path: Path):
         """If the managed dir was never created, the helper simply returns."""
-        from django_tailwind_cli.management.commands.tailwind import _ensure_default_gitignore
+        from django_tailwind_cli.management.commands._download import ensure_default_gitignore
 
         settings.BASE_DIR = tmp_path
         # No default_dir created
 
-        _ensure_default_gitignore()  # must not raise
+        ensure_default_gitignore()  # must not raise
 
         assert not (tmp_path / ".django_tailwind_cli").exists()
 
@@ -739,7 +739,7 @@ class TestSourceCssOverwriteWarning:
     def test_hand_edited_source_css_warns_before_it_is_replaced(self, tmp_path: Path, capsys: CaptureFixture[str]):
         self._write(tmp_path, '@import "tailwindcss";\n\n@layer base {\n  html { font-size: 20px; }\n}\n')
 
-        _create_standard_config_with_verbose()
+        ensure_source_css()
         captured = capsys.readouterr()
 
         assert "hand edits" in captured.out.lower() or "edited" in captured.out.lower()
@@ -749,7 +749,7 @@ class TestSourceCssOverwriteWarning:
         edited = '@import "tailwindcss";\n\n@theme {\n  --color-brand: #ff6600;\n}\n'
         self._write(tmp_path, edited)
 
-        _create_standard_config_with_verbose()
+        ensure_source_css()
         captured = capsys.readouterr()
 
         backup = self._src_css(tmp_path).with_suffix(".css.bak")
@@ -761,7 +761,7 @@ class TestSourceCssOverwriteWarning:
         self._write(tmp_path, DEFAULT_SOURCE_CSS)
         settings.TAILWIND_CLI_USE_DAISY_UI = True
 
-        _create_standard_config_with_verbose()
+        ensure_source_css()
 
         assert self._src_css(tmp_path).read_text() == DAISY_UI_SOURCE_CSS
         assert not self._src_css(tmp_path).with_suffix(".css.bak").exists()
@@ -773,7 +773,7 @@ class TestSourceCssOverwriteWarning:
         self._write(tmp_path, DEFAULT_SOURCE_CSS)
         settings.TAILWIND_CLI_USE_DAISY_UI = True
 
-        _create_standard_config_with_verbose()
+        ensure_source_css()
         captured = capsys.readouterr()
 
         assert "TAILWIND_CLI_SRC_CSS" not in captured.out
@@ -788,13 +788,13 @@ class TestSourceCssOverwriteWarning:
             '@source "/somewhere/an_app_that_is_gone";\n',
         )
 
-        _create_standard_config_with_verbose()
+        ensure_source_css()
         captured = capsys.readouterr()
 
         assert "TAILWIND_CLI_SRC_CSS" not in captured.out
 
     def test_missing_file_does_not_warn(self, capsys: CaptureFixture[str]):
-        _create_standard_config_with_verbose()
+        ensure_source_css()
         captured = capsys.readouterr()
 
         assert "TAILWIND_CLI_SRC_CSS" not in captured.out

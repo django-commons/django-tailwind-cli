@@ -25,7 +25,7 @@ def write_fake_cli(
     of that call.
 
     No chmod: the caller does that itself right after the download returns
-    (``_download_cli_with_verbose``), so a stub that sets the mode only hides whether it does.
+    (``ensure_cli_binary``), so a stub that sets the mode only hides whether it does.
 
     Args:
         content: Bytes to write. Tests that assert on the file's content pass their own.

@@ -862,7 +862,7 @@ class TestSetupCommandScenarios:
         (tmp_path / "assets").mkdir(parents=True, exist_ok=True)
 
         # Mock the CLI download and subprocess operations to prevent hanging
-        with patch("django_tailwind_cli.management.commands.tailwind._download_cli"):
+        with patch("django_tailwind_cli.management.commands.tailwind.ensure_cli_binary"):
             with patch("subprocess.run") as mock_subprocess:
                 # Mock successful subprocess run
                 mock_result = Mock()
