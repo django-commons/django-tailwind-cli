@@ -30,11 +30,11 @@ from django_tailwind_cli.management.commands._process import (
     _drain_filtered_stderr,
     _is_bun_noise,
 )
-from django_tailwind_cli.management.commands.tailwind import (
+from django_tailwind_cli.management.commands._source_css import (
     DAISY_UI_SOURCE_CSS,
     DEFAULT_SOURCE_CSS,
-    run_watch_loop,
 )
+from django_tailwind_cli.management.commands.tailwind import run_watch_loop
 from tests.helpers import write_fake_cli
 
 

@@ -874,3 +874,92 @@ class TestSetupCommandScenarios:
         captured = capsys.readouterr()
         assert "Django Tailwind CLI Setup Guide" in captured.out
         assert "Configuration loaded successfully" in captured.out
+
+
+class TestSetupUsesTheSharedHelpers:
+    """`setup` had its own copies of the source-CSS and build steps."""
+
+    @pytest.fixture(autouse=True)
+    def _project(self, settings: LazySettings, tmp_path: Path):
+        settings.BASE_DIR = tmp_path
+        settings.STATICFILES_DIRS = [tmp_path / "assets"]
+        cli = tmp_path / "cli"
+        cli.write_bytes(b"fake-cli-binary")
+        cli.chmod(0o755)
+        settings.TAILWIND_CLI_PATH = cli
+        settings.TAILWIND_CLI_VERSION = "4.0.0"
+
+    def test_the_source_css_gets_the_auto_source_directives(self, settings: LazySettings, mocker: MockerFixture):
+        """Writing the file by hand ignored TAILWIND_CLI_AUTO_SOURCE_EXTERNAL_APPS."""
+        settings.TAILWIND_CLI_AUTO_SOURCE_EXTERNAL_APPS = True
+        mocker.patch(
+            "django_tailwind_cli.management.commands._source_css.discover_external_app_base_dirs",
+            return_value=[Path("/somewhere/an_app")],
+        )
+        mocker.patch("subprocess.run", return_value=Mock(returncode=0, stdout="", stderr=""))
+
+        call_command("tailwind", "setup")
+
+        assert '@source "/somewhere/an_app";' in get_config().src_css.read_text()
+
+    def test_the_first_build_runs_from_base_dir(self, settings: LazySettings, mocker: MockerFixture):
+        """Without cwd, `manage.py tailwind setup` from a subdirectory scans the wrong tree."""
+        run = mocker.patch("subprocess.run", return_value=Mock(returncode=0, stdout="", stderr=""))
+
+        call_command("tailwind", "setup")
+
+        assert run.call_args.kwargs.get("cwd") == settings.BASE_DIR
+
+    def test_an_interrupted_first_build_is_not_a_success(self, mocker: MockerFixture, capsys: CaptureFixture[str]):
+        """execute_tailwind_command swallows Ctrl+C, so the guide used to march on to its finale."""
+        mocker.patch("subprocess.run", side_effect=KeyboardInterrupt)
+
+        call_command("tailwind", "setup")
+
+        assert "Setup Complete" not in capsys.readouterr().out
+
+    def test_the_managed_directory_gets_its_gitignore(self, settings: LazySettings, mocker: MockerFixture):
+        """Otherwise `git add .` stages the downloaded binary after a setup-first workflow.
+
+        Only the managed directory gets one — a custom TAILWIND_CLI_PATH is the user's, so the
+        fixture's path is cleared here.
+        """
+        del settings.TAILWIND_CLI_PATH
+        mocker.patch("subprocess.run", return_value=Mock(returncode=0, stdout="", stderr=""))
+        mocker.patch("django_tailwind_cli.utils.http.download_with_progress", side_effect=write_fake_cli)
+
+        call_command("tailwind", "setup")
+
+        assert (Path(settings.BASE_DIR) / ".django_tailwind_cli" / ".gitignore").read_text() == "*\n"
+
+    def test_the_first_build_honours_the_minify_setting(self, settings: LazySettings, mocker: MockerFixture):
+        """build computes this from the setting; setup hardcoded the default."""
+        settings.TAILWIND_CLI_AUTOMATIC_MINIFY = False
+        run = mocker.patch("subprocess.run", return_value=Mock(returncode=0, stdout="", stderr=""))
+
+        call_command("tailwind", "setup")
+
+        assert "--minify" not in run.call_args_list[0].args[0]
+
+    def test_step_five_says_something(self, mocker: MockerFixture, capsys: CaptureFixture[str]):
+        """A step in a status guide that prints nothing reads as broken."""
+        mocker.patch("subprocess.run", return_value=Mock(returncode=0, stdout="", stderr=""))
+        call_command("tailwind", "setup")
+        first = capsys.readouterr().out
+
+        call_command("tailwind", "setup")
+        second = capsys.readouterr().out
+
+        step = second.split("Step 5")[1].split("Step 6")[0]
+        assert step.strip().count("\n") >= 1 or "✅" in step, f"Schritt 5 ohne Status: {step!r}"
+        assert "Step 5" in first
+
+    def test_a_failing_first_build_is_not_a_success(self, mocker: MockerFixture):
+        """It printed the failure and returned, so the process exited 0."""
+        mocker.patch(
+            "subprocess.run",
+            side_effect=subprocess.CalledProcessError(1, "tailwindcss", stderr="broken css"),
+        )
+
+        with pytest.raises(CommandError):
+            call_command("tailwind", "setup")

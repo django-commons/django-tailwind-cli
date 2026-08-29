@@ -6,7 +6,6 @@
 # lint once that is fixed upstream, which is the signal to delete them.
 
 import importlib.util
-import subprocess
 import sys
 import time
 from pathlib import Path
@@ -24,11 +23,8 @@ from django_tailwind_cli.management.commands._build import (
     setup_tailwind_environment,
     should_rebuild_css,
 )
-from django_tailwind_cli.management.commands._download import ensure_cli_binary
-from django_tailwind_cli.management.commands._source_css import (
-    DAISY_UI_SOURCE_CSS,
-    DEFAULT_SOURCE_CSS,
-)
+from django_tailwind_cli.management.commands._download import ensure_cli_binary, ensure_default_gitignore
+from django_tailwind_cli.management.commands._source_css import ensure_source_css
 from django_tailwind_cli.management.commands._process import (
     ProcessManager,
 )
@@ -325,9 +321,10 @@ def setup_guide():
     """Guided setup for django-tailwind-cli.
 
     Walks the setup in order and stops at the first blocker with instructions
-    for fixing it. Creates the source CSS file, downloads the CLI, and runs a
-    first build — each only when it is missing. It prompts for nothing, so it
-    is safe to run repeatedly.
+    for fixing it. Downloads the CLI and runs a first build when they are
+    missing, and brings the source CSS to the state a build expects — which
+    replaces hand edits to the managed file, after saying so and keeping a
+    copy. It prompts for nothing, so it is safe to run repeatedly.
 
     \b
     The steps:
@@ -416,35 +413,36 @@ def setup_guide():
 
     # Step 5: CSS files check
     typer.secho("\n🎨 Step 5: CSS Files Setup", fg=typer.colors.YELLOW, bold=True)
-    if not config.src_css.exists():
-        typer.secho("   📝 Creating source CSS file...", fg=typer.colors.YELLOW)
-        config.src_css.parent.mkdir(parents=True, exist_ok=True)
-        if config.use_daisy_ui:
-            config.src_css.write_text(DAISY_UI_SOURCE_CSS)
-            typer.secho("   ✅ DaisyUI source CSS created", fg=typer.colors.GREEN)
-        else:
-            config.src_css.write_text(DEFAULT_SOURCE_CSS)
-            typer.secho("   ✅ Default source CSS created", fg=typer.colors.GREEN)
-    else:
-        typer.secho("   ✅ Source CSS file exists", fg=typer.colors.GREEN)
+    # The same calls `build` makes, so what setup leaves behind is what build expects — including
+    # the @source directives when TAILWIND_CLI_AUTO_SOURCE_EXTERNAL_APPS is on, and the .gitignore
+    # that keeps the downloaded binary out of `git add .`.
+    # ensure_source_css announces a write itself, so only the quiet case needs a line here —
+    # a step in a status guide that reports nothing reads as a step that failed.
+    existed = config.src_css.exists()
+    ensure_source_css()
+    ensure_default_gitignore()
+    if existed:
+        typer.secho("   ✅ Source CSS file is up to date", fg=typer.colors.GREEN)
 
     # Step 6: First build
     typer.secho("\n🏗️ Step 6: First Build", fg=typer.colors.YELLOW, bold=True)
-    if not config.dist_css.exists():
-        typer.secho("   🔨 Building CSS for the first time...", fg=typer.colors.YELLOW)
-        try:
-            config.dist_css.parent.mkdir(parents=True, exist_ok=True)
-            result = subprocess.run(config.build_cmd, capture_output=True, text=True, timeout=30)
-            if result.returncode == 0:
-                typer.secho("   ✅ First build completed successfully!", fg=typer.colors.GREEN)
-            else:
-                typer.secho(f"   ❌ Build failed: {result.stderr}", fg=typer.colors.RED)
-                return
-        except Exception as e:
-            typer.secho(f"   ❌ Build error: {e}", fg=typer.colors.RED)
-            return
+    if not should_rebuild_css(config.src_css, config.dist_css):
+        typer.secho("   ✅ CSS output file is up to date", fg=typer.colors.GREEN)
     else:
-        typer.secho("   ✅ CSS output file exists", fg=typer.colors.GREEN)
+        typer.secho("   🔨 Building CSS for the first time...", fg=typer.colors.YELLOW)
+        config.dist_css.parent.mkdir(parents=True, exist_ok=True)
+        minify = bool(getattr(settings, "TAILWIND_CLI_AUTOMATIC_MINIFY", True))
+        # execute_tailwind_command swallows Ctrl+C, so without checking the result the guide would
+        # walk on to its closing "Setup Complete" over a stylesheet that never got built.
+        completed = execute_tailwind_command(
+            config.get_build_cmd(config.css_entries[0], minify=minify),
+            success_message="   ✅ First build completed successfully!",
+            # Plain, like the other two call sites: handle_command_errors frames it as an error.
+            error_message="Failed to run the first build",
+        )
+        if not completed:
+            typer.secho("\n⏹️  Setup stopped before the first build finished.", fg=typer.colors.YELLOW)
+            return
 
     # Step 7: Template integration guide
     typer.secho("\n📄 Step 7: Template Integration", fg=typer.colors.YELLOW, bold=True)

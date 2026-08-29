@@ -101,7 +101,7 @@ def execute_tailwind_command(
     error_message: str,
     capture_output: bool = True,
     verbose: bool = False,
-) -> None:
+) -> bool:
     """Execute a Tailwind command with consistent error handling and optional verbose output.
 
     Args:
@@ -110,6 +110,11 @@ def execute_tailwind_command(
         error_message: Message prefix for errors.
         capture_output: Whether to capture subprocess output.
         verbose: Whether to show detailed execution information.
+
+    Returns:
+        True if the command ran to completion, False if the user interrupted it. Callers that
+        continue afterwards — the setup guide — need to know the difference; the ones that end
+        here can ignore it.
     """
     try:
         if verbose:
@@ -133,6 +138,7 @@ def execute_tailwind_command(
             typer.secho(f"⏱️  Command completed in {execution_time:.3f}s", fg=typer.colors.GREEN)
 
         typer.secho(success_message, fg=typer.colors.GREEN)
+        return True
     except KeyboardInterrupt:
         if "build" in error_message.lower():
             typer.secho("Canceled building production stylesheet.", fg=typer.colors.RED)
@@ -140,6 +146,7 @@ def execute_tailwind_command(
             typer.secho("Stopped watching for changes.", fg=typer.colors.RED)
         else:
             typer.secho(f"Canceled {error_message.lower()}.", fg=typer.colors.RED)
+        return False
     except subprocess.CalledProcessError as e:  # pragma: no cover
         if verbose:
             typer.secho(f"❌ Command failed with exit code {e.returncode}", fg=typer.colors.RED)
