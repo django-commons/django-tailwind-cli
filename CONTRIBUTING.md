@@ -67,6 +67,23 @@ One of the lint hooks, `uv-secure`, checks the lock file against published secur
 it fails on a dependency your change never touched, a new advisory appeared and the lock needs a
 bump — mention it in the pull request instead of working around it.
 
+## An optional dev session
+
+`mise run dev` opens a three-pane tmux session — `claude --continue` on the left, `pytest-watcher`
+running the suite on every save top right, a shell bottom right — on a tmux server of its own named
+after the project, so stopping it can never disturb another project's session.
+
+```bash
+mise run dev            # start, or attach if it is already running
+mise run dev stop       # shut it down
+mise run dev restart    # from outside the session
+mise run dev status
+```
+
+Entirely optional — nothing in the project depends on it. The watcher is also available on its own
+as `mise run test-watch`; it runs without coverage so the feedback stays fast, and `mise run test`
+remains the command that enforces it.
+
 ## Commit messages
 
 [Conventional Commits](https://www.conventionalcommits.org/) in English, with a scope:

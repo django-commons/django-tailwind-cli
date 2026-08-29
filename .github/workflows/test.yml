@@ -22,6 +22,9 @@ jobs:
     # and the linters only ever need one interpreter.
     env:
       MISE_PYTHON_VERSION: "3.10"
+      # tmux only exists for the optional `mise run dev` session, which CI never starts. Disabling
+      # beats limiting install_args, because `mise run` would auto-install it again.
+      MISE_DISABLE_TOOLS: tmux
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -79,9 +82,8 @@ jobs:
     # install step. Prereleases are aliased in mise.toml, so "3.15" resolves.
     env:
       MISE_PYTHON_VERSION: ${{ matrix.python-version }}
-      # pre-commit is a local lint tool. Disabling it beats limiting
-      # install_args, because `mise run` would auto-install it again.
-      MISE_DISABLE_TOOLS: pre-commit
+      # pre-commit too, unlike the lint job: this one never runs it.
+      MISE_DISABLE_TOOLS: pre-commit,tmux
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -116,7 +118,7 @@ jobs:
     # One interpreter is enough: the floor is about the suite, not the matrix.
     env:
       MISE_PYTHON_VERSION: "3.13"
-      MISE_DISABLE_TOOLS: pre-commit
+      MISE_DISABLE_TOOLS: pre-commit,tmux
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -152,7 +154,7 @@ jobs:
     # of this job; conf.py suppresses the one warning class Pygments cannot help with.
     env:
       MISE_PYTHON_VERSION: "3.13"
-      MISE_DISABLE_TOOLS: pre-commit
+      MISE_DISABLE_TOOLS: pre-commit,tmux
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

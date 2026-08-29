@@ -8,6 +8,11 @@
 python = ["3.13", "3.10", "3.11", "3.12", "3.14", "3.15"]
 uv = "latest"
 pre-commit = "latest"
+# For `mise run dev`, which runs its own tmux server on a socket named after the project. Every client of
+# that socket needs this version — a hand-run `tmux -L tailwind-cli attach`, and the dev script itself: its
+# `has-session` check discards stderr, so a "protocol version mismatch" would surface as the far more
+# confusing "Session is not running".
+tmux = "3.7b"
 
 [env]
 # uv sync creates .venv itself; mise only has to activate it. create = true
@@ -32,6 +37,11 @@ run = "pre-commit run --all-files"
 [tasks.test]
 description = "Run pytest with coverage"
 run = "uv run pytest --cov --cov-report=html --cov-report=term"
+
+[tasks."test-watch"]
+description = "Re-run the suite on every save, without coverage"
+# pytest-cov roughly doubles the runtime for a number nobody reads between edits.
+run = "uv run ptw . --now --clear"
 
 [tasks."test-all"]
 description = "Run full Python/Django matrix via tox"

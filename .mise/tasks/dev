@@ -1,0 +1,164 @@
+#!/usr/bin/env bash
+#MISE description="tmux dev session: agent, test watcher and a free shell"
+# raw: without it mise sits between the terminal and tmux, and tmux won't attach without a tty.
+#MISE raw=true
+# ------------------------------------------------------------
+#  dev — 3-pane tmux session for django-tailwind-cli
+#
+#    +----------------+----------------+
+#    |                | test-watch     |
+#    |     claude     +----------------+
+#    |   --continue   | shell          |
+#    +----------------+----------------+
+#
+#  Verbs: stop, restart, status. Bare `mise run dev` starts or attaches.
+# ------------------------------------------------------------
+set -euo pipefail
+
+PROJECT_DIR="${MISE_PROJECT_ROOT:-$PWD}"
+SELF="$PROJECT_DIR/.mise/tasks/dev"
+SESSION="${TAILWIND_TMUX_SESSION:-tailwind-cli}"
+# One tmux server per project instead of the shared per-user one. Two reasons, both observed: a session
+# destroyed in one project could drop the client into another project's session (with
+# `detach-on-destroy off`, which is the default in this user's ~/.tmux.conf), and `kill-server` was global.
+# Named after the project, so `tmux -L tailwind-cli ls` reaches it from a plain shell.
+SERVER="${TAILWIND_TMUX_SERVER:-tailwind-cli}"
+tm() { tmux -L "$SERVER" "$@"; }
+# `exec` needs a program, not a shell function, so the three exec lines below spell tmux out. The wrapper
+# stays for everything else: every other call must reach this socket and no other.
+
+session_exists() { tm has-session -t "=$SESSION" 2>/dev/null; }
+
+# start(), restart() and exec_attach() all refuse a foreign server the same way, so it is said once.
+refuse_foreign_tmux() {
+  echo "This shell is inside another tmux server (${TMUX%%,*})."
+  echo "Detach there first (prefix d), then run 'mise run dev' again."
+}
+
+# Whether this shell sits inside *our* server. A session on a different server can neither be switched to
+# nor be the one restart() is about to kill, and `$TMUX` names the socket the same way tmux reports it
+# (measured: both are the resolved absolute path).
+in_our_server() {
+  [[ -n "${TMUX:-}" && "${TMUX%%,*}" == "$(tm display-message -p '#{socket_path}' 2>/dev/null)" ]]
+}
+
+# Which panes hold services is recorded at start (@service-panes), not guessed here:
+# the watcher runs through mise and uv, so the pane reports "uv" rather than ptw, and pane titles
+# get rewritten by anything that emits an OSC title sequence.
+service_panes() {
+  local ids
+  ids="$(tm show-options -t "$SESSION" -v @service-panes 2>/dev/null || true)"
+  [[ -z "$ids" ]] && return 0
+  tm list-panes -s -t "=$SESSION" -F '#{pane_id} #{pane_current_command}' |
+    awk -v ids=" $ids " 'index(ids, " " $1 " ") && $2 !~ /^-?(zsh|bash|fish|sh)$/ { print $1 }'
+}
+
+start() {
+  if session_exists; then
+    exec_attach
+  fi
+
+  # Refuse *before* building anything. exec_attach would refuse too, but only after the session and its
+  # services are up — leaving a started session behind and still exiting non-zero.
+  if [[ -n "${TMUX:-}" ]] && ! in_our_server; then
+    refuse_foreign_tmux
+    return 1
+  fi
+
+  local main rtop rbot
+  main="$(tm new-session -d -s "$SESSION" -n dev -c "$PROJECT_DIR" \
+    -x "$(tput cols 2>/dev/null || echo 200)" \
+    -y "$(tput lines 2>/dev/null || echo 50)" \
+    -P -F '#{pane_id}')"
+  rtop="$(tm split-window -h -t "$main" -c "$PROJECT_DIR" -P -F '#{pane_id}')"
+  rbot="$(tm split-window -v -t "$rtop" -c "$PROJECT_DIR" -P -F '#{pane_id}')"
+  tm set-window-option -t "$SESSION:dev" main-pane-width 50%
+  tm select-layout -t "$SESSION:dev" main-vertical
+
+  tm select-pane -t "$main" -T "claude"
+  tm select-pane -t "$rtop" -T "test-watch"
+  tm select-pane -t "$rbot" -T "shell"
+
+  # So a key binding can stop whichever dev session it is in: run-shell -b '#{@dev-stop}'
+  # Independent of the per-project server: ending this session must return the terminal to its shell,
+  # never move it into whatever else the server holds.
+  tm set-option -t "$SESSION" detach-on-destroy on
+  # Quoted: the documented consumer is `run-shell -b '#{@dev-stop}'`, which hands the string to
+  # /bin/sh, so an unquoted checkout path with a space in it would not resolve.
+  tm set-option -t "$SESSION" @dev-stop "'$SELF' stop"
+  tm set-option -t "$SESSION" @service-panes "$rtop"
+
+  # send-keys, not a pane command: real interactive shell, and the pane survives the exit.
+  # `|| claude` because --continue exits non-zero when this directory has no conversation yet --
+  # a fresh clone, or a project whose sessions live under a different CLAUDE_CONFIG_DIR. The
+  # trade-off: leaving claude with a non-zero status starts it once more.
+  tm send-keys -t "$main" 'claude --continue || claude' C-m
+  tm send-keys -t "$rtop" 'mise run test-watch' C-m
+
+  tm select-pane -t "$main"
+  exec_attach
+}
+
+exec_attach() {
+  # Inside this project's own server switching still works — another window, say.
+  if in_our_server; then
+    exec tmux -L "$SERVER" switch-client -t "=$SESSION"
+  fi
+  # From a different project's server it cannot: switch-client does not cross servers, and a nested
+  # attach would double every key binding. Ask for a detach rather than producing that.
+  if [[ -n "${TMUX:-}" ]]; then
+    refuse_foreign_tmux
+    return 1
+  fi
+  # Escape hatch: ITERM_CC=0 mise run dev
+  if [[ "${TERM_PROGRAM:-}" == "iTerm.app" && "${ITERM_CC:-1}" == "1" ]]; then
+    exec tmux -L "$SERVER" -CC attach -t "=$SESSION"
+  fi
+  exec tmux -L "$SERVER" attach -t "=$SESSION"
+}
+
+stop() {
+  if ! session_exists; then
+    echo "Session '$SESSION' is not running."
+    return 0
+  fi
+
+  local pane i
+  for pane in $(service_panes); do
+    tm send-keys -t "$pane" C-c
+  done
+  for i in $(seq 200); do
+    [[ -z "$(service_panes)" ]] && break
+    sleep 0.05
+  done
+
+  tm kill-session -t "=$SESSION"
+  echo "Session '$SESSION' stopped."
+  # No pkill counterpart here: pytest is a child of ptw and dies with it. Measured after every
+  # stop in this session — nothing survived the pane.
+}
+
+restart() {
+  # Refuse before stop() runs, not after: start() has this same guard, but by the time it refuses
+  # the session is already dead — restart from a foreign server destroyed it and rebuilt nothing.
+  if [[ -n "${TMUX:-}" ]] && ! in_our_server; then
+    refuse_foreign_tmux
+    return 1
+  fi
+  # kill-session would SIGHUP this very shell before start() runs.
+  # `in_our_server` is not decoration: from a plain shell `#S` still reports our session (measured),
+  # so the name comparison on its own would refuse every restart from a normal terminal.
+  if in_our_server && [[ "$(tm display-message -p '#S')" == "$SESSION" ]]; then
+    echo "Run restart from outside '$SESSION' — stopping it kills this shell."
+    return 1
+  fi
+  stop
+  start
+}
+
+case "${1:-}" in
+stop) stop ;;
+restart) restart ;;
+status) session_exists && echo "running" || echo "stopped" ;;
+*) start ;;
+esac
