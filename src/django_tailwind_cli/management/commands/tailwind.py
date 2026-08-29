@@ -57,8 +57,8 @@ For more information about a specific command, use:
 # COMMANDS ---------------------------------------------------------------------
 
 
-@handle_command_errors
 @app.command()
+@handle_command_errors
 def build(
     *,
     force: bool = typer.Option(  # pyright: ignore[reportUnknownMemberType]
@@ -174,8 +174,8 @@ def build(
         )
 
 
-@handle_command_errors
 @app.command()
+@handle_command_errors
 def watch(
     *,
     verbose: bool = typer.Option(  # pyright: ignore[reportUnknownMemberType]
@@ -281,8 +281,8 @@ def _run_watch_loop(*, verbose: bool = False) -> None:
         manager.start_watch_processes(config, verbose=verbose)
 
 
-@handle_command_errors
 @app.command(name="download_cli")
+@handle_command_errors
 def download_cli():
     """Download the Tailwind CSS CLI binary.
 
@@ -321,8 +321,8 @@ def download_cli():
     _download_cli(force_download=True)
 
 
-@handle_command_errors
 @app.command(name="config")
+@handle_command_errors
 def show_config():
     """Show current Tailwind CSS configuration.
 
@@ -352,8 +352,8 @@ def show_config():
     print_configuration()
 
 
-@handle_command_errors
 @app.command(name="setup")
+@handle_command_errors
 def setup_guide():
     """Guided setup for django-tailwind-cli.
 
@@ -517,8 +517,8 @@ def setup_guide():
     typer.secho("   For help anytime: python manage.py tailwind --help", fg=typer.colors.BLUE)
 
 
-@handle_command_errors
 @app.command(name="troubleshoot")
+@handle_command_errors
 def troubleshoot():
     """Troubleshooting guide for common issues.
 
@@ -549,8 +549,8 @@ def troubleshoot():
     print_troubleshooting_guide()
 
 
-@handle_command_errors
 @app.command(name="optimize")
+@handle_command_errors
 def show_performance_tips():
     """Performance optimization tips and best practices.
 
@@ -581,8 +581,8 @@ def show_performance_tips():
     print_performance_tips()
 
 
-@handle_command_errors
 @app.command(name="remove_cli")
+@handle_command_errors
 def remove_cli():
     """Remove the Tailwind CSS CLI."""
     c = get_config()
@@ -810,8 +810,9 @@ def _execute_tailwind_command(
                 typer.echo(e.stderr)
 
         error_detail = e.stderr if e.stderr else "An unknown error occurred."
-        typer.secho(f"{error_message}: {error_detail}", fg=typer.colors.RED)
-        sys.exit(1)
+        # Raised rather than exited: SystemExit is a BaseException, so handle_command_errors would
+        # never see it, and call_command would take the host process down with it.
+        raise CommandError(f"{error_message}: {error_detail}") from e
 
 
 # FILE OPERATION OPTIMIZATIONS --------------------------------------------------------------------

@@ -40,7 +40,7 @@ run = "uvx --with tox-uv --with tox-gh-actions tox"
 [tasks."build-docs"]
 description = "Build the docs, failing on any Sphinx warning"
 dir = "{{ config_root }}/docs"
-run = "uvx --with-requirements requirements.txt --from sphinx sphinx-build -b html -W . _build/html"
+run = "uvx --with-requirements requirements.txt --from sphinx sphinx-build -b html -W -E -a . _build/html"
 
 [tasks."serve-docs"]
 description = "Serve docs locally with sphinx-autobuild"

@@ -252,11 +252,11 @@ class TestSubprocessErrorScenarios:
             error = subprocess.CalledProcessError(1, ["fake-cli"], stderr="Build failed: syntax error")
             mock_subprocess.side_effect = error
 
-            with pytest.raises(SystemExit, match="1"):
+            with pytest.raises(CommandError):
                 call_command("tailwind", "build")
 
             captured = capsys.readouterr()
-            assert "Failed to build production stylesheet" in captured.out
+            assert "Failed to build production stylesheet" in captured.err
 
     def test_watch_command_execution_failure(self, settings: LazySettings, tmp_path: Path, capsys: CaptureFixture[str]):
         """Test handling of CLI execution failure during watch."""
@@ -275,11 +275,11 @@ class TestSubprocessErrorScenarios:
             error = subprocess.CalledProcessError(2, ["fake-cli", "--watch"], stderr="Watch failed: permission denied")
             mock_subprocess.side_effect = error
 
-            with pytest.raises(SystemExit, match="1"):
+            with pytest.raises(CommandError):
                 call_command("tailwind", "watch")
 
             captured = capsys.readouterr()
-            assert "Failed to start in watch mode" in captured.out
+            assert "Failed to start in watch mode" in captured.err
 
     def test_cli_binary_not_executable(self, settings: LazySettings, tmp_path: Path):
         """Test handling when CLI binary exists but is not executable."""
@@ -320,8 +320,8 @@ class TestSubprocessErrorScenarios:
         with patch("subprocess.run") as mock_subprocess:
             mock_subprocess.side_effect = PermissionError("Permission denied")
 
-            # PermissionError should be caught and converted to SystemExit
-            with pytest.raises((SystemExit, PermissionError)):
+            # handle_command_errors reports the hint and continues as a CommandError.
+            with pytest.raises(CommandError):
                 call_command("tailwind", "build")
 
 
@@ -369,7 +369,7 @@ class TestFileSystemErrorScenarios:
             error = subprocess.CalledProcessError(1, ["fake-cli"], stderr="Cannot write to output file")
             mock_subprocess.side_effect = error
 
-            with pytest.raises(SystemExit):
+            with pytest.raises(CommandError):
                 call_command("tailwind", "build")
 
     def test_source_css_read_permission_error(self, settings: LazySettings, tmp_path: Path):
@@ -397,7 +397,7 @@ class TestFileSystemErrorScenarios:
                 error = subprocess.CalledProcessError(1, ["fake-cli"], stderr="Cannot read input file")
                 mock_subprocess.side_effect = error
 
-                with pytest.raises(SystemExit):
+                with pytest.raises(CommandError):
                     call_command("tailwind", "build")
         finally:
             # Cleanup
@@ -728,9 +728,9 @@ class TestErrorSuggestionScenarios:
         suggest_command_error_solutions("Error: STATICFILES_DIRS is not configured properly")
 
         captured = capsys.readouterr()
-        assert "💡 Solution:" in captured.out
-        assert "STATICFILES_DIRS" in captured.out
-        assert "BASE_DIR / 'assets'" in captured.out
+        assert "💡 Solution:" in captured.err
+        assert "STATICFILES_DIRS" in captured.err
+        assert "BASE_DIR / 'assets'" in captured.err
 
     def test_suggest_command_error_solutions_base_dir(self, capsys: CaptureFixture[str]):
         """Test error suggestions for BASE_DIR issues."""
@@ -739,9 +739,9 @@ class TestErrorSuggestionScenarios:
         suggest_command_error_solutions("Error: BASE_DIR is not properly configured")
 
         captured = capsys.readouterr()
-        assert "💡 Solution:" in captured.out
-        assert "BASE_DIR" in captured.out
-        assert "Path(__file__).resolve().parent.parent" in captured.out
+        assert "💡 Solution:" in captured.err
+        assert "BASE_DIR" in captured.err
+        assert "Path(__file__).resolve().parent.parent" in captured.err
 
     def test_suggest_command_error_solutions_tailwind_css_3x(self, capsys: CaptureFixture[str]):
         """Test error suggestions for Tailwind CSS 3.x issues."""
@@ -750,9 +750,9 @@ class TestErrorSuggestionScenarios:
         suggest_command_error_solutions("Error: Tailwind CSS 3.x is not supported")
 
         captured = capsys.readouterr()
-        assert "💡 Solution:" in captured.out
-        assert "django-tailwind-cli v2.21.1" in captured.out
-        assert "Tailwind CSS 3.x" in captured.out
+        assert "💡 Solution:" in captured.err
+        assert "django-tailwind-cli v2.21.1" in captured.err
+        assert "Tailwind CSS 3.x" in captured.err
 
     def test_suggest_command_error_solutions_version(self, capsys: CaptureFixture[str]):
         """Test error suggestions for version issues."""
@@ -761,9 +761,9 @@ class TestErrorSuggestionScenarios:
         suggest_command_error_solutions("Error: invalid version specified")
 
         captured = capsys.readouterr()
-        assert "💡 Solution:" in captured.out
-        assert "TAILWIND_CLI_VERSION" in captured.out
-        assert "'latest'" in captured.out
+        assert "💡 Solution:" in captured.err
+        assert "TAILWIND_CLI_VERSION" in captured.err
+        assert "'latest'" in captured.err
 
     def test_suggest_command_error_solutions_no_match(self, capsys: CaptureFixture[str]):
         """Test error suggestions when no specific match is found."""
@@ -773,7 +773,7 @@ class TestErrorSuggestionScenarios:
 
         captured = capsys.readouterr()
         # Should not print any suggestions for unknown errors
-        assert captured.out == ""
+        assert captured.err == ""
 
     def test_suggest_file_error_solutions_file_not_found(self, capsys: CaptureFixture[str]):
         """Test file error suggestions for file not found issues."""
@@ -782,8 +782,8 @@ class TestErrorSuggestionScenarios:
         suggest_file_error_solutions("Error: file not found: /path/to/missing/file.css")
 
         captured = capsys.readouterr()
-        assert "💡 Suggestions:" in captured.out
-        assert "CSS input file" in captured.out
+        assert "💡 Suggestions:" in captured.err
+        assert "CSS input file" in captured.err
 
     def test_suggest_file_error_solutions_permission_denied(self, capsys: CaptureFixture[str]):
         """Test file error suggestions for permission issues."""
@@ -792,8 +792,8 @@ class TestErrorSuggestionScenarios:
         suggest_file_error_solutions("Error: permission denied accessing file")
 
         captured = capsys.readouterr()
-        assert "💡 Suggestions:" in captured.out
-        assert "file path is correct" in captured.out
+        assert "💡 Suggestions:" in captured.err
+        assert "file path is correct" in captured.err
 
     def test_suggest_file_error_solutions_directory_not_found(self, capsys: CaptureFixture[str]):
         """Test file error suggestions for directory issues."""
@@ -802,8 +802,8 @@ class TestErrorSuggestionScenarios:
         suggest_file_error_solutions("Error: directory not found or invalid")
 
         captured = capsys.readouterr()
-        assert "💡 Suggestions:" in captured.out
-        assert "directory exists" in captured.out
+        assert "💡 Suggestions:" in captured.err
+        assert "directory exists" in captured.err
 
 
 class TestSetupCommandScenarios:

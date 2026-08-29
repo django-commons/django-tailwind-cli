@@ -18,7 +18,10 @@ src/django_tailwind_cli/
 ├── apps.py                     # Django app configuration
 ├── config.py                   # Central configuration (Config class)
 ├── management/commands/
-│   └── tailwind.py             # the whole `tailwind` command group
+│   ├── tailwind.py             # the typer app and the nine command functions
+│   ├── _errors.py              # handle_command_errors and the hints it prints
+│   ├── _guides.py              # what troubleshoot, optimize and config print
+│   └── _process.py             # spawning and shutting down the watcher processes
 ├── templates/tailwind_cli/     # base.html and the tailwind_css.html partial
 ├── templatetags/               # {% tailwind_css %}
 └── utils/http.py               # urllib download helpers
@@ -29,7 +32,7 @@ src/django_tailwind_cli/
   here, with a default, not in the commands. A handful of direct `settings.BASE_DIR` reads in
   `tailwind.py` predate that rule, so grep for `settings.` before assuming `Config` is the only
   reader.
-- **`management/commands/tailwind.py`** — one django-typer group holding all nine subcommands:
+- **`management/commands/tailwind.py`** — one django-typer group holding all nine subcommands, with the bulky parts in `_`-prefixed siblings. The underscore is load-bearing: Django's `find_commands` would otherwise register them as broken management commands. The subcommands are:
   `build`, `watch`, `runserver`, `setup`, `config`, `troubleshoot`, `optimize`, `download_cli`, and
   `remove_cli`. `runserver` is a transparent passthrough — every argument except
   `--force-default-runserver` is forwarded verbatim to Django's `runserver` or `runserver_plus`.

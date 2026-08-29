@@ -217,72 +217,56 @@ class TestErrorHandling:
     """Test error handling decorator and error scenarios."""
 
     def test_handle_command_errors_decorator_command_error(self, mocker: MockerFixture):
-        """Test error decorator handles CommandError properly."""
-        mock_exit = mocker.patch("sys.exit")
+        """The hint is printed, then the failure continues as a CommandError for Django to render."""
         mock_secho = mocker.patch("typer.secho")
 
         @handle_command_errors
         def failing_function():
             raise CommandError("Test command error")
 
-        failing_function()
+        with pytest.raises(CommandError):
+            failing_function()
 
-        mock_secho.assert_called()
-        mock_exit.assert_called_with(1)
-        # Check that error message is displayed
-        error_calls = [call for call in mock_secho.call_args_list if "❌ Command error:" in str(call)]
-        assert len(error_calls) > 0
+        assert [c for c in mock_secho.call_args_list if "❌ Command error:" in str(c)]
 
     def test_handle_command_errors_decorator_file_not_found(self, mocker: MockerFixture):
-        """Test error decorator handles FileNotFoundError properly."""
-        mock_exit = mocker.patch("sys.exit")
+        """The hint is printed, then the failure continues as a CommandError for Django to render."""
         mock_secho = mocker.patch("typer.secho")
 
         @handle_command_errors
         def failing_function():
             raise FileNotFoundError("Test file not found")
 
-        failing_function()
+        with pytest.raises(CommandError):
+            failing_function()
 
-        mock_secho.assert_called()
-        mock_exit.assert_called_with(1)
-        # Check that error message is displayed
-        error_calls = [call for call in mock_secho.call_args_list if "❌ File not found:" in str(call)]
-        assert len(error_calls) > 0
+        assert [c for c in mock_secho.call_args_list if "❌ File not found:" in str(c)]
 
     def test_handle_command_errors_decorator_permission_error(self, mocker: MockerFixture):
-        """Test error decorator handles PermissionError properly."""
-        mock_exit = mocker.patch("sys.exit")
+        """The hint is printed, then the failure continues as a CommandError for Django to render."""
         mock_secho = mocker.patch("typer.secho")
 
         @handle_command_errors
         def failing_function():
             raise PermissionError("Test permission denied")
 
-        failing_function()
+        with pytest.raises(CommandError):
+            failing_function()
 
-        mock_secho.assert_called()
-        mock_exit.assert_called_with(1)
-        # Check that error message is displayed
-        error_calls = [call for call in mock_secho.call_args_list if "❌ Permission denied:" in str(call)]
-        assert len(error_calls) > 0
+        assert [c for c in mock_secho.call_args_list if "❌ Permission denied:" in str(c)]
 
     def test_handle_command_errors_decorator_generic_exception(self, mocker: MockerFixture):
-        """Test error decorator handles generic exceptions properly."""
-        mock_exit = mocker.patch("sys.exit")
+        """A bug is not a user error: the hint is printed, the exception keeps its type."""
         mock_secho = mocker.patch("typer.secho")
 
         @handle_command_errors
         def failing_function():
             raise ValueError("Test generic error")
 
-        failing_function()
+        with pytest.raises(ValueError):
+            failing_function()
 
-        mock_secho.assert_called()
-        mock_exit.assert_called_with(1)
-        # Check that error message is displayed
-        error_calls = [call for call in mock_secho.call_args_list if "❌ Unexpected error:" in str(call)]
-        assert len(error_calls) > 0
+        assert [c for c in mock_secho.call_args_list if "❌ Unexpected error:" in str(c)]
 
     def test_handle_command_errors_decorator_success(self, mocker: MockerFixture):
         """Test error decorator doesn't interfere with successful execution."""
@@ -320,3 +304,64 @@ class TestErrorHandling:
 
         # Should show verbose output about watching process
         assert "Watching for changes" in captured.out or "watch" in captured.out.lower()
+
+
+class TestCommandErrorHandlingIsWiredUp:
+    """handle_command_errors has to sit between typer and the command, not beside it."""
+
+    @pytest.fixture(autouse=True)
+    def _project(self, settings: LazySettings, tmp_path: Path, mocker: MockerFixture):
+        settings.BASE_DIR = tmp_path
+        settings.STATICFILES_DIRS = (tmp_path / "assets",)
+        (tmp_path / "manage.py").touch()
+        mocker.patch("subprocess.run")
+
+    def test_every_command_has_the_decorator_inside_the_typer_registration(self):
+        """The original bug was a decorator stacked the wrong way round, on eight commands at once.
+
+        A test that drives one command pins one command; this pins the shape for all of them.
+        """
+        from typer.models import CommandInfo
+
+        # typer's own generics are only partially typed — same gap as the pyright ignores on
+        # typer.Option in tailwind.py.
+        from django_tailwind_cli.management.commands.tailwind import app  # pyright: ignore[reportUnknownVariableType]
+
+        registered: list[CommandInfo] = app.registered_commands
+        undecorated = [
+            info.callback.__name__
+            for info in registered
+            if info.callback is not None and not hasattr(info.callback, "__wrapped__")
+        ]
+
+        assert undecorated == ["runserver"], (
+            "runserver is deliberately undecorated — it raises CommandError with its own remedy. "
+            f"Anything else here lost handle_command_errors: {undecorated}"
+        )
+
+    @pytest.mark.parametrize(
+        "raised, heading, expected",
+        [
+            # A user error continues as a CommandError, which Django renders as one line.
+            (CommandError("STATICFILES_DIRS is empty"), "❌ Command error:", CommandError),
+            (FileNotFoundError("tailwindcss missing"), "❌ File not found:", CommandError),
+            (PermissionError("cannot write"), "❌ Permission denied:", CommandError),
+            # A bug keeps its type and its traceback, so it stays reportable.
+            (RuntimeError("something else"), "❌ Unexpected error:", RuntimeError),
+        ],
+    )
+    def test_a_failing_command_reports_and_reraises(
+        self,
+        mocker: MockerFixture,
+        capsys: CaptureFixture[str],
+        raised: Exception,
+        heading: str,
+        expected: type[Exception],
+    ):
+        """Driven through call_command, so the decorator order is what is under test."""
+        mocker.patch("django_tailwind_cli.management.commands._guides.get_config", side_effect=raised)
+
+        with pytest.raises(expected):
+            call_command("tailwind", "config")
+
+        assert heading in capsys.readouterr().err
