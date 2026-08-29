@@ -507,6 +507,27 @@ def test_css_map_duplicate_names(settings: Settings):
         get_config()
 
 
+@pytest.mark.parametrize(
+    ("first", "second"),
+    [
+        ("out.css", "out.css"),
+        ("./out.css", "out.css"),
+        ("a/../out.css", "out.css"),
+        ("sub//out.css", "sub/out.css"),
+    ],
+)
+def test_css_map_rejects_a_duplicate_destination(first: str, second: str, settings: Settings):
+    """Two entries writing one file: the second is skipped as up to date and reported as built.
+
+    The spellings below all name the same file once joined onto the static dir, so comparing the
+    raw setting strings would let every case but the first one through.
+    """
+    settings.TAILWIND_CLI_CSS_MAP = [("admin.css", first), ("web.css", second)]
+
+    with pytest.raises(ValueError, match="duplicate destination"):
+        get_config()
+
+
 def test_css_map_single_file_still_works(settings: Settings):
     settings.TAILWIND_CLI_SRC_CSS = "my/source.css"
     settings.TAILWIND_CLI_DIST_CSS = "my/output.css"

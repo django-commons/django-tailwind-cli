@@ -322,6 +322,7 @@ def _validate_css_settings() -> None:
 
         css_map: list[tuple[str, str]] | tuple[tuple[str, str], ...] = css_map_raw  # pyright: ignore[reportUnknownVariableType]
         names_seen: set[str] = set()
+        dists_seen: set[str] = set()
         for i, entry in enumerate(css_map):
             # Runtime validation - pyright sees typed entry, but we validate for user input
             if not isinstance(entry, (list, tuple)) or len(entry) != 2:  # pyright: ignore[reportUnnecessaryIsInstance]
@@ -341,6 +342,19 @@ def _validate_css_settings() -> None:
                     "Each source file must have a unique name (stem of filename)."
                 )
             names_seen.add(name)
+
+            # Two entries writing one file is silently lossy rather than an error: the first build
+            # updates the output, the mtime check then finds the second entry up to date, and it is
+            # reported as built without ever having run. Compare normalised paths, because
+            # './out.css' and 'out.css' are two spellings of one file once the destination is
+            # joined onto the static dir, and the raw strings do not collide.
+            normalised_dist = os.path.normpath(dist)
+            if normalised_dist in dists_seen:
+                raise ConfigurationError(
+                    f"TAILWIND_CLI_CSS_MAP has duplicate destination '{dist}'. "
+                    "Each entry must write its own output file."
+                )
+            dists_seen.add(normalised_dist)
 
 
 def get_platform_info() -> PlatformInfo:

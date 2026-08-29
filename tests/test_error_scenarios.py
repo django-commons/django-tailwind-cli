@@ -889,6 +889,21 @@ class TestSetupUsesTheSharedHelpers:
         settings.TAILWIND_CLI_PATH = cli
         settings.TAILWIND_CLI_VERSION = "4.0.0"
 
+    def test_setup_does_not_call_a_rewritten_source_file_up_to_date(
+        self, mocker: MockerFixture, capsys: CaptureFixture[str]
+    ):
+        """A stale managed source.css is rewritten, so reporting it as up to date contradicts that."""
+        mocker.patch("subprocess.run", return_value=Mock(returncode=0, stdout="", stderr=""))
+        src = get_config().css_entries[0].src_css
+        src.parent.mkdir(parents=True, exist_ok=True)
+        src.write_text("/* stale, and not what we generate */\n")
+
+        call_command("tailwind", "setup")
+
+        out = capsys.readouterr().out
+        assert "Created Tailwind Source CSS at" in out
+        assert "Source CSS file is up to date" not in out
+
     def test_the_source_css_gets_the_auto_source_directives(self, settings: LazySettings, mocker: MockerFixture):
         """Writing the file by hand ignored TAILWIND_CLI_AUTO_SOURCE_EXTERNAL_APPS."""
         settings.TAILWIND_CLI_AUTO_SOURCE_EXTERNAL_APPS = True
@@ -1027,6 +1042,19 @@ class TestMultipleCssEntries:
 
         for entry in get_config().css_entries:
             assert entry.src_css.exists(), f"{entry.name}: {entry.src_css} was not created"
+
+    def test_setup_reports_each_source_file_on_its_own(self, mocker: MockerFixture, capsys: CaptureFixture[str]):
+        """One entry present, one missing: an aggregated flag drops the line for the present one."""
+        mocker.patch("subprocess.run", return_value=Mock(returncode=0, stdout="", stderr=""))
+        admin = get_config().css_entries[0].src_css
+        admin.parent.mkdir(parents=True, exist_ok=True)
+        admin.write_text('@import "tailwindcss";\n')
+
+        call_command("tailwind", "setup")
+
+        out = capsys.readouterr().out
+        assert "[admin] Source CSS file is up to date" in out
+        assert "[web] Source CSS file is up to date" not in out
 
     def test_setup_builds_every_entry(self, mocker: MockerFixture):
         run = mocker.patch("subprocess.run", return_value=Mock(returncode=0, stdout="", stderr=""))

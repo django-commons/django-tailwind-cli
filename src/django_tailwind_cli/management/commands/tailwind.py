@@ -418,12 +418,14 @@ def setup_guide():
     # the @source directives when TAILWIND_CLI_AUTO_SOURCE_EXTERNAL_APPS is on, and the .gitignore
     # that keeps the downloaded binary out of `git add .`.
     # ensure_source_css announces a write itself, so only the quiet case needs a line here —
-    # a step in a status guide that reports nothing reads as a step that failed.
-    existed = all(entry.src_css.exists() for entry in config.css_entries)
-    ensure_source_css()
+    # a step in a status guide that reports nothing reads as a step that failed. It reports which
+    # files it wrote, so each entry gets its own verdict; one flag for all of them dropped the
+    # line for an entry that was fine whenever another one had to be created.
+    written = ensure_source_css()
     ensure_default_gitignore()
-    if existed:
-        typer.secho("   ✅ Source CSS file is up to date", fg=typer.colors.GREEN)
+    for entry in config.css_entries:
+        if entry.src_css not in written:
+            typer.secho(f"   ✅ [{entry.name}] Source CSS file is up to date", fg=typer.colors.GREEN)
 
     # Step 6: First build
     typer.secho("\n🏗️ Step 6: First Build", fg=typer.colors.YELLOW, bold=True)

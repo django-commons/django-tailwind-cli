@@ -184,11 +184,13 @@ def _preserve_hand_edits(src_css: Path) -> None:
     )
 
 
-def ensure_source_css(*, verbose: bool = False) -> None:
+def ensure_source_css(*, verbose: bool = False) -> set[Path]:
     """Write the managed source CSS for every configured entry.
 
     A single-file setup has one entry; `TAILWIND_CLI_CSS_MAP` has one per pair. Nothing happens for
     an entry whose file the user owns and that already exists.
+
+    Returns the paths it wrote.
     """
     c = get_config()
 
@@ -208,15 +210,18 @@ def ensure_source_css(*, verbose: bool = False) -> None:
     if verbose:
         typer.secho(f"📝 Content template: {'DaisyUI' if c.use_daisy_ui else 'Default'}", fg=typer.colors.BLUE)
 
-    for entry in c.css_entries:
-        _ensure_one_source_css(entry.src_css, content, manages_the_file=c.overwrite_default_config, verbose=verbose)
+    return {
+        entry.src_css
+        for entry in c.css_entries
+        if _ensure_one_source_css(entry.src_css, content, manages_the_file=c.overwrite_default_config, verbose=verbose)
+    }
 
 
-def _ensure_one_source_css(src_css: Path, content: str, *, manages_the_file: bool, verbose: bool) -> None:
+def _ensure_one_source_css(src_css: Path, content: str, *, manages_the_file: bool, verbose: bool) -> bool:
     """Write one source CSS file, if it is ours to write and it is not already right.
 
     `manages_the_file` is False for a path the user configured — we create it once and never touch
-    it again, because from then on it is theirs.
+    it again, because from then on it is theirs. Returns whether the file was written.
     """
     if manages_the_file:
         should_create = _should_recreate_file(src_css, content)
@@ -232,7 +237,7 @@ def _ensure_one_source_css(src_css: Path, content: str, *, manages_the_file: boo
     if not should_create:
         if verbose:
             typer.secho("⏭️  Source CSS file is up-to-date, no changes needed", fg=typer.colors.GREEN)
-        return
+        return False
 
     if manages_the_file and src_css.exists() and not _looks_auto_generated(src_css.read_text()):
         _preserve_hand_edits(src_css)
@@ -248,3 +253,4 @@ def _ensure_one_source_css(src_css: Path, content: str, *, manages_the_file: boo
         typer.secho(f"📄 Content length: {len(content)} characters", fg=typer.colors.BLUE)
 
     typer.secho(f"Created Tailwind Source CSS at '{src_css}'", fg=typer.colors.GREEN)
+    return True

@@ -188,7 +188,9 @@ the single-file settings will be ignored and a warning will be raised.
 :::
 
 The entry name is derived from the source filename (without extension). This name can be used
-with the `{% tailwind_css %}` template tag to include specific CSS files.
+with the `{% tailwind_css %}` template tag to include specific CSS files. Names must therefore be
+unique, and so must destinations — two entries writing one output file are rejected, because the
+second one would be reported as built without ever having run.
 
 ### TAILWIND_CLI_USE_DAISY_UI
 
