@@ -125,10 +125,14 @@ _GENERATED_LINE_PATTERNS = (
     r"\s*",  # blank lines
     r'@import\s+"tailwindcss";',
     r'@plugin\s+"daisyui";',
-    r'@source\s+"[^"]*";',
     re.escape(AUTO_SOURCE_COMMENT),
 )
 _GENERATED_LINE = re.compile("^(?:" + "|".join(_GENERATED_LINE_PATTERNS) + ")$")
+
+# Only ever written below AUTO_SOURCE_COMMENT, which is what tells one of ours from a hand-added
+# one — and a hand-added @source is the likeliest edit there is, since it is how you widen
+# template discovery.
+_SOURCE_LINE = re.compile(r'^@source\s+"[^"]*";$')
 
 
 def _looks_auto_generated(content: str) -> bool:
@@ -137,8 +141,20 @@ def _looks_auto_generated(content: str) -> bool:
     Comparing against the *currently* generated content would be wrong: it changes when DaisyUI is
     toggled or when the set of external apps changes, and neither means the user edited the file.
     Checking the vocabulary instead only asks "could we have written this?".
+
+    Position matters for one line type. We only ever write ``@source`` below the auto-generated
+    comment, so one above it is the user widening template discovery by hand.
     """
-    return all(_GENERATED_LINE.match(line) for line in content.splitlines())
+    below_auto_source_comment = False
+    for line in content.splitlines():
+        if line == AUTO_SOURCE_COMMENT:
+            below_auto_source_comment = True
+        elif _SOURCE_LINE.match(line):
+            if not below_auto_source_comment:
+                return False
+        elif not _GENERATED_LINE.match(line):
+            return False
+    return True
 
 
 def _preserve_hand_edits(src_css: Path) -> None:

@@ -21,6 +21,7 @@ from semver import Version
 
 from django_tailwind_cli.config import get_config
 from django_tailwind_cli.management.commands._source_css import (
+    AUTO_SOURCE_COMMENT,
     DAISY_UI_SOURCE_CSS,
     DEFAULT_SOURCE_CSS,
     ensure_source_css,
@@ -744,6 +745,33 @@ class TestSourceCssOverwriteWarning:
 
         assert "hand edits" in captured.out.lower() or "edited" in captured.out.lower()
         assert "TAILWIND_CLI_SRC_CSS" in captured.out
+
+    def test_a_hand_added_source_directive_counts_as_an_edit(self, tmp_path: Path, capsys: CaptureFixture[str]):
+        """The likeliest hand edit of all: widening template discovery.
+
+        AGENTS.md says discovery happens exclusively through @source, so this is what a user reaches
+        for. The generated file has @source lines too, but only ever below the auto-generated
+        comment — above it, the line is the user's.
+        """
+        edited = '@import "tailwindcss";\n@source "../templates";\n'
+        self._write(tmp_path, edited)
+
+        ensure_source_css()
+        captured = capsys.readouterr()
+
+        assert "hand edits" in captured.out.lower()
+        assert self._src_css(tmp_path).with_suffix(".css.bak").read_text() == edited
+
+    def test_our_own_source_directives_are_not_an_edit(self, tmp_path: Path, capsys: CaptureFixture[str]):
+        """Below the auto-generated comment, an @source line is one we wrote."""
+        self._write(
+            tmp_path,
+            f'@import "tailwindcss";\n\n{AUTO_SOURCE_COMMENT}\n@source "/somewhere/an_app";\n',
+        )
+
+        ensure_source_css()
+
+        assert "hand edits" not in capsys.readouterr().out.lower()
 
     def test_hand_edits_are_kept_in_a_backup_beside_the_file(self, tmp_path: Path, capsys: CaptureFixture[str]):
         edited = '@import "tailwindcss";\n\n@theme {\n  --color-brand: #ff6600;\n}\n'
