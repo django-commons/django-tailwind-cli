@@ -1,8 +1,9 @@
 """Django system checks for django-tailwind-cli.
 
 Checks run on ``manage.py check``, on ``runserver``, and on every ``manage.py tailwind`` subcommand.
-The last of those is not free: django-click skips Django's checks, so the group callback runs them
-explicitly (see ``management/commands/_group.py``). That covers the moments where a broken CSS
+The last of those is not free: django-click skips Django's checks, so each subcommand runs them
+itself (``TailwindCommand`` in ``management/commands/_group.py`` — deliberately not the group
+callback, which would also check on ``tailwind COMMAND --help``). That covers the moments where a broken CSS
 layout matters without putting the work on the template rendering path.
 """
 

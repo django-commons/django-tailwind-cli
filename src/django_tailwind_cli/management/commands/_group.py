@@ -45,6 +45,17 @@ def _skip_checks_option(_ctx: click.Context, _param: click.Parameter, value: boo
     return value
 
 
+# One definition, two shapes: a decorator for the group and a parameter for every subcommand.
+# Django puts --skip-checks on the command itself, so `tailwind build --skip-checks` has to work
+# and not only `tailwind --skip-checks build`, which nobody would guess.
+_SKIP_CHECKS_OPTION: dict[str, Any] = {
+    "is_flag": True,
+    "expose_value": False,
+    "callback": _skip_checks_option,
+    "help": "Skip system checks.",
+}
+
+
 def _keyword_names(param: click.Parameter) -> Iterator[tuple[str, bool]]:
     """Every ``call_command`` keyword that spells this parameter, and whether it negates it.
 
@@ -105,6 +116,10 @@ class TailwindCommand(click.Command):
     reaches for it.
     """
 
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.params.append(click.Option(["--skip-checks"], **_SKIP_CHECKS_OPTION))
+
     def invoke(self, ctx: click.Context) -> Any:
         run_system_checks()
         return super().invoke(ctx)
@@ -158,8 +173,12 @@ class TailwindGroup(GroupAdapter):
         stdout: IO[str] | None = kwargs.pop("stdout", None)
         stderr: IO[str] | None = kwargs.pop("stderr", None)
 
-        argv = [*keyword_argv(self.params, kwargs), *(str(a) for a in args)]
-        command = next((self.commands[arg] for arg in argv if arg in self.commands), None)
+        positional = [str(a) for a in args]
+        argv = [*keyword_argv(self.params, kwargs), *positional]
+        # Only the positional arguments: the routed group options are already in argv, and one
+        # whose *value* happens to be a command name — `settings="config"` is not exotic — would
+        # otherwise win and send the caller's options to a command they never named.
+        command = next((self.commands[arg] for arg in positional if arg in self.commands), None)
         if command is not None:
             argv.extend(keyword_argv(command.params, kwargs))
         self._refuse_leftovers(command, kwargs)
@@ -190,9 +209,8 @@ class TailwindGroup(GroupAdapter):
         unknown = ", ".join(sorted(kwargs))
         if command is None:
             raise TypeError(f"Unknown option(s) for the tailwind command: {unknown}.")
-        valid = sorted(self._routable_names(command.params))
-        detail = f"Valid options are: {', '.join(valid)}." if valid else "It takes no options."
-        raise TypeError(f"Unknown option(s) for the {command.name} subcommand: {unknown}. {detail}")
+        valid = ", ".join(sorted(self._routable_names(command.params)))
+        raise TypeError(f"Unknown option(s) for the {command.name} subcommand: {unknown}. Valid options are: {valid}.")
 
     def run_from_argv(self, argv: list[str]) -> None:
         """Entry point for the command line, and the only place ``--skip-checks`` can be set.
@@ -228,13 +246,7 @@ class group(GroupRegistrator):  # noqa: N801  (matches djclick's own lowercase d
         # pressing one now that this group runs the checks itself: without it the command line has
         # no way to opt out. `default=None` matters — suppress_colors is django-click's own
         # callback for --color, and a flag defaulting to False would tell it colour was refused.
-        click.option(
-            "--skip-checks",
-            is_flag=True,
-            expose_value=False,
-            callback=_skip_checks_option,
-            help="Skip system checks.",
-        ),
+        click.option("--skip-checks", **_SKIP_CHECKS_OPTION),
         click.option(
             "--force-color",
             is_flag=True,

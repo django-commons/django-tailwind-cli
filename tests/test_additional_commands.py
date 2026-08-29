@@ -18,7 +18,7 @@ from pytest import CaptureFixture
 from pytest_mock import MockerFixture
 
 from django_tailwind_cli.config import get_config
-from django_tailwind_cli.management.commands._group import TailwindGroup, keyword_argv
+from django_tailwind_cli.management.commands._group import TailwindCommand, TailwindGroup, keyword_argv
 from django_tailwind_cli.management.commands.tailwind import app, handle_command_errors
 from tests.helpers import write_fake_cli
 
@@ -454,6 +454,16 @@ class TestCallCommandKeywordOptions:
         """`no_color` worked only because it was hand-listed; `no_traceback` is the same shape."""
         call_command("tailwind", "config", no_traceback=True)
 
+    def test_a_group_option_value_does_not_shadow_the_subcommand(self, capsys: CaptureFixture[str]):
+        """`settings="config"` names a settings module; `config` is also a subcommand.
+
+        The routed group options are prepended to argv, so scanning all of argv for a command name
+        finds the *value* and routes the caller's options to a command they never asked for.
+        """
+        call_command("tailwind", "build", settings="config", verbose=True)
+
+        assert "Starting Tailwind CSS build process" in capsys.readouterr().out
+
     def test_a_keyword_belonging_to_another_subcommand_is_refused(self):
         """`verbose` is an option of `build`, not of `config`.
 
@@ -463,8 +473,8 @@ class TestCallCommandKeywordOptions:
         with pytest.raises(TypeError, match="verbose") as excinfo:
             call_command("tailwind", "config", verbose=True)
 
-        # `config` declares no options of its own, and an empty "Valid options are: ." helps nobody.
-        assert str(excinfo.value).endswith("It takes no options.")
+        # The message has to name what *is* valid; `config` carries only the standard --skip-checks.
+        assert str(excinfo.value).endswith("Valid options are: skip_checks.")
 
 
 def test_group_options_are_spelled_back_as_argv():
@@ -476,3 +486,14 @@ def test_group_options_are_spelled_back_as_argv():
 
     assert argv == ["-v", "0", "--no-traceback", "--force-color"]
     assert kwargs == {}
+
+
+def test_every_subcommand_is_a_tailwind_command():
+    """The system checks hang off `TailwindCommand`, installed via click's `Group.command_class`.
+
+    That attribute arrived in click 8.0. On an older click every subcommand would quietly be a
+    plain `click.Command` and the checks would stop running with nothing to show for it, which is
+    why `click>=8.0` is declared rather than left to django-click's `click>=7.1`.
+    """
+    assert app.commands
+    assert [c for c in app.commands.values() if not isinstance(c, TailwindCommand)] == []

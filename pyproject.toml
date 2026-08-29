@@ -26,7 +26,15 @@ classifiers = [
 ]
 dynamic = ["version"]
 requires-python = ">=3.10"
-dependencies = ["django>=4.2,!=5.0.*,!=5.1.*", "django-click>=2.5.0", "semver>=3.0.4"]
+dependencies = [
+  "django>=4.2,!=5.0.*,!=5.1.*",
+  "django-click>=2.5.0",
+  # Imported directly across the command modules, and Group.command_class — which installs the
+  # subcommand class that runs the system checks — arrived in click 8.0. django-click itself only
+  # asks for click>=7.1, so a resolver is free to pick 7.x and the checks would silently stop.
+  "click>=8.0",
+  "semver>=3.0.4",
+]
 
 [project.optional-dependencies]
 django-extensions = ["django-extensions>=3.2", "werkzeug>=3.0"]

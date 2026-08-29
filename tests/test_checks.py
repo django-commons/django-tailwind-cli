@@ -195,3 +195,15 @@ def test_force_color_reaches_the_system_checks(mocker: MockerFixture):
 
     command = check.call_args[0][0]
     assert command.style.ERROR("boom") != "boom"
+
+
+def test_skip_checks_after_the_subcommand_skips_them(mocker: MockerFixture):
+    """`manage.py <command> --skip-checks` is the spelling Django documents and every user knows.
+
+    A group puts the option before the subcommand name, which nobody would guess.
+    """
+    check = mocker.patch.object(BaseCommand, "check")
+
+    app.run_from_argv(["manage.py", "tailwind", "config", "--skip-checks"])
+
+    check.assert_not_called()
