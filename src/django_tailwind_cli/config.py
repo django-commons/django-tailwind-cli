@@ -128,6 +128,16 @@ from django_tailwind_cli.utils import http
 from django.conf import settings
 from semver import Version
 
+
+class ConfigurationError(ValueError):
+    """A Django setting is missing or contradicts another one.
+
+    Subclasses ``ValueError`` on purpose: everything that already catches one — the system check
+    in ``checks.py``, and the tests — keeps working, while the commands can tell a user's
+    misconfiguration apart from a bug in this package and say so.
+    """
+
+
 FALLBACK_VERSION = "4.1.3"
 
 
@@ -231,7 +241,7 @@ def _validate_required_settings() -> None:
         ValueError: If required settings are missing or invalid.
     """
     if settings.STATICFILES_DIRS is None or len(settings.STATICFILES_DIRS) == 0:
-        raise ValueError(
+        raise ConfigurationError(
             "STATICFILES_DIRS is empty. Please add a path to your static files. "
             "Add STATICFILES_DIRS = [BASE_DIR / 'assets'] to your Django settings."
         )
@@ -239,21 +249,21 @@ def _validate_required_settings() -> None:
     # Validate TAILWIND_CLI_ASSET_NAME if set
     asset_name = getattr(settings, "TAILWIND_CLI_ASSET_NAME", None)
     if asset_name is not None and not asset_name:
-        raise ValueError(
+        raise ConfigurationError(
             "TAILWIND_CLI_ASSET_NAME must not be empty. Either remove the setting or provide a valid asset name."
         )
 
     # Validate TAILWIND_CLI_DIST_CSS if set
     dist_css = getattr(settings, "TAILWIND_CLI_DIST_CSS", None)
     if dist_css is not None and not dist_css:
-        raise ValueError(
+        raise ConfigurationError(
             "TAILWIND_CLI_DIST_CSS must not be empty. Either remove the setting or provide a valid CSS path."
         )
 
     # Validate TAILWIND_CLI_SRC_REPO if set
     src_repo = getattr(settings, "TAILWIND_CLI_SRC_REPO", None)
     if src_repo is not None and not src_repo:
-        raise ValueError(
+        raise ConfigurationError(
             "TAILWIND_CLI_SRC_REPO must not be empty. Either remove the setting or provide a valid repository URL."
         )
 
@@ -274,13 +284,13 @@ def _validate_system_binary_settings() -> None:
     binary_name = getattr(settings, "TAILWIND_CLI_SYSTEM_BINARY_NAME", None)
 
     if binary_name is not None and not binary_name:
-        raise ValueError(
+        raise ConfigurationError(
             "TAILWIND_CLI_SYSTEM_BINARY_NAME must not be empty. "
             "Either remove the setting or provide a valid binary name."
         )
 
     if use_system_binary and getattr(settings, "TAILWIND_CLI_PATH", None):
-        raise ValueError(
+        raise ConfigurationError(
             "Cannot use TAILWIND_CLI_USE_SYSTEM_BINARY together with TAILWIND_CLI_PATH. "
             "Choose one: either point TAILWIND_CLI_PATH at a specific binary, or set "
             "TAILWIND_CLI_USE_SYSTEM_BINARY = True to look up the binary on PATH."
@@ -298,7 +308,7 @@ def _validate_css_settings() -> None:
     has_dist_css = bool(getattr(settings, "TAILWIND_CLI_DIST_CSS", None))
 
     if has_css_map and (has_src_css or has_dist_css):
-        raise ValueError(
+        raise ConfigurationError(
             "Cannot use TAILWIND_CLI_CSS_MAP together with TAILWIND_CLI_SRC_CSS or TAILWIND_CLI_DIST_CSS. "
             "Use either the single-file configuration (SRC_CSS/DIST_CSS) or the multi-file configuration "
             "(CSS_MAP), but not both."
@@ -308,23 +318,25 @@ def _validate_css_settings() -> None:
     if has_css_map:
         css_map_raw = getattr(settings, "TAILWIND_CLI_CSS_MAP", None)
         if not isinstance(css_map_raw, (list, tuple)):
-            raise ValueError("TAILWIND_CLI_CSS_MAP must be a list or tuple of (source, destination) pairs.")
+            raise ConfigurationError("TAILWIND_CLI_CSS_MAP must be a list or tuple of (source, destination) pairs.")
 
         css_map: list[tuple[str, str]] | tuple[tuple[str, str], ...] = css_map_raw  # pyright: ignore[reportUnknownVariableType]
         names_seen: set[str] = set()
         for i, entry in enumerate(css_map):
             # Runtime validation - pyright sees typed entry, but we validate for user input
             if not isinstance(entry, (list, tuple)) or len(entry) != 2:  # pyright: ignore[reportUnnecessaryIsInstance]
-                raise ValueError(f"TAILWIND_CLI_CSS_MAP entry {i} must be a (source, destination) pair, got {entry!r}.")
+                raise ConfigurationError(
+                    f"TAILWIND_CLI_CSS_MAP entry {i} must be a (source, destination) pair, got {entry!r}."
+                )
             src: str = str(entry[0])
             dist: str = str(entry[1])
             if not src or not dist:
-                raise ValueError(f"TAILWIND_CLI_CSS_MAP entry {i} has empty source or destination path.")
+                raise ConfigurationError(f"TAILWIND_CLI_CSS_MAP entry {i} has empty source or destination path.")
 
             # Check for unique names
             name = Path(src).stem
             if name in names_seen:
-                raise ValueError(
+                raise ConfigurationError(
                     f"TAILWIND_CLI_CSS_MAP has duplicate entry name '{name}'. "
                     "Each source file must have a unique name (stem of filename)."
                 )
@@ -413,6 +425,21 @@ def _save_cached_version(repo_url: str, version_str: str) -> None:
         pass
 
 
+def _parse_configured_version(version_str: str) -> Version:
+    """Parse TAILWIND_CLI_VERSION, reporting a typo as the misconfiguration it is.
+
+    semver raises a bare ValueError, which would reach the user as an unexpected error with a
+    traceback rather than as the setting they need to correct.
+    """
+    try:
+        return Version.parse(version_str)
+    except ValueError as e:
+        raise ConfigurationError(
+            f"TAILWIND_CLI_VERSION is not a valid version: {version_str!r}. "
+            "Use 'latest' or a full version like '4.1.3'."
+        ) from e
+
+
 def get_version() -> tuple[str, Version]:
     """
     Retrieves the version of Tailwind CSS specified in the Django settings or fetches the latest
@@ -433,7 +460,7 @@ def get_version() -> tuple[str, Version]:
         "tailwindlabs/tailwindcss" if not use_daisy_ui else "dobicinaitis/tailwind-cli-extra",
     )
     if not repo_url:
-        raise ValueError("TAILWIND_CLI_SRC_REPO must not be None.")
+        raise ConfigurationError("TAILWIND_CLI_SRC_REPO must not be None.")
 
     if version_str == "latest":
         # Try to load from cache first
@@ -458,14 +485,14 @@ def get_version() -> tuple[str, Version]:
 
         return FALLBACK_VERSION, Version.parse(FALLBACK_VERSION)
     elif repo_url == "tailwindlabs/tailwindcss":
-        version = Version.parse(version_str)
+        version = _parse_configured_version(version_str)
         if version.major < 4:
-            raise ValueError(
+            raise ConfigurationError(
                 "Tailwind CSS 3.x is not supported by this version. Use version 2.21.1 if you want to use Tailwind 3."
             )
         return version_str, version
     else:
-        return version_str, Version.parse(version_str)
+        return version_str, _parse_configured_version(version_str)
 
 
 _VERSION_PATTERN = re.compile(r"tailwindcss v(\d+\.\d+\.\d+)")
@@ -528,7 +555,7 @@ def _resolve_system_binary(binary_name: str) -> Path:
     """
     found = shutil.which(binary_name)
     if not found:
-        raise ValueError(
+        raise ConfigurationError(
             f"TAILWIND_CLI_USE_SYSTEM_BINARY is enabled, but the binary {binary_name!r} "
             "could not be found on PATH. Install it (e.g. 'brew install tailwindcss') "
             "or disable TAILWIND_CLI_USE_SYSTEM_BINARY to use the automatic download instead."
@@ -669,7 +696,7 @@ def _resolve_css_paths() -> tuple[list[CSSEntry], bool]:
     # Single-file mode (existing behavior)
     dist_css_base = getattr(settings, "TAILWIND_CLI_DIST_CSS", "css/tailwind.css")
     if not dist_css_base:
-        raise ValueError(
+        raise ConfigurationError(
             "TAILWIND_CLI_DIST_CSS must not be None. Either remove the setting or provide a valid CSS path."
         )
 
@@ -720,7 +747,7 @@ def _get_repository_settings(*, use_daisy_ui: bool) -> tuple[str, str]:
 
     # Validate asset name
     if not asset_name:
-        raise ValueError(
+        raise ConfigurationError(
             "TAILWIND_CLI_ASSET_NAME must not be None. Either remove the setting or provide a valid asset name."
         )
 

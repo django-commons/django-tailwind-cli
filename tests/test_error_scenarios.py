@@ -963,3 +963,41 @@ class TestSetupUsesTheSharedHelpers:
 
         with pytest.raises(CommandError):
             call_command("tailwind", "setup")
+
+
+class TestConfigurationErrorsAreUserErrors:
+    """A missing setting is the most expected failure there is, not an "Unexpected error"."""
+
+    def test_the_tailored_hint_appears(self, settings: LazySettings, tmp_path: Path, capsys: CaptureFixture[str]):
+        settings.BASE_DIR = tmp_path
+        settings.STATICFILES_DIRS = []
+
+        with pytest.raises(CommandError):
+            call_command("tailwind", "build")
+
+        err = capsys.readouterr().err
+        assert "STATICFILES_DIRS = [BASE_DIR / 'assets']" in err
+        assert "Unexpected error" not in err
+
+    def test_a_typo_in_the_version_is_a_configuration_error(
+        self, settings: LazySettings, tmp_path: Path, capsys: CaptureFixture[str]
+    ):
+        """semver raises a bare ValueError; unwrapped it reads as a bug in the package."""
+        settings.BASE_DIR = tmp_path
+        settings.STATICFILES_DIRS = [tmp_path / "assets"]
+        settings.TAILWIND_CLI_VERSION = "4.1"
+
+        with pytest.raises(CommandError):
+            call_command("tailwind", "build")
+
+        err = capsys.readouterr().err
+        assert "Unexpected error" not in err
+        assert "TAILWIND_CLI_VERSION" in err
+
+    def test_it_stays_a_value_error_for_everything_that_catches_one(self, settings: LazySettings, tmp_path: Path):
+        """checks.py guards on ValueError, and two dozen tests assert it — the type must not narrow."""
+        settings.BASE_DIR = tmp_path
+        settings.STATICFILES_DIRS = []
+
+        with pytest.raises(ValueError):
+            get_config()

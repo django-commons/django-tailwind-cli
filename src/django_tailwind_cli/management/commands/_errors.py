@@ -13,6 +13,8 @@ from typing import Any
 import typer
 from django.core.management.base import CommandError
 
+from django_tailwind_cli.config import ConfigurationError
+
 
 def handle_command_errors(func: Callable[..., Any]) -> Callable[..., Any]:
     """Decorator to handle common command errors consistently.
@@ -38,6 +40,10 @@ def handle_command_errors(func: Callable[..., Any]) -> Callable[..., Any]:
             typer.secho(f"❌ Command error: {e}", fg=typer.colors.RED, err=True)
             suggest_command_error_solutions(str(e))
             raise
+        except ConfigurationError as e:
+            typer.secho(f"❌ Configuration error: {e}", fg=typer.colors.RED, err=True)
+            suggest_command_error_solutions(str(e))
+            raise CommandError(str(e)) from e
         except FileNotFoundError as e:
             typer.secho(f"❌ File not found: {e}", fg=typer.colors.RED, err=True)
             suggest_file_error_solutions(str(e))

@@ -93,6 +93,17 @@ def test_dist_css_does_not_trigger_the_check(settings: Settings):
     assert check_src_css_outside_static_dirs(app_configs=None) == []
 
 
+def test_a_real_bug_is_not_swallowed(mocker: MockerFixture):
+    """The guard exists for misconfiguration; a genuine ValueError must still reach `manage.py check`."""
+    mocker.patch(
+        "django_tailwind_cli.checks.find_src_css_in_static_dirs",
+        side_effect=ValueError("something went wrong resolving a path"),
+    )
+
+    with pytest.raises(ValueError, match="resolving a path"):
+        check_src_css_outside_static_dirs(app_configs=None)
+
+
 def test_broken_configuration_is_left_to_the_commands(settings: Settings):
     """An unusable configuration raises elsewhere; the check must not mask it with its own error."""
     settings.STATICFILES_DIRS = []

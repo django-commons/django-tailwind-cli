@@ -12,7 +12,7 @@ from typing import Any
 from django.core.checks import Warning as DjangoWarning
 from django.core.checks import register
 
-from django_tailwind_cli.config import find_src_css_in_static_dirs
+from django_tailwind_cli.config import ConfigurationError, find_src_css_in_static_dirs
 
 SRC_CSS_IN_STATIC_DIR = "django_tailwind_cli.W001"
 
@@ -30,7 +30,7 @@ def check_src_css_outside_static_dirs(app_configs: Any, **kwargs: Any) -> list[D
     """
     try:
         offenders = find_src_css_in_static_dirs()
-    except ValueError:
+    except ConfigurationError:
         # The configuration is unusable for other reasons, and the commands report that themselves.
         return []
 
