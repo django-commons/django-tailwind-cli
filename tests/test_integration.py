@@ -19,6 +19,7 @@ import pytest
 from django.conf import LazySettings
 from django_tailwind_cli.utils import http
 from django.core.management import call_command
+from django.core.management.base import CommandError
 from pytest import CaptureFixture
 from pytest_mock import MockerFixture
 
@@ -574,7 +575,7 @@ class TestCLIDownloadIntegration:
         with patch("django_tailwind_cli.utils.http.download_with_progress") as mock_download:
             mock_download.side_effect = http.RequestError("Network error")
 
-            with pytest.raises((http.RequestError, Exception)):  # Should raise CommandError
+            with pytest.raises(CommandError, match="Failed to download"):
                 call_command("tailwind", "download_cli")
 
     def test_cli_permissions_after_download(self, settings: LazySettings, tmp_path: Path):
@@ -706,16 +707,19 @@ class TestErrorRecoveryScenarios:
             restricted_dir.mkdir(mode=0o000)  # No permissions
             settings.TAILWIND_CLI_PATH = restricted_dir / "cli"
 
-            with patch("django_tailwind_cli.utils.http.download_with_progress") as mock_download:
-                # Mock download function to create actual file
-                mock_download.side_effect = write_fake_cli
+            try:
+                with patch("django_tailwind_cli.utils.http.download_with_progress") as mock_download:
+                    mock_download.side_effect = write_fake_cli
 
-                # Should handle permission error gracefully
-                with pytest.raises((PermissionError, Exception)):  # May raise PermissionError or CommandError
-                    call_command("tailwind", "download_cli")
-
-            # Cleanup
-            restricted_dir.chmod(0o755)
+                    # Matching the errno rather than "Permission denied": glibc localises
+                    # strerror, so the text depends on the contributor's locale.
+                    with pytest.raises(CommandError, match=r"\[Errno 13\]"):
+                        call_command("tailwind", "download_cli")
+            finally:
+                # `finally`, not a trailing statement: a 0o000 directory that outlives the test is
+                # one pytest can never delete, so it renames it to garbage-* and warns about it on
+                # every run from then on. Three of those had accumulated.
+                restricted_dir.chmod(0o755)
 
 
 @pytest.mark.usefixtures("bypass_autoreload")

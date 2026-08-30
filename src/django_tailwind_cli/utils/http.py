@@ -88,10 +88,14 @@ def fetch_redirect_location(url: str, timeout: int = 10) -> tuple[bool, str | No
                 return False, None
 
     except UrllibHTTPError as e:
-        # Handle redirect responses that urllib might treat as errors
+        # urllib's HTTPError *is* the response and owns an open file object — one it allocates
+        # itself when the server sent no body — so it needs closing. Only the body goes; code and
+        # headers stay readable. `close()` rather than `with e:`, which raises on an error that
+        # is already closed.
+        e.close()
+        # Redirect responses that urllib treats as errors.
         if e.code in (301, 302, 303, 307, 308):
-            location = e.headers.get("Location")
-            return True, location
+            return True, e.headers.get("Location")
         return False, None
     except URLError as e:
         if isinstance(e.reason, socket.timeout):
@@ -158,6 +162,7 @@ def download_with_progress(
         # raised above when response.getcode() >= 400).
         raise
     except UrllibHTTPError as e:
+        e.close()  # the error owns an open file object; see fetch_redirect_location
         raise HTTPError(f"HTTP {e.code}: {e.reason}") from e
     except URLError as e:
         if isinstance(e.reason, socket.timeout):
@@ -201,6 +206,7 @@ def get_content_sync(url: str, timeout: int = 30) -> bytes:
         # raised above when response.getcode() >= 400).
         raise
     except UrllibHTTPError as e:
+        e.close()  # the error owns an open file object; see fetch_redirect_location
         raise HTTPError(f"HTTP {e.code}: {e.reason}") from e
     except URLError as e:
         if isinstance(e.reason, socket.timeout):

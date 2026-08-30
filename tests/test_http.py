@@ -20,6 +20,21 @@ from django_tailwind_cli.utils import http
 pytestmark = pytest.mark.unpatched_http
 
 
+def urllib_error(code: int, msg: str, **hdrs: str) -> UrllibHTTPError:
+    """An `HTTPError` shaped like the one urllib raises, with no body.
+
+    `fp=None` is not a shortcut: urllib allocates a file object of its own in that case, which is
+    exactly the resource `TestTheUrllibErrorIsClosed` is about.
+    """
+    return UrllibHTTPError(
+        url="https://example.com",
+        code=code,
+        msg=msg,
+        hdrs=hdrs,  # pyright: ignore[reportArgumentType]
+        fp=None,
+    )
+
+
 class TestFetchRedirectLocation:
     """Test the fetch_redirect_location function error handling."""
 
@@ -203,13 +218,7 @@ class TestFetchRedirectLocationHappyPaths:
 
     def test_urllib_httperror_with_redirect_code_returns_location(self):
         """urllib sometimes raises HTTPError for 3xx even with NoRedirectHandler."""
-        error = UrllibHTTPError(
-            url="https://example.com",
-            code=301,
-            msg="Moved Permanently",
-            hdrs={"Location": "https://example.com/new"},  # pyright: ignore[reportArgumentType]
-            fp=None,
-        )
+        error = urllib_error(301, "Moved Permanently", Location="https://example.com/new")
 
         with patch("django_tailwind_cli.utils.http.build_opener") as mock_build_opener:
             mock_build_opener.return_value.open.side_effect = error
@@ -220,13 +229,7 @@ class TestFetchRedirectLocationHappyPaths:
         assert location == "https://example.com/new"
 
     def test_urllib_httperror_with_non_redirect_code_returns_failure(self):
-        error = UrllibHTTPError(
-            url="https://example.com",
-            code=404,
-            msg="Not Found",
-            hdrs={},  # pyright: ignore[reportArgumentType]
-            fp=None,
-        )
+        error = urllib_error(404, "Not Found")
 
         with patch("django_tailwind_cli.utils.http.build_opener") as mock_build_opener:
             mock_build_opener.return_value.open.side_effect = error
@@ -303,13 +306,7 @@ class TestDownloadWithProgressErrorBranches:
                 http.download_with_progress("https://example.com/missing.bin", filepath)
 
     def test_urllib_httperror_raises_http_error(self, tmp_path: Path):
-        error = UrllibHTTPError(
-            url="https://example.com",
-            code=500,
-            msg="Internal Server Error",
-            hdrs={},  # pyright: ignore[reportArgumentType]
-            fp=None,
-        )
+        error = urllib_error(500, "Internal Server Error")
         filepath = tmp_path / "test.bin"
 
         with patch("django_tailwind_cli.utils.http.urlopen", side_effect=error):
@@ -363,13 +360,7 @@ class TestGetContentSyncErrorBranches:
                 http.get_content_sync("https://example.com/api")
 
     def test_urllib_httperror_raises_http_error(self):
-        error = UrllibHTTPError(
-            url="https://example.com",
-            code=502,
-            msg="Bad Gateway",
-            hdrs={},  # pyright: ignore[reportArgumentType]
-            fp=None,
-        )
+        error = urllib_error(502, "Bad Gateway")
 
         with patch("django_tailwind_cli.utils.http.urlopen", side_effect=error):
             with pytest.raises(http.HTTPError, match="HTTP 502"):
@@ -423,3 +414,50 @@ class TestExceptionClasses:
         """Test RequestTimeoutError inheritance."""
         with pytest.raises(http.RequestError):
             raise http.RequestTimeoutError("timeout error")
+
+
+class TestTheUrllibErrorIsClosed:
+    """The three branches that catch urllib's HTTPError have to close it — see http.py.
+
+    Asserted on the file object rather than on the ResourceWarning it would otherwise trigger:
+    that warning only exists on Python 3.14+, so a test watching for it would be vacuously green
+    on every older interpreter in the matrix.
+    """
+
+    @pytest.mark.parametrize(
+        ("error", "expected"),
+        [
+            (
+                urllib_error(301, "Moved Permanently", Location="https://example.com/new"),
+                (True, "https://example.com/new"),
+            ),
+            (urllib_error(404, "Not Found"), (False, None)),
+        ],
+        ids=["redirect", "non-redirect"],
+    )
+    def test_fetch_redirect_location_closes_it(self, error: UrllibHTTPError, expected: tuple[bool, str | None]):
+        with patch("django_tailwind_cli.utils.http.build_opener") as mock_build_opener:
+            mock_build_opener.return_value.open.side_effect = error
+            result = http.fetch_redirect_location("https://example.com")
+
+        # The Location header is read out of the error, so closing must not cost us that.
+        assert result == expected
+        assert error.fp.closed
+
+    def test_get_content_sync_closes_it(self):
+        error = urllib_error(404, "Not Found")
+
+        with patch("django_tailwind_cli.utils.http.urlopen", side_effect=error):
+            with pytest.raises(http.HTTPError):
+                http.get_content_sync("https://example.com")
+
+        assert error.fp.closed
+
+    def test_download_with_progress_closes_it(self, tmp_path: Path):
+        error = urllib_error(404, "Not Found")
+
+        with patch("django_tailwind_cli.utils.http.urlopen", side_effect=error):
+            with pytest.raises(http.HTTPError):
+                http.download_with_progress("https://example.com", tmp_path / "cli")
+
+        assert error.fp.closed

@@ -36,6 +36,10 @@ run = "pre-commit run --all-files"
 
 [tasks.test]
 description = "Run pytest with coverage"
+# Dev mode, matching tox.ini: without it Python ignores ResourceWarning outright, so an unclosed
+# file handle is invisible here and only surfaces in the matrix. That is how three branches of
+# utils/http.py leaked one for a while.
+env = { PYTHONDEVMODE = "1" }
 run = "uv run pytest --cov --cov-report=html --cov-report=term"
 
 [tasks."test-watch"]
