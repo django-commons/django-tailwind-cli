@@ -42,6 +42,8 @@ in_our_server() {
   [[ -n "${TMUX:-}" && "${TMUX%%,*}" == "$(tm display-message -p '#{socket_path}' 2>/dev/null)" ]]
 }
 
+in_foreign_tmux() { [[ -n "${TMUX:-}" ]] && ! in_our_server; }
+
 # Which panes hold services is recorded at start (@service-panes), not guessed here:
 # the watcher runs through mise and uv, so the pane reports "uv" rather than ptw, and pane titles
 # get rewritten by anything that emits an OSC title sequence.
@@ -60,7 +62,7 @@ start() {
 
   # Refuse *before* building anything. exec_attach would refuse too, but only after the session and its
   # services are up — leaving a started session behind and still exiting non-zero.
-  if [[ -n "${TMUX:-}" ]] && ! in_our_server; then
+  if in_foreign_tmux; then
     refuse_foreign_tmux
     return 1
   fi
@@ -106,6 +108,8 @@ exec_attach() {
   fi
   # From a different project's server it cannot: switch-client does not cross servers, and a nested
   # attach would double every key binding. Ask for a detach rather than producing that.
+  # Not in_foreign_tmux: the branch above already exec'd when the server was ours, so reaching this
+  # line is itself the "not ours" half of that predicate.
   if [[ -n "${TMUX:-}" ]]; then
     refuse_foreign_tmux
     return 1
@@ -141,7 +145,7 @@ stop() {
 restart() {
   # Refuse before stop() runs, not after: start() has this same guard, but by the time it refuses
   # the session is already dead — restart from a foreign server destroyed it and rebuilt nothing.
-  if [[ -n "${TMUX:-}" ]] && ! in_our_server; then
+  if in_foreign_tmux; then
     refuse_foreign_tmux
     return 1
   fi
