@@ -32,3 +32,15 @@ def write_fake_cli(
     """
     filepath.parent.mkdir(parents=True, exist_ok=True)
     filepath.write_bytes(content)
+
+
+def install_fake_cli(path: Path, *, content: bytes = b"fake-cli-binary") -> Path:
+    """Put an executable fake CLI binary at ``path``, as if it had already been installed.
+
+    Not the same function as ``write_fake_cli``, and the chmod is why — see its docstring above.
+    This one claims the binary is already there, so the executable bit is part of the claim.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(content)
+    path.chmod(0o755)
+    return path

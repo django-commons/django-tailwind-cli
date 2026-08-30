@@ -8,6 +8,8 @@ from typing import Any
 import pytest
 from pytest_mock import MockerFixture
 
+from tests.helpers import install_fake_cli
+
 # Deliberately not FALLBACK_VERSION: if the two matched, a test could not tell
 # "the fixture answered" from "the lookup failed and fell back". Tests that care
 # about a specific version pin it themselves.
@@ -113,3 +115,31 @@ def fake_project_settings(settings: Any) -> None:
     """
     settings.BASE_DIR = Path("/home/user/project")
     settings.STATICFILES_DIRS = (settings.BASE_DIR / "assets",)
+
+
+@pytest.fixture
+def tmp_project(settings: Any, tmp_path: Path) -> Path:
+    """A real project directory under ``tmp_path``, with the CLI settings pointing inside it.
+
+    Puts no binary on disk on purpose: whether the CLI exists is what several tests are about —
+    the download path, ``TAILWIND_CLI_AUTOMATIC_DOWNLOAD``, the "not installed" error — so a
+    fixture that installed one would answer that question for them. Use ``tmp_project_with_cli``
+    when the binary should already be there.
+
+    Returns the project root.
+    """
+    settings.BASE_DIR = tmp_path
+    settings.STATICFILES_DIRS = (tmp_path / "assets",)
+    settings.TAILWIND_CLI_PATH = tmp_path / "tailwindcss"
+    settings.TAILWIND_CLI_VERSION = "4.0.0"
+    return tmp_path
+
+
+@pytest.fixture
+def tmp_project_with_cli(tmp_project: Path, settings: Any) -> Path:
+    """``tmp_project`` with the CLI binary already on disk and executable.
+
+    For tests about what a command does once the CLI is there, not about getting it there.
+    Returns the binary's path.
+    """
+    return install_fake_cli(settings.TAILWIND_CLI_PATH)

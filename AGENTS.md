@@ -91,9 +91,14 @@ nobody checked.
   fetches a real binary is a broken test.
 - **Opt out of the patched HTTP layer with `@pytest.mark.unpatched_http`**, as `tests/test_http.py`
   does. That is only for tests of `utils/http.py` itself.
-- Plain test helpers live in `tests/helpers.py` — `write_fake_cli` stands in for `download_with_progress` and is what every test that fakes a download uses. Do not write a local copy.
-- Shared fixtures belong in `tests/conftest.py`, which holds the network guard, the version-cache
-  isolation, the version-lookup patch, and two opt-in fixtures: `bypass_autoreload` (run `tailwind
-  watch` in-process instead of under Django's autoreloader) and `fake_project_settings` (a
-  `BASE_DIR` that does not exist on disk, so expected paths stay readable literals). Opt in with
-  `@pytest.mark.usefixtures(...)` rather than copying the setup into the module.
+- Plain test helpers live in `tests/helpers.py`. `write_fake_cli` stands in for `download_with_progress`, so its signature mirrors the production call — it is installed as a `side_effect`. `install_fake_cli` takes a path and puts an executable binary there, as if it had already been installed. The behavioural difference is the chmod, and it is deliberate: `write_fake_cli` leaves the mode alone because production sets it right after the download returns, and a stub that set it too would hide whether it does — `tests/test_integration.py::test_cli_permissions_after_download` is the test that would stop being evidence. Use them; do not write a local copy of either.
+- Shared fixtures belong in `tests/conftest.py`. Four are autouse: the network guard, the
+  version-cache path, the version-cache reset, and the version-lookup patch. Four are opt-in:
+  `bypass_autoreload` (run `tailwind watch` in-process instead of under Django's autoreloader),
+  `fake_project_settings` (a `BASE_DIR` that does not exist on disk, so expected paths stay
+  readable literals), `tmp_project` (a real project under `tmp_path` with the CLI settings
+  pointing inside it, and deliberately **no** binary — whether the CLI exists is what several
+  tests are about), and `tmp_project_with_cli` (`tmp_project` plus the binary already on disk).
+  Take one as a fixture argument, or `@pytest.mark.usefixtures(...)` it — but do not copy the
+  setup into a module. A fixture requested only for its side effect gets
+  `# noqa: ARG002  (requested for its side effect)`.

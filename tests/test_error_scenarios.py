@@ -31,7 +31,7 @@ from django_tailwind_cli.config import (
     get_version,
 )
 from django_tailwind_cli.management.commands._process import ProcessManager
-from tests.helpers import write_fake_cli
+from tests.helpers import install_fake_cli, write_fake_cli
 
 
 class TestConfigurationErrorScenarios:
@@ -193,9 +193,7 @@ class TestNetworkErrorScenarios:
         with pytest.raises(CommandError):
             call_command("tailwind", "build")
 
-        cli_path.parent.mkdir(parents=True, exist_ok=True)
-        cli_path.write_bytes(b"fake-cli-binary")
-        cli_path.chmod(0o755)
+        install_fake_cli(cli_path)
 
         call_command("tailwind", "build")
 
@@ -243,9 +241,7 @@ class TestSubprocessErrorScenarios:
 
         # Create a fake CLI that will be executable
         config = get_config()
-        config.cli_path.parent.mkdir(parents=True, exist_ok=True)
-        config.cli_path.write_bytes(b"fake-cli")
-        config.cli_path.chmod(0o755)
+        install_fake_cli(config.cli_path, content=b"fake-cli")
 
         with patch("subprocess.run") as mock_subprocess:
             # Simulate subprocess failure
@@ -266,9 +262,7 @@ class TestSubprocessErrorScenarios:
 
         # Create a fake CLI
         config = get_config()
-        config.cli_path.parent.mkdir(parents=True, exist_ok=True)
-        config.cli_path.write_bytes(b"fake-cli")
-        config.cli_path.chmod(0o755)
+        install_fake_cli(config.cli_path, content=b"fake-cli")
 
         with patch("subprocess.run") as mock_subprocess:
             # Simulate subprocess failure
@@ -313,9 +307,7 @@ class TestSubprocessErrorScenarios:
         settings.TAILWIND_CLI_PATH = tmp_path / ".cli"
 
         config = get_config()
-        config.cli_path.parent.mkdir(parents=True, exist_ok=True)
-        config.cli_path.write_bytes(b"fake-cli")
-        config.cli_path.chmod(0o755)
+        install_fake_cli(config.cli_path, content=b"fake-cli")
 
         with patch("subprocess.run") as mock_subprocess:
             mock_subprocess.side_effect = PermissionError("Permission denied")
@@ -360,9 +352,7 @@ class TestFileSystemErrorScenarios:
 
         # Create CLI
         config = get_config()
-        config.cli_path.parent.mkdir(parents=True, exist_ok=True)
-        config.cli_path.write_bytes(b"fake-cli")
-        config.cli_path.chmod(0o755)
+        install_fake_cli(config.cli_path, content=b"fake-cli")
 
         with patch("subprocess.run") as mock_subprocess:
             # Make subprocess fail due to missing output directory
@@ -389,9 +379,7 @@ class TestFileSystemErrorScenarios:
 
         try:
             config = get_config()
-            config.cli_path.parent.mkdir(parents=True, exist_ok=True)
-            config.cli_path.write_bytes(b"fake-cli")
-            config.cli_path.chmod(0o755)
+            install_fake_cli(config.cli_path, content=b"fake-cli")
 
             with patch("subprocess.run") as mock_subprocess:
                 error = subprocess.CalledProcessError(1, ["fake-cli"], stderr="Cannot read input file")
@@ -876,18 +864,9 @@ class TestSetupCommandScenarios:
         assert "Configuration loaded successfully" in captured.out
 
 
+@pytest.mark.usefixtures("tmp_project_with_cli")
 class TestSetupUsesTheSharedHelpers:
     """`setup` had its own copies of the source-CSS and build steps."""
-
-    @pytest.fixture(autouse=True)
-    def _project(self, settings: LazySettings, tmp_path: Path):
-        settings.BASE_DIR = tmp_path
-        settings.STATICFILES_DIRS = [tmp_path / "assets"]
-        cli = tmp_path / "cli"
-        cli.write_bytes(b"fake-cli-binary")
-        cli.chmod(0o755)
-        settings.TAILWIND_CLI_PATH = cli
-        settings.TAILWIND_CLI_VERSION = "4.0.0"
 
     def test_setup_does_not_call_a_rewritten_source_file_up_to_date(
         self, mocker: MockerFixture, capsys: CaptureFixture[str]
@@ -1022,14 +1001,11 @@ class TestMultipleCssEntries:
     """`build` iterates TAILWIND_CLI_CSS_MAP; setup and the source CSS only saw the first entry."""
 
     @pytest.fixture(autouse=True)
-    def _project(self, settings: LazySettings, tmp_path: Path):
-        settings.BASE_DIR = tmp_path
-        settings.STATICFILES_DIRS = [tmp_path / "assets"]
-        cli = tmp_path / "cli"
-        cli.write_bytes(b"fake-cli-binary")
-        cli.chmod(0o755)
-        settings.TAILWIND_CLI_PATH = cli
-        settings.TAILWIND_CLI_VERSION = "4.0.0"
+    def _css_map(
+        self,
+        settings: LazySettings,
+        tmp_project_with_cli: Path,  # noqa: ARG002  (requested for its side effect)
+    ):
         for name in ("TAILWIND_CLI_SRC_CSS", "TAILWIND_CLI_DIST_CSS"):
             if hasattr(settings, name):
                 delattr(settings, name)

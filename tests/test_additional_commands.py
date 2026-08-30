@@ -24,14 +24,10 @@ from tests.helpers import write_fake_cli
 
 
 @pytest.fixture(autouse=True)
-def configure_test_settings(settings: LazySettings, tmp_path: Path, mocker: MockerFixture):
+def configure_test_settings(tmp_project: Path, settings: LazySettings, mocker: MockerFixture):
     """Configure settings for all tests in this module."""
-    settings.BASE_DIR = tmp_path
-    settings.TAILWIND_CLI_PATH = tmp_path / "tailwindcss"
-    settings.TAILWIND_CLI_VERSION = "4.0.0"
     # Outside STATICFILES_DIRS on purpose — a source CSS below it warns, see config.py.
-    settings.TAILWIND_CLI_SRC_CSS = tmp_path / "css" / "input.css"
-    settings.STATICFILES_DIRS = (tmp_path / "assets",)
+    settings.TAILWIND_CLI_SRC_CSS = tmp_project / "css" / "input.css"
     settings.TAILWIND_CLI_USE_DAISY_UI = False
     settings.TAILWIND_CLI_AUTOMATIC_DOWNLOAD = True
 
@@ -323,13 +319,6 @@ class TestErrorHandling:
 
 class TestCommandErrorHandlingIsWiredUp:
     """handle_command_errors has to sit between click and the command, not beside it."""
-
-    @pytest.fixture(autouse=True)
-    def _project(self, settings: LazySettings, tmp_path: Path, mocker: MockerFixture):
-        settings.BASE_DIR = tmp_path
-        settings.STATICFILES_DIRS = (tmp_path / "assets",)
-        (tmp_path / "manage.py").touch()
-        mocker.patch("subprocess.run")
 
     def test_every_command_has_the_decorator_inside_the_click_registration(self):
         """The original bug was a decorator stacked the wrong way round, on eight commands at once.

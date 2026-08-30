@@ -26,20 +26,16 @@ from django_tailwind_cli.management.commands._source_css import (
     DEFAULT_SOURCE_CSS,
     ensure_source_css,
 )
-from tests.helpers import write_fake_cli
+from tests.helpers import install_fake_cli, write_fake_cli
 
 
 class TestFastCommands:
     """Fast tests that don't involve process management."""
 
     @pytest.fixture(autouse=True)
-    def setup_fast_tests(self, settings: LazySettings, tmp_path: Path, mocker: MockerFixture):
+    def setup_fast_tests(self, tmp_project: Path, settings: LazySettings, mocker: MockerFixture):
         """Lightweight setup for fast tests."""
-        settings.BASE_DIR = tmp_path
-        settings.TAILWIND_CLI_PATH = tmp_path / "tailwindcss"
-        settings.TAILWIND_CLI_VERSION = "4.0.0"
-        settings.TAILWIND_CLI_SRC_CSS = tmp_path / "source.css"
-        settings.STATICFILES_DIRS = (tmp_path / "assets",)
+        settings.TAILWIND_CLI_SRC_CSS = tmp_project / "source.css"
 
         # Mock only what's necessary for fast tests
         mocker.patch("subprocess.run")
@@ -162,17 +158,13 @@ class TestSubprocessCommands:
     @pytest.fixture(autouse=True)
     def setup_subprocess_tests(
         self,
+        tmp_project: Path,
         settings: LazySettings,
-        tmp_path: Path,
         mocker: MockerFixture,
         bypass_autoreload: None,  # noqa: ARG002  (requested for its side effect)
     ):
         """Setup with comprehensive subprocess mocking."""
-        settings.BASE_DIR = tmp_path
-        settings.TAILWIND_CLI_PATH = tmp_path / "tailwindcss"
-        settings.TAILWIND_CLI_VERSION = "4.0.0"
-        settings.TAILWIND_CLI_SRC_CSS = tmp_path / "source.css"
-        settings.STATICFILES_DIRS = (tmp_path / "assets",)
+        settings.TAILWIND_CLI_SRC_CSS = tmp_project / "source.css"
 
         # Mock all subprocess-related calls comprehensively
         self.mock_subprocess_run = mocker.patch("subprocess.run")
@@ -266,14 +258,10 @@ class TestProcessManagementCommands:
     """Tests for commands involving process management - heavily mocked."""
 
     @pytest.fixture(autouse=True)
-    def setup_process_tests(self, settings: LazySettings, tmp_path: Path, mocker: MockerFixture):
+    def setup_process_tests(self, tmp_project: Path, mocker: MockerFixture):
         """Setup with complete process mocking."""
-        settings.BASE_DIR = tmp_path
-        settings.TAILWIND_CLI_PATH = tmp_path / "tailwindcss"
-        settings.TAILWIND_CLI_VERSION = "4.0.0"
-        settings.STATICFILES_DIRS = (tmp_path / "assets",)
         # runserver shells out to `python manage.py ...` and checks for it first.
-        (tmp_path / "manage.py").touch()
+        (tmp_project / "manage.py").touch()
 
         # Mock ALL process-related functionality
         mocker.patch("subprocess.run")
@@ -718,11 +706,12 @@ class TestSourceCssOverwriteWarning:
     """The managed source.css is overwritten; hand edits should not vanish silently."""
 
     @pytest.fixture(autouse=True)
-    def _managed_source_css(self, settings: LazySettings, tmp_path: Path, mocker: MockerFixture):
-        settings.BASE_DIR = tmp_path
-        settings.STATICFILES_DIRS = (tmp_path / "assets",)
-        settings.TAILWIND_CLI_PATH = tmp_path / "tailwindcss"
-        settings.TAILWIND_CLI_VERSION = "4.0.0"
+    def _managed_source_css(
+        self,
+        settings: LazySettings,
+        mocker: MockerFixture,
+        tmp_project: Path,  # noqa: ARG002  (requested for its side effect)
+    ):
         for name in ("TAILWIND_CLI_SRC_CSS", "TAILWIND_CLI_CSS_MAP"):
             if hasattr(settings, name):
                 delattr(settings, name)
@@ -907,9 +896,7 @@ class TestManagedBinaryIsNotVersionChecked:
         settings.TAILWIND_CLI_VERSION = "2.1.3"
         settings.TAILWIND_CLI_SRC_REPO = "dobicinaitis/tailwind-cli-extra"
         cli_path = get_config().cli_path
-        cli_path.parent.mkdir(parents=True, exist_ok=True)
-        cli_path.write_bytes(b"fake-cli-binary")
-        cli_path.chmod(0o755)
+        install_fake_cli(cli_path)
         mocker.patch(
             "django_tailwind_cli.config.detect_binary_version",
             return_value=Version.parse("4.1.13"),
@@ -934,9 +921,7 @@ class TestManagedBinaryIsNotVersionChecked:
         """No subprocess on the build path for the common case."""
         settings.TAILWIND_CLI_VERSION = "4.1.3"
         cli_path = get_config().cli_path
-        cli_path.parent.mkdir(parents=True, exist_ok=True)
-        cli_path.write_bytes(b"fake-cli-binary")
-        cli_path.chmod(0o755)
+        install_fake_cli(cli_path)
         detect = mocker.patch("django_tailwind_cli.config.detect_binary_version")
 
         call_command("tailwind", "build")
@@ -960,9 +945,7 @@ class TestVersionCacheAfterDownload:
         from django_tailwind_cli.config import detect_binary_version
 
         cli_path = get_config().cli_path
-        cli_path.parent.mkdir(parents=True, exist_ok=True)
-        cli_path.write_bytes(b"old-binary")
-        cli_path.chmod(0o755)
+        install_fake_cli(cli_path, content=b"old-binary")
 
         run = mocker.patch("subprocess.run")
         run.return_value = mocker.Mock(returncode=0, stdout="tailwindcss v4.0.0")
@@ -978,14 +961,11 @@ class TestCustomCliPathVersionMismatch:
     """TAILWIND_CLI_PATH may point at a binary the library never downloaded."""
 
     @pytest.fixture(autouse=True)
-    def _custom_binary(self, settings: LazySettings, tmp_path: Path, mocker: MockerFixture):
-        settings.BASE_DIR = tmp_path
-        settings.STATICFILES_DIRS = (tmp_path / "assets",)
-        binary = tmp_path / "my-tailwindcss"
-        binary.write_bytes(b"fake-cli-binary")
-        binary.chmod(0o755)
-        settings.TAILWIND_CLI_PATH = binary
-        self.binary = binary
+    def _custom_binary(self, tmp_project: Path, settings: LazySettings, mocker: MockerFixture):
+        # A path of the user's choosing rather than the managed one — that is the class's subject,
+        # so it overrides what tmp_project set.
+        self.binary = install_fake_cli(tmp_project / "my-tailwindcss")
+        settings.TAILWIND_CLI_PATH = self.binary
         mocker.patch("subprocess.run")
 
     def _detect(self, mocker: MockerFixture, version: str | None):

@@ -35,7 +35,7 @@ from django_tailwind_cli.management.commands._source_css import (
     DEFAULT_SOURCE_CSS,
 )
 from django_tailwind_cli.management.commands.tailwind import run_watch_loop
-from tests.helpers import write_fake_cli
+from tests.helpers import install_fake_cli, write_fake_cli
 
 
 def _clear_legacy_css_settings(settings: LazySettings) -> None:
@@ -143,9 +143,7 @@ class TestBuildWorkflowIntegration:
 
         # Setup existing files
         config = get_config()
-        config.cli_path.parent.mkdir(parents=True, exist_ok=True)
-        config.cli_path.write_bytes(b"fake-cli")
-        config.cli_path.chmod(0o755)
+        install_fake_cli(config.cli_path, content=b"fake-cli")
         config.src_css.parent.mkdir(parents=True, exist_ok=True)
         config.src_css.write_text(DEFAULT_SOURCE_CSS)
         config.dist_css.parent.mkdir(parents=True, exist_ok=True)
