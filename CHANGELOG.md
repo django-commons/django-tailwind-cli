@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 4.8.0 (2026-08-30)
 
 ### 💥 Dependencies
 - **`django-typer` replaced by `django-click`**, which drops `typer` from the dependency tree entirely. django-typer caps `typer<0.26.0`, `click<8.5` and `django<6.2`; django-click requires only `click>=7.1` with no upper bound, so those caps no longer reach into your environment. The nine subcommands, their options and the `runserver` passthrough are unchanged, `call_command` still accepts options both as keywords and as strings, and `CommandError` still reaches a programmatic caller. Help text is now rendered by click rather than by typer's markdown mode, so backticks in `--help` appear literally.
@@ -26,6 +26,11 @@
 - **`tailwind runserver` says when there is no `manage.py` at `BASE_DIR`** instead of starting both subprocesses and reporting that the server is up, only for it to die a moment later with a bare exit code. Layouts that keep `manage.py` elsewhere are pointed at running the two halves separately.
 - **`TAILWIND_CLI_SRC_CSS` expands a leading `~`**, as `TAILWIND_CLI_PATH` already did. It used to become a directory named `~` below `BASE_DIR`. `TAILWIND_CLI_CSS_MAP` sources go through the same resolution now.
 - **A prefixed `STATICFILES_DIRS` entry may be a list**, not only a tuple. Django's own `FileSystemFinder` accepts both; `STATICFILES_DIRS[0]` in list form raised a `TypeError` before reaching any Tailwind code.
+- **The HTTP layer closes the error it catches.** `urllib`'s `HTTPError` is the response object and
+  owns an open file handle — one it allocates itself when the server sent no body. All three places
+  that wrapped it kept it alive through the exception chain without closing it, which Python 3.14
+  reports as `ResourceWarning: Implicitly cleaning up <HTTPError ...>` on a failed download or
+  version lookup.
 
 ### 🛠️ Developer Experience
 - **CI builds the docs with warnings as errors**: Sphinx reports a missing reference or an unresolvable include as a warning and publishes anyway, so a plain build would pass on exactly the failures worth catching. `mise run build-docs` runs the same check locally.

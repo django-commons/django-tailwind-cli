@@ -111,6 +111,22 @@ the file already uses (Breaking Changes, New Features, Bug Fixes, Developer Expe
 One or two bullets, focused on what the change means for users rather than on how it was
 implemented. Internal refactorings that nobody notices from the outside do not need one.
 
+## Releases
+
+**The major version tracks Tailwind CSS, not this package's own compatibility.** `4.x` supports
+Tailwind 4.x, and the major only moves when Tailwind's does. A change that would be a major
+elsewhere under semver — a dropped dependency, a different exit code — goes into a minor here and
+is called out in the changelog instead.
+
+Releasing is a tag. `[tool.hatch.version]` reads the version from git, so `v4.8.0` *is* the
+version. Pushing the tag starts the release rather than finishing it: the workflow builds, uploads
+to TestPyPI, and then waits — the `pypi` environment requires a reviewer, so PyPI publishing needs
+an admin to approve it in the GitHub UI. Do not push a tag and walk away.
+
+Rename `## Unreleased` to `## 4.8.0 (YYYY-MM-DD)` before tagging. The release workflow extracts
+that section for the GitHub release notes and fails if it cannot find one, which blocks the whole
+release rather than shipping empty notes.
+
 ## Pull requests
 
 Fork the repository and work on a feature branch. Add tests for new behaviour and update the
