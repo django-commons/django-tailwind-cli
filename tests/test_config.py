@@ -299,6 +299,23 @@ def test_cli_path_to_existing_file(settings: Settings, tmp_path: Path):
     assert str(c.cli_path) == str(tmp_path / "tailwindcss")
 
 
+def test_cli_path_to_an_existing_file_that_is_not_executable(settings: Settings, tmp_path: Path):
+    """The negative half of the test above: a file that cannot be run is not the CLI.
+
+    This pins the branch, not a happy ending. Resolution falls through to the managed name, whose
+    parent is then the unusable file itself, and a build ends in "File error: [Errno 17] File
+    exists". Better than handing subprocess something it cannot execute, but a chmod hint would
+    be better still.
+    """
+    settings.TAILWIND_CLI_PATH = tmp_path / "tailwindcss"
+    settings.TAILWIND_CLI_PATH.touch(mode=0o644, exist_ok=True)
+
+    c = get_config()
+
+    assert c.cli_path != tmp_path / "tailwindcss"
+    assert c.cli_path.name.startswith("tailwindcss-")
+
+
 def test_cli_path_to_existing_directory(settings: Settings):
     settings.TAILWIND_CLI_PATH = "/opt/bin"
     c = get_config()
