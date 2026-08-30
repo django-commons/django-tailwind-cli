@@ -726,6 +726,19 @@ class TestSourceCssOverwriteWarning:
         path.write_text(content)
         return path
 
+    def test_a_second_run_leaves_an_up_to_date_source_css_alone(self, tmp_path: Path):
+        """Rewriting an identical file would look harmless, and is not.
+
+        `build` calls this before comparing mtimes, so a needless rewrite pushes the source past
+        the output and `should_rebuild_css` recompiles every time. Measured: with the file left
+        alone a second `build` spawns the CLI 0 times, and 1 time if it is rewritten.
+
+        Asserted on what the function reports it wrote, because that is what `setup` reads to
+        decide between "Created ..." and "up to date".
+        """
+        assert ensure_source_css() == {self._src_css(tmp_path)}
+        assert ensure_source_css() == set()
+
     def test_hand_edited_source_css_warns_before_it_is_replaced(self, tmp_path: Path, capsys: CaptureFixture[str]):
         self._write(tmp_path, '@import "tailwindcss";\n\n@layer base {\n  html { font-size: 20px; }\n}\n')
 
