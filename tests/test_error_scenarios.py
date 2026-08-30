@@ -10,6 +10,7 @@ import os
 import subprocess
 import time
 from pathlib import Path
+from typing import Any
 from unittest.mock import Mock, patch
 
 from functools import partial
@@ -868,11 +869,9 @@ class TestSetupCommandScenarios:
 class TestSetupUsesTheSharedHelpers:
     """`setup` had its own copies of the source-CSS and build steps."""
 
-    def test_setup_does_not_call_a_rewritten_source_file_up_to_date(
-        self, mocker: MockerFixture, capsys: CaptureFixture[str]
-    ):
+    @pytest.mark.usefixtures("stub_subprocess_run")
+    def test_setup_does_not_call_a_rewritten_source_file_up_to_date(self, capsys: CaptureFixture[str]):
         """A stale managed source.css is rewritten, so reporting it as up to date contradicts that."""
-        mocker.patch("subprocess.run", return_value=Mock(returncode=0, stdout="", stderr=""))
         src = get_config().css_entries[0].src_css
         src.parent.mkdir(parents=True, exist_ok=True)
         src.write_text("/* stale, and not what we generate */\n")
@@ -883,6 +882,7 @@ class TestSetupUsesTheSharedHelpers:
         assert "Created Tailwind Source CSS at" in out
         assert "Source CSS file is up to date" not in out
 
+    @pytest.mark.usefixtures("stub_subprocess_run")
     def test_the_source_css_gets_the_auto_source_directives(self, settings: LazySettings, mocker: MockerFixture):
         """Writing the file by hand ignored TAILWIND_CLI_AUTO_SOURCE_EXTERNAL_APPS."""
         settings.TAILWIND_CLI_AUTO_SOURCE_EXTERNAL_APPS = True
@@ -890,19 +890,16 @@ class TestSetupUsesTheSharedHelpers:
             "django_tailwind_cli.management.commands._source_css.discover_external_app_base_dirs",
             return_value=[Path("/somewhere/an_app")],
         )
-        mocker.patch("subprocess.run", return_value=Mock(returncode=0, stdout="", stderr=""))
 
         call_command("tailwind", "setup")
 
         assert '@source "/somewhere/an_app";' in get_config().src_css.read_text()
 
-    def test_the_first_build_runs_from_base_dir(self, settings: LazySettings, mocker: MockerFixture):
+    def test_the_first_build_runs_from_base_dir(self, stub_subprocess_run: Any, settings: LazySettings):
         """Without cwd, `manage.py tailwind setup` from a subdirectory scans the wrong tree."""
-        run = mocker.patch("subprocess.run", return_value=Mock(returncode=0, stdout="", stderr=""))
-
         call_command("tailwind", "setup")
 
-        assert run.call_args.kwargs.get("cwd") == settings.BASE_DIR
+        assert stub_subprocess_run.call_args.kwargs.get("cwd") == settings.BASE_DIR
 
     def test_an_interrupted_first_build_is_not_a_success(self, mocker: MockerFixture, capsys: CaptureFixture[str]):
         """execute_tailwind_command swallows Ctrl+C, so the guide used to march on to its finale."""
@@ -912,6 +909,7 @@ class TestSetupUsesTheSharedHelpers:
 
         assert "Setup Complete" not in capsys.readouterr().out
 
+    @pytest.mark.usefixtures("stub_subprocess_run")
     def test_the_managed_directory_gets_its_gitignore(self, settings: LazySettings, mocker: MockerFixture):
         """Otherwise `git add .` stages the downloaded binary after a setup-first workflow.
 
@@ -919,25 +917,23 @@ class TestSetupUsesTheSharedHelpers:
         fixture's path is cleared here.
         """
         del settings.TAILWIND_CLI_PATH
-        mocker.patch("subprocess.run", return_value=Mock(returncode=0, stdout="", stderr=""))
         mocker.patch("django_tailwind_cli.utils.http.download_with_progress", side_effect=write_fake_cli)
 
         call_command("tailwind", "setup")
 
         assert (Path(settings.BASE_DIR) / ".django_tailwind_cli" / ".gitignore").read_text() == "*\n"
 
-    def test_the_first_build_honours_the_minify_setting(self, settings: LazySettings, mocker: MockerFixture):
+    def test_the_first_build_honours_the_minify_setting(self, stub_subprocess_run: Any, settings: LazySettings):
         """build computes this from the setting; setup hardcoded the default."""
         settings.TAILWIND_CLI_AUTOMATIC_MINIFY = False
-        run = mocker.patch("subprocess.run", return_value=Mock(returncode=0, stdout="", stderr=""))
 
         call_command("tailwind", "setup")
 
-        assert "--minify" not in run.call_args_list[0].args[0]
+        assert "--minify" not in stub_subprocess_run.call_args_list[0].args[0]
 
-    def test_step_five_says_something(self, mocker: MockerFixture, capsys: CaptureFixture[str]):
+    @pytest.mark.usefixtures("stub_subprocess_run")
+    def test_step_five_says_something(self, capsys: CaptureFixture[str]):
         """A step in a status guide that prints nothing reads as broken."""
-        mocker.patch("subprocess.run", return_value=Mock(returncode=0, stdout="", stderr=""))
         call_command("tailwind", "setup")
         first = capsys.readouterr().out
 
@@ -1011,17 +1007,17 @@ class TestMultipleCssEntries:
                 delattr(settings, name)
         settings.TAILWIND_CLI_CSS_MAP = [("admin.css", "admin.out.css"), ("web.css", "web.out.css")]
 
-    def test_every_entry_gets_a_source_file(self, mocker: MockerFixture):
-        mocker.patch("subprocess.run", return_value=Mock(returncode=0, stdout="", stderr=""))
+    @pytest.mark.usefixtures("stub_subprocess_run")
+    def test_every_entry_gets_a_source_file(self):
 
         call_command("tailwind", "setup")
 
         for entry in get_config().css_entries:
             assert entry.src_css.exists(), f"{entry.name}: {entry.src_css} was not created"
 
-    def test_setup_reports_each_source_file_on_its_own(self, mocker: MockerFixture, capsys: CaptureFixture[str]):
+    @pytest.mark.usefixtures("stub_subprocess_run")
+    def test_setup_reports_each_source_file_on_its_own(self, capsys: CaptureFixture[str]):
         """One entry present, one missing: an aggregated flag drops the line for the present one."""
-        mocker.patch("subprocess.run", return_value=Mock(returncode=0, stdout="", stderr=""))
         admin = get_config().css_entries[0].src_css
         admin.parent.mkdir(parents=True, exist_ok=True)
         admin.write_text('@import "tailwindcss";\n')
@@ -1032,12 +1028,11 @@ class TestMultipleCssEntries:
         assert "[admin] Source CSS file is up to date" in out
         assert "[web] Source CSS file is up to date" not in out
 
-    def test_setup_builds_every_entry(self, mocker: MockerFixture):
-        run = mocker.patch("subprocess.run", return_value=Mock(returncode=0, stdout="", stderr=""))
+    def test_setup_builds_every_entry(self, stub_subprocess_run: Any):
 
         call_command("tailwind", "setup")
 
-        outputs = " ".join(" ".join(c.args[0]) for c in run.call_args_list)
+        outputs = " ".join(" ".join(c.args[0]) for c in stub_subprocess_run.call_args_list)
         assert "admin.out.css" in outputs
         assert "web.out.css" in outputs
 

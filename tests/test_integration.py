@@ -49,13 +49,10 @@ def _clear_legacy_css_settings(settings: LazySettings) -> None:
 class TestBuildWorkflowIntegration:
     """Test complete build workflow from setup to CSS generation."""
 
-    def test_full_build_workflow_from_scratch(self, settings: LazySettings, tmp_path: Path):
+    def test_full_build_workflow_from_scratch(self, settings: LazySettings, tmp_project: Path):
         """Test complete build workflow starting from no files."""
         # Setup isolated environment
-        settings.BASE_DIR = tmp_path
-        settings.TAILWIND_CLI_PATH = tmp_path / ".django_tailwind_cli"
-        settings.TAILWIND_CLI_SRC_CSS = tmp_path / "source.css"
-        settings.STATICFILES_DIRS = (tmp_path / "assets",)
+        settings.TAILWIND_CLI_SRC_CSS = tmp_project / "source.css"
         settings.TAILWIND_CLI_VERSION = "4.1.3"
         settings.TAILWIND_CLI_AUTOMATIC_DOWNLOAD = True
 
@@ -85,13 +82,10 @@ class TestBuildWorkflowIntegration:
                 assert "--output" in call_args
                 assert "--minify" in call_args
 
-    def test_build_with_existing_custom_css(self, settings: LazySettings, tmp_path: Path):
+    def test_build_with_existing_custom_css(self, settings: LazySettings, tmp_project: Path):
         """Test build workflow preserves existing custom CSS content."""
         # Setup with custom CSS
-        settings.BASE_DIR = tmp_path
-        settings.TAILWIND_CLI_PATH = tmp_path / ".django_tailwind_cli"
-        settings.TAILWIND_CLI_SRC_CSS = tmp_path / "custom.css"
-        settings.STATICFILES_DIRS = (tmp_path / "assets",)
+        settings.TAILWIND_CLI_SRC_CSS = tmp_project / "custom.css"
 
         # Create custom CSS file
         custom_css = '@import "tailwindcss";\n@theme { --color-primary: blue; }\n'
@@ -111,12 +105,9 @@ class TestBuildWorkflowIntegration:
             # Verify custom CSS content is preserved
             assert settings.TAILWIND_CLI_SRC_CSS.read_text() == custom_css
 
-    def test_build_with_daisy_ui_integration(self, settings: LazySettings, tmp_path: Path):
+    def test_build_with_daisy_ui_integration(self, settings: LazySettings, tmp_project: Path):
         """Test build workflow with DaisyUI enabled."""
-        settings.BASE_DIR = tmp_path
-        settings.TAILWIND_CLI_PATH = tmp_path / ".django_tailwind_cli"
-        settings.TAILWIND_CLI_SRC_CSS = tmp_path / "source.css"
-        settings.STATICFILES_DIRS = (tmp_path / "assets",)
+        settings.TAILWIND_CLI_SRC_CSS = tmp_project / "source.css"
         settings.TAILWIND_CLI_USE_DAISY_UI = True
         settings.TAILWIND_CLI_VERSION = "4.1.3"
 
@@ -135,12 +126,9 @@ class TestBuildWorkflowIntegration:
             assert config.src_css.read_text() == DAISY_UI_SOURCE_CSS
             assert config.use_daisy_ui is True
 
-    def test_build_force_rebuild_workflow(self, settings: LazySettings, tmp_path: Path):
+    def test_build_force_rebuild_workflow(self, settings: LazySettings, tmp_project: Path):
         """Test force rebuild bypasses optimization checks."""
-        settings.BASE_DIR = tmp_path
-        settings.TAILWIND_CLI_PATH = tmp_path / ".django_tailwind_cli"
-        settings.TAILWIND_CLI_SRC_CSS = tmp_path / "source.css"
-        settings.STATICFILES_DIRS = (tmp_path / "assets",)
+        settings.TAILWIND_CLI_SRC_CSS = tmp_project / "source.css"
 
         # Setup existing files
         config = get_config()
@@ -167,11 +155,8 @@ class TestBuildWorkflowIntegration:
             call_command("tailwind", "build", "--force")
             mock_subprocess.assert_called_once()
 
-    def test_build_with_multiple_css_entries(self, settings: LazySettings, tmp_path: Path):
+    def test_build_with_multiple_css_entries(self, settings: LazySettings, tmp_project: Path):
         """Test build command processes all CSS entries from CSS_MAP."""
-        settings.BASE_DIR = tmp_path
-        settings.TAILWIND_CLI_PATH = tmp_path / ".django_tailwind_cli"
-        settings.STATICFILES_DIRS = (tmp_path / "assets",)
         settings.TAILWIND_CLI_VERSION = "4.1.3"
 
         # Configure multiple CSS entries
@@ -182,8 +167,8 @@ class TestBuildWorkflowIntegration:
         _clear_legacy_css_settings(settings)
 
         # Create source CSS files
-        (tmp_path / "admin.css").write_text('@import "tailwindcss";')
-        (tmp_path / "web.css").write_text('@import "tailwindcss";')
+        (tmp_project / "admin.css").write_text('@import "tailwindcss";')
+        (tmp_project / "web.css").write_text('@import "tailwindcss";')
 
         with (
             patch("django_tailwind_cli.utils.http.download_with_progress") as mock_download,
@@ -217,12 +202,9 @@ class TestBuildWorkflowIntegration:
 class TestWatchModeIntegration:
     """Test watch mode functionality and process management."""
 
-    def test_watch_mode_setup_and_execution(self, settings: LazySettings, tmp_path: Path):
+    def test_watch_mode_setup_and_execution(self, settings: LazySettings, tmp_project: Path):
         """Test watch mode command execution flow."""
-        settings.BASE_DIR = tmp_path
-        settings.TAILWIND_CLI_PATH = tmp_path / ".django_tailwind_cli"
-        settings.TAILWIND_CLI_SRC_CSS = tmp_path / "source.css"
-        settings.STATICFILES_DIRS = (tmp_path / "assets",)
+        settings.TAILWIND_CLI_SRC_CSS = tmp_project / "source.css"
         settings.TAILWIND_CLI_VERSION = "4.1.3"  # Avoid latest version fetch
 
         with (
@@ -242,11 +224,8 @@ class TestWatchModeIntegration:
             assert "--output" in call_args
             assert "--minify" not in call_args  # Watch mode shouldn't minify
 
-    def test_watch_with_multiple_css_entries(self, settings: LazySettings, tmp_path: Path):
+    def test_watch_with_multiple_css_entries(self, settings: LazySettings, tmp_project: Path):
         """Test watch command starts multiple processes for CSS_MAP entries."""
-        settings.BASE_DIR = tmp_path
-        settings.TAILWIND_CLI_PATH = tmp_path / ".django_tailwind_cli"
-        settings.STATICFILES_DIRS = (tmp_path / "assets",)
         settings.TAILWIND_CLI_VERSION = "4.1.3"
 
         # Configure multiple CSS entries
@@ -257,8 +236,8 @@ class TestWatchModeIntegration:
         _clear_legacy_css_settings(settings)
 
         # Create source CSS files
-        (tmp_path / "admin.css").write_text('@import "tailwindcss";')
-        (tmp_path / "web.css").write_text('@import "tailwindcss";')
+        (tmp_project / "admin.css").write_text('@import "tailwindcss";')
+        (tmp_project / "web.css").write_text('@import "tailwindcss";')
 
         with (
             patch("django_tailwind_cli.utils.http.download_with_progress") as mock_download,
@@ -293,16 +272,13 @@ class TestWatchModeIntegration:
             assert "web.output.css" in str(call_args_1)
             assert "--watch" in call_args_1
 
-    def test_watch_with_css_map_runs_in_worker_thread(self, settings: LazySettings, tmp_path: Path):
+    def test_watch_with_css_map_runs_in_worker_thread(self, settings: LazySettings, tmp_project: Path):
         """Regression for #201: multi-entry watch must work outside the main thread.
 
         Django's autoreload.run_with_reloader executes the wrapped callable
         in a worker thread. signal.signal() raises ValueError there, so the
         multi-entry watch path must not rely on signal handlers.
         """
-        settings.BASE_DIR = tmp_path
-        settings.TAILWIND_CLI_PATH = tmp_path / ".django_tailwind_cli"
-        settings.STATICFILES_DIRS = (tmp_path / "assets",)
         settings.TAILWIND_CLI_VERSION = "4.1.3"
         settings.TAILWIND_CLI_CSS_MAP = [
             ("admin.css", "admin.output.css"),
@@ -310,8 +286,8 @@ class TestWatchModeIntegration:
         ]
         _clear_legacy_css_settings(settings)
 
-        (tmp_path / "admin.css").write_text('@import "tailwindcss";')
-        (tmp_path / "web.css").write_text('@import "tailwindcss";')
+        (tmp_project / "admin.css").write_text('@import "tailwindcss";')
+        (tmp_project / "web.css").write_text('@import "tailwindcss";')
 
         with (
             patch("django_tailwind_cli.utils.http.download_with_progress") as mock_download,
@@ -347,21 +323,18 @@ class TestWatchModeIntegration:
     def test_watch_staggers_multi_entry_spawn(
         self,
         settings: LazySettings,
-        tmp_path: Path,
+        tmp_project: Path,
         mocker: MockerFixture,
         entry_count: int,
         expected_staggers: int,
     ):
         """Multi-entry Popen calls must be spaced by _WATCH_SPAWN_STAGGER_S to avoid the Bun DLOPEN race."""
-        settings.BASE_DIR = tmp_path
-        settings.TAILWIND_CLI_PATH = tmp_path / ".django_tailwind_cli"
-        settings.STATICFILES_DIRS = (tmp_path / "assets",)
         settings.TAILWIND_CLI_VERSION = "4.1.3"
         settings.TAILWIND_CLI_CSS_MAP = [(f"src{i}.css", f"out{i}.output.css") for i in range(entry_count)]
         _clear_legacy_css_settings(settings)
 
         for i in range(entry_count):
-            (tmp_path / f"src{i}.css").write_text('@import "tailwindcss";')
+            (tmp_project / f"src{i}.css").write_text('@import "tailwindcss";')
 
         mocker.patch("django_tailwind_cli.utils.http.download_with_progress", side_effect=write_fake_cli)
 
@@ -381,13 +354,9 @@ class TestWatchModeIntegration:
             f"expected {expected_staggers} stagger sleeps, got {len(stagger_calls)} of {mock_sleep.call_args_list}"
         )
 
-    def test_watch_keyboard_interrupt_handling(
-        self, settings: LazySettings, tmp_path: Path, capsys: CaptureFixture[str]
-    ):
+    @pytest.mark.usefixtures("tmp_project")
+    def test_watch_keyboard_interrupt_handling(self, settings: LazySettings, capsys: CaptureFixture[str]):
         """Test watch mode handles KeyboardInterrupt gracefully."""
-        settings.BASE_DIR = tmp_path
-        settings.TAILWIND_CLI_PATH = tmp_path / ".django_tailwind_cli"
-        settings.STATICFILES_DIRS = (tmp_path / "assets",)
         settings.TAILWIND_CLI_VERSION = "4.1.3"  # Avoid latest version fetch
 
         with (
@@ -551,14 +520,9 @@ class TestBunStderrFilter:
 class TestCLIDownloadIntegration:
     """Test CLI download and setup workflows."""
 
-    def test_cli_download_with_progress_tracking(
-        self, settings: LazySettings, tmp_path: Path, capsys: CaptureFixture[str]
-    ):
+    @pytest.mark.usefixtures("tmp_project")
+    def test_cli_download_with_progress_tracking(self, capsys: CaptureFixture[str]):
         """Test CLI download shows progress information."""
-        settings.BASE_DIR = tmp_path
-        settings.TAILWIND_CLI_PATH = tmp_path / ".django_tailwind_cli"
-        settings.STATICFILES_DIRS = (tmp_path / "assets",)
-
         with patch("django_tailwind_cli.utils.http.download_with_progress", side_effect=write_fake_cli):
             call_command("tailwind", "download_cli")
 
@@ -566,24 +530,18 @@ class TestCLIDownloadIntegration:
             assert "Downloading Tailwind CSS CLI..." in captured.out
             assert "Download completed!" in captured.out
 
-    def test_cli_download_network_error_handling(self, settings: LazySettings, tmp_path: Path):
+    @pytest.mark.usefixtures("tmp_project")
+    def test_cli_download_network_error_handling(self):
         """Test CLI download handles network errors gracefully."""
-        settings.BASE_DIR = tmp_path
-        settings.TAILWIND_CLI_PATH = tmp_path / ".django_tailwind_cli"
-        settings.STATICFILES_DIRS = (tmp_path / "assets",)
-
         with patch("django_tailwind_cli.utils.http.download_with_progress") as mock_download:
             mock_download.side_effect = http.RequestError("Network error")
 
             with pytest.raises(CommandError, match="Failed to download"):
                 call_command("tailwind", "download_cli")
 
-    def test_cli_permissions_after_download(self, settings: LazySettings, tmp_path: Path):
+    @pytest.mark.usefixtures("tmp_project")
+    def test_cli_permissions_after_download(self):
         """Test CLI gets correct executable permissions after download."""
-        settings.BASE_DIR = tmp_path
-        settings.TAILWIND_CLI_PATH = tmp_path / ".django_tailwind_cli"
-        settings.STATICFILES_DIRS = (tmp_path / "assets",)
-
         with patch("django_tailwind_cli.utils.http.download_with_progress", side_effect=write_fake_cli):
             call_command("tailwind", "download_cli")
 
@@ -604,14 +562,9 @@ class TestCrossPlatformCompatibility:
             ("Linux", ""),
         ],
     )
-    def test_platform_specific_cli_paths(
-        self, settings: LazySettings, tmp_path: Path, mock_system: str, expected_extension: str
-    ):
+    @pytest.mark.usefixtures("tmp_project")
+    def test_platform_specific_cli_paths(self, mock_system: str, expected_extension: str):
         """Test CLI paths are platform-appropriate."""
-        settings.BASE_DIR = tmp_path
-        settings.TAILWIND_CLI_PATH = tmp_path / ".django_tailwind_cli"
-        settings.STATICFILES_DIRS = (tmp_path / "assets",)
-
         with patch("platform.system", return_value=mock_system):
             config = get_config()
             assert config.cli_path.name.endswith(expected_extension)
@@ -646,12 +599,9 @@ class TestCrossPlatformCompatibility:
 class TestErrorRecoveryScenarios:
     """Test error recovery and resilience scenarios."""
 
-    def test_recovery_from_corrupted_cli_binary(self, settings: LazySettings, tmp_path: Path):
+    @pytest.mark.usefixtures("tmp_project")
+    def test_recovery_from_corrupted_cli_binary(self):
         """Test recovery when CLI binary is corrupted."""
-        settings.BASE_DIR = tmp_path
-        settings.TAILWIND_CLI_PATH = tmp_path / ".django_tailwind_cli"
-        settings.STATICFILES_DIRS = (tmp_path / "assets",)
-
         # Create corrupted CLI binary (not executable)
         config = get_config()
         config.cli_path.parent.mkdir(parents=True, exist_ok=True)
@@ -695,15 +645,11 @@ class TestErrorRecoveryScenarios:
             assert config.cli_path.exists()
             assert config.src_css.exists()
 
-    def test_handling_of_permission_errors(self, settings: LazySettings, tmp_path: Path):
+    def test_handling_of_permission_errors(self, settings: LazySettings, tmp_project: Path):
         """Test handling of permission errors during file operations."""
-        settings.BASE_DIR = tmp_path
-        settings.TAILWIND_CLI_PATH = tmp_path / ".django_tailwind_cli"
-        settings.STATICFILES_DIRS = (tmp_path / "assets",)
-
         # Create directory with restricted permissions (Unix only)
         if platform.system() != "Windows":
-            restricted_dir = tmp_path / "restricted"
+            restricted_dir = tmp_project / "restricted"
             restricted_dir.mkdir(mode=0o000)  # No permissions
             settings.TAILWIND_CLI_PATH = restricted_dir / "cli"
 
@@ -726,12 +672,9 @@ class TestErrorRecoveryScenarios:
 class TestVerboseLoggingIntegration:
     """Test verbose logging across different commands."""
 
-    def test_build_verbose_logging(self, settings: LazySettings, tmp_path: Path, capsys: CaptureFixture[str]):
+    @pytest.mark.usefixtures("tmp_project")
+    def test_build_verbose_logging(self, capsys: CaptureFixture[str]):
         """Test verbose logging in build command."""
-        settings.BASE_DIR = tmp_path
-        settings.TAILWIND_CLI_PATH = tmp_path / ".django_tailwind_cli"
-        settings.STATICFILES_DIRS = (tmp_path / "assets",)
-
         with (
             patch("django_tailwind_cli.utils.http.download_with_progress") as mock_download,
             patch("subprocess.run") as mock_subprocess,
@@ -747,12 +690,9 @@ class TestVerboseLoggingIntegration:
             assert "⚙️  Setting up Tailwind environment..." in captured.out
             assert "✅ Build completed in" in captured.out
 
-    def test_watch_verbose_logging(self, settings: LazySettings, tmp_path: Path, capsys: CaptureFixture[str]):
+    @pytest.mark.usefixtures("tmp_project")
+    def test_watch_verbose_logging(self, capsys: CaptureFixture[str]):
         """Test verbose logging in watch command."""
-        settings.BASE_DIR = tmp_path
-        settings.TAILWIND_CLI_PATH = tmp_path / ".django_tailwind_cli"
-        settings.STATICFILES_DIRS = (tmp_path / "assets",)
-
         with (
             patch("django_tailwind_cli.utils.http.download_with_progress") as mock_download,
             patch("subprocess.run") as mock_subprocess,

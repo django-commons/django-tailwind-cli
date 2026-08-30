@@ -1,9 +1,11 @@
 """Shared fixtures for the test suite."""
 
+import hashlib
 import socket
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
+from unittest.mock import MagicMock, Mock
 
 import pytest
 from pytest_mock import MockerFixture
@@ -143,3 +145,56 @@ def tmp_project_with_cli(tmp_project: Path, settings: Any) -> Path:
     Returns the binary's path.
     """
     return install_fake_cli(settings.TAILWIND_CLI_PATH)
+
+
+def _tree_state(root: Path) -> dict[str, bytes]:
+    """Content digests, not mtimes: a `git checkout` restores content but not the timestamp.
+
+    Source files are skipped: the leak this guards against is build output, and a test that
+    rewrote a test module would have bigger problems than this fixture.
+    """
+    return {
+        str(p.relative_to(root)): hashlib.blake2b(p.read_bytes(), digest_size=8).digest()
+        for p in root.rglob("*")
+        if p.is_file() and p.suffix != ".py" and "__pycache__" not in p.parts
+    }
+
+
+@pytest.fixture(autouse=True)
+def no_writes_into_the_checkout() -> Iterator[None]:
+    """Fail a test that builds into the repository instead of into its tmp_path sandbox.
+
+    `tests/settings.py` sets `BASE_DIR` to the real `tests/` directory, so a test that forgets to
+    point it at `tmp_path` writes its source CSS, its compiled CSS and its downloaded binary
+    straight into the checkout — and still passes, because nothing asserted otherwise.
+
+    That is not hypothetical: consolidating the per-test setup in this suite removed 54 lines of
+    it, and the suite stayed green while six CSS files appeared in `tests/`. They are all named in
+    `tests/.gitignore` — `assets/css/tailwind.css`, `assets/css/source.css`, `.django_tailwind_cli`
+    — so `git status` says nothing either. That is why nothing caught it, and why this looks at
+    content rather than at git.
+    """
+    root = Path(__file__).parent
+    before = _tree_state(root)
+    yield
+    after = _tree_state(root)
+
+    created = sorted(set(after) - set(before))
+    deleted = sorted(set(before) - set(after))
+    changed = sorted(name for name, state in after.items() if before.get(name, state) != state)
+    assert not (created or deleted or changed), (
+        f"the test wrote into the checkout — created {created}, deleted {deleted}, "
+        f"changed {changed}. Point settings.BASE_DIR at tmp_path, as the tmp_project fixture does."
+    )
+
+
+@pytest.fixture
+def stub_subprocess_run(mocker: MockerFixture) -> MagicMock:
+    """A `subprocess.run` that succeeds and says nothing.
+
+    Not interchangeable with a bare `mocker.patch("subprocess.run")`: that yields a MagicMock
+    whose `.stdout` is truthy, so a command reading it takes a different branch. The bare patches
+    are left as they are — several of them are `detect_binary_version` tests that parse stdout,
+    and converting the rest changes what they observe for no gain.
+    """
+    return mocker.patch("subprocess.run", return_value=Mock(returncode=0, stdout="", stderr=""))
