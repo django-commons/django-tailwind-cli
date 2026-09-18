@@ -26,24 +26,15 @@ follows the approach of the [Tailwind integration for Phoenix](https://github.co
 - Supports [DaisyUI](https://daisyui.com) through [tailwindcss-cli-extra](https://github.com/dobicinaitis/tailwind-cli-extra)
 - Targets Tailwind CSS 4.x
 
-## Installation
+## Quickstart
 
-### 1. Install the package
+In an existing Django project, install the package:
 
 ```bash
-# Using pip
-pip install django-tailwind-cli
-
-# Using uv
-uv add django-tailwind-cli
-
-# Using poetry
-poetry add django-tailwind-cli
+python -m pip install django-tailwind-cli
 ```
 
-### 2. Configure Django settings
-
-Add to your `settings.py`:
+Add the app and a static files directory to `settings.py`:
 
 ```python
 INSTALLED_APPS = [
@@ -51,22 +42,20 @@ INSTALLED_APPS = [
     "django_tailwind_cli",
 ]
 
-# Configure static files directory — make sure it exists on disk,
-# Django raises an error at startup if it does not.
 STATICFILES_DIRS = [BASE_DIR / "assets"]
 ```
+
+Create that directory before starting Django:
 
 ```bash
 mkdir -p assets
 ```
 
-### 3. Set up your base template
+Load the template tag in your base template and place it inside `<head>`:
 
-Create or update your base template (e.g. `templates/base.html`):
-
-```html
-<!DOCTYPE html>
+```htmldjango
 {% load tailwind_cli %}
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -74,58 +63,32 @@ Create or update your base template (e.g. `templates/base.html`):
     <title>My Django App</title>
     {% tailwind_css %}
 </head>
-<body class="bg-gray-50">
-    <div class="container mx-auto px-4">
-        {% block content %}{% endblock %}
-    </div>
+<body>
+    {% block content %}{% endblock %}
 </body>
 </html>
 ```
 
-### 4. Start developing
+Start Django and the Tailwind watcher together:
 
 ```bash
-# Start Django's dev server with a parallel Tailwind watcher
 python manage.py tailwind runserver
-
-# Or run build and watch separately
-python manage.py tailwind watch  # In one terminal
-python manage.py runserver       # In another terminal
 ```
 
-The watcher runs under Django's own auto-reloader, so editing `settings.py` (e.g. adding a new app)
-restarts it automatically and picks up the new configuration on the fly. Pass `--noreload` to opt
-out.
+The first run downloads the CLI and creates the default source CSS. Add Tailwind classes to your
+templates; the watcher rebuilds the stylesheet when you save them.
 
-First run creates a managed `<BASE_DIR>/.django_tailwind_cli/` directory for the CLI binary and an
-auto-generated `source.css`. The directory is automatically git-ignored — no entry in your
-project-level `.gitignore` needed.
+For a production build, run Tailwind before collecting static files:
 
-`python manage.py tailwind setup` walks the same ground: it checks each piece in order, stops at
-the first one that is missing with instructions, downloads the CLI if needed, and builds the CSS.
+```bash
+python manage.py tailwind build
+python manage.py collectstatic --noinput
+```
 
-## Management commands
-
-| Command        | Purpose                                              | Example                                  |
-| -------------- | ---------------------------------------------------- | ---------------------------------------- |
-| `setup`        | Guided first-time setup and checks                   | `python manage.py tailwind setup`        |
-| `build`        | Production CSS build                                 | `python manage.py tailwind build`        |
-| `watch`        | Development file watcher (Django autoreload by default) | `python manage.py tailwind watch`    |
-| `runserver`    | Django dev server + watcher (forwards any runserver flag) | `python manage.py tailwind runserver` |
-| `config`       | Show current configuration                           | `python manage.py tailwind config`       |
-| `troubleshoot` | Debug common issues                                  | `python manage.py tailwind troubleshoot` |
-| `optimize`     | Performance tips for build and watch                 | `python manage.py tailwind optimize`     |
-| `download_cli` | Fetch the CLI binary without building                | `python manage.py tailwind download_cli` |
-| `remove_cli`   | Delete the downloaded CLI binary                     | `python manage.py tailwind remove_cli`   |
-
-`build` always rebuilds every configured stylesheet, so template changes, imported CSS and build
-options are picked up. `--force` remains accepted for compatibility and has no additional effect.
-`build` and `watch` both take `--verbose` for detailed diagnostics.
-
-`tailwind runserver` is a transparent passthrough: every positional argument and option (apart from
-`--force-default-runserver`) is forwarded verbatim to the underlying `runserver` or
-`runserver_plus`. Every flag those commands accept works — including `runserver_plus`-only ones like
-`--extra-file`, `--reloader-interval`, and `--print-sql`.
+See the [installation guide](https://django-tailwind-cli.readthedocs.io/latest/installation.html)
+for setup checks and optional integrations, and the
+[workflow guide](https://django-tailwind-cli.readthedocs.io/latest/workflow.html)
+for custom CSS, editor setup and troubleshooting.
 
 ## Requirements
 
@@ -133,79 +96,20 @@ options are picked up. `--force` remains accepted for compatibility and has no a
 - **Django:** 4.2 LTS, 5.2, 6.0, or 6.1
 - **Platform:** Windows, macOS, Linux (automatic platform detection)
 
-## Configuration
+## Configuration and commands
 
-Beyond adding the app to `INSTALLED_APPS`, `STATICFILES_DIRS` is the only setting you have to
-configure. Everything below is optional; see the
-[settings reference](https://django-tailwind-cli.readthedocs.io/latest/settings.html) for the full
-list.
+The defaults work with the setup above. Optional settings let you pin the Tailwind version,
+use a system binary, add custom CSS, enable DaisyUI, or include editable-installed external apps.
+See the [settings reference](https://django-tailwind-cli.readthedocs.io/latest/settings.html).
 
-```python
-# Pin a specific Tailwind version instead of tracking the latest release
-TAILWIND_CLI_VERSION = "4.1.3"
-
-# Custom CSS paths
-TAILWIND_CLI_SRC_CSS = "src/styles/main.css"
-TAILWIND_CLI_DIST_CSS = "css/app.css"
-
-# Enable DaisyUI
-TAILWIND_CLI_USE_DAISY_UI = True
-
-# Use an already-installed Tailwind binary (e.g. `brew install tailwindcss`)
-TAILWIND_CLI_USE_SYSTEM_BINARY = True
-
-# Auto-inject @source directives for editable-installed external apps (opt-in)
-TAILWIND_CLI_AUTO_SOURCE_EXTERNAL_APPS = True
-```
-
-For production, pin the version and provide the binary yourself rather than downloading it during a
-build:
-
-```python
-TAILWIND_CLI_VERSION = "4.1.3"
-TAILWIND_CLI_AUTOMATIC_DOWNLOAD = False
-TAILWIND_CLI_PATH = "/usr/local/bin/tailwindcss"  # where your binary actually is
-TAILWIND_CLI_DIST_CSS = "css/tailwind.min.css"
-```
-
-## DaisyUI
-
-Setting `TAILWIND_CLI_USE_DAISY_UI = True` switches to the DaisyUI-enabled CLI build, which makes
-its component classes available:
-
-```html
-<button class="btn btn-primary">Primary Button</button>
-<div class="card bg-base-100 shadow-xl">
-    <div class="card-body">
-        <h2 class="card-title">Card Title</h2>
-        <p>Card content goes here.</p>
-    </div>
-</div>
-```
-
-## Troubleshooting
-
-**CSS not updating?**
-
-```bash
-python manage.py tailwind build
-python manage.py tailwind troubleshoot
-```
-
-**Configuration problems?**
+The [command reference](https://django-tailwind-cli.readthedocs.io/latest/usage.html) covers all
+commands and options. To inspect your setup or investigate a build problem, start with:
 
 ```bash
 python manage.py tailwind config
-python manage.py tailwind setup
+python manage.py tailwind build --verbose
+python manage.py tailwind troubleshoot
 ```
-
-**Classes from some templates are missing?**
-
-Tailwind CSS 4.x detects sources automatically, starting from `BASE_DIR` with this package's
-default source CSS. Check whether the missing templates are outside that directory or ignored
-by `.gitignore`. Add `@source` directives to a custom source CSS file for additional paths, or use
-`TAILWIND_CLI_AUTO_SOURCE_EXTERNAL_APPS` for editable-installed external apps. See
-[Tailwind's source detection guide](https://tailwindcss.com/docs/detecting-classes-in-source-files).
 
 ## Documentation and related projects
 

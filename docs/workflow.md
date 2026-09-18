@@ -1,64 +1,89 @@
-# Daily Workflow
+# Development workflow
 
-How to work with django-tailwind-cli day to day: starting the server, editing templates, wiring up your editor, and what to check when something looks wrong. For contributing to the package itself, see [Contributing](contributing.md).
+After [installation](installation.md), use this page for running the watcher, editing styles and
+investigating missing CSS. For work on the package itself, see [Contributing](contributing.md).
 
-## Initial Setup
+## Running the development server
 
 ```bash
-# Step 1: Install and configure
-pip install django-tailwind-cli
-python manage.py tailwind setup  # Guided setup
-
-# Step 2: Verify configuration
-python manage.py tailwind config
-
-# Step 3: Start development
 python manage.py tailwind runserver
 ```
 
-## Daily Development
+This starts Django and Tailwind together. If your IDE already runs Django, or `manage.py` lives
+outside `BASE_DIR`, start the watcher separately:
 
 ```bash
-# Morning startup
-python manage.py tailwind runserver  # Starts both Django and Tailwind
-
-# Alternative: Separate terminals
-python manage.py tailwind watch     # Terminal 1: CSS watching
-python manage.py runserver          # Terminal 2: Django server
+python manage.py tailwind watch     # Terminal 1
+python manage.py runserver          # Terminal 2, unless your IDE runs it
 ```
 
-`tailwind watch` (and the inner watcher spawned by `tailwind runserver`) runs under Django's auto-reloader by default. Any change to a Python file — including `settings.py` — restarts the watcher, regenerates the source CSS file, and respawns the Tailwind CLI subprocess. Pass `--noreload` to disable.
+The watcher runs under Django's auto-reloader. Python changes, including changes to `settings.py`,
+restart it with fresh configuration. Pass `--noreload` to disable this behavior.
 
-`tailwind runserver` is a transparent wrapper around the underlying Django `runserver` / `runserver_plus` command: every runserver flag except `--force-default-runserver` is forwarded verbatim. Consult `python manage.py runserver --help` (or `runserver_plus --help` with `django-extensions` installed) for the full list of available options.
+Server arguments are forwarded to Django's `runserver` or `runserver_plus`, for example:
 
-## Template Development
+```bash
+python manage.py tailwind runserver 8080
+```
 
-1. **Create/Edit Template**
+See [runserver](usage.md#runserver) for server selection and additional options, and
+[Docker Compose](usage.md#use-with-docker-compose) if you run the watcher in a container.
 
-   ```htmldjango
-   <!-- templates/myapp/page.html -->
-   {% extends "base.html" %}
+## Editing templates and CSS
 
-   {% block content %}
-   <div class="max-w-4xl mx-auto p-6">
-     <h1 class="text-3xl font-bold text-gray-900">New Page</h1>
-   </div>
-   {% endblock %}
-   ```
+Extend the base template that loads your stylesheet:
 
-2. **Check template discovery**
+```htmldjango
+<!-- templates/myapp/page.html -->
+{% extends "base.html" %}
 
-   The default source CSS enables Tailwind's automatic detection from `BASE_DIR`.
-   Add `@source` directives in a custom source CSS file for paths outside that tree
-   or excluded from automatic detection. For editable-installed external apps, see
-   [`TAILWIND_CLI_AUTO_SOURCE_EXTERNAL_APPS`](settings.md#tailwind_cli_auto_source_external_apps).
+{% block content %}
+<div class="max-w-4xl mx-auto p-6">
+    <h1 class="text-3xl font-bold text-gray-900">New Page</h1>
+</div>
+{% endblock %}
+```
 
-3. **Build and Test**
+Save the template while the watcher is running, then refresh the page. For automatic browser
+refreshes, configure [browser reload](installation.md#browser-reload).
 
-   ```bash
-   # CSS rebuilds automatically with watch mode
-   # Or manually: python manage.py tailwind build
-   ```
+For custom CSS, create a file outside your static directories and point Django at it:
+
+```python
+TAILWIND_CLI_SRC_CSS = "styles/main.css"
+```
+
+```css
+/* styles/main.css */
+@import "tailwindcss";
+
+@theme {
+    --color-brand: #2563eb;
+}
+```
+
+The managed `.django_tailwind_cli/source.css` is regenerated during builds, so keep your edits in
+this custom file. See [`TAILWIND_CLI_SRC_CSS`](settings.md#tailwind_cli_src_css) for path handling.
+
+The default import enables automatic source detection from `BASE_DIR`. To include external or
+ignored paths, add `@source` directives to your custom CSS; paths are relative to that CSS file.
+For editable-installed external apps with the managed source CSS, enable
+[`TAILWIND_CLI_AUTO_SOURCE_EXTERNAL_APPS`](settings.md#tailwind_cli_auto_source_external_apps).
+For separate stylesheets with explicitly limited sources, see the
+[multiple stylesheet examples](settings.md#tailwind_cli_css_map).
+
+## Building for deployment
+
+Build the CSS before collecting static files:
+
+```bash
+python manage.py tailwind build
+python manage.py collectstatic --noinput
+```
+
+Every build regenerates all configured stylesheets. With manifest storage, reversing this order
+can leave the stylesheet missing from the manifest and cause template rendering to fail. See
+[WhiteNoise](whitenoise.md#build-the-css-before-collectstatic) for the complete deployment example.
 
 ## IDE Integration
 
@@ -108,55 +133,48 @@ python manage.py runserver          # Terminal 2: Django server
 
 ### PyCharm Setup
 
-1. **Run Configurations:**
-   - Name: Tailwind Watch
-   - Script: manage.py
-   - Parameters: tailwind watch
-   - Environment: Development
+Create a Python run configuration:
 
-2. **File Watchers:**
-   - File type: Django Template
-   - Scope: Project Files
-   - Program: python
-   - Arguments: manage.py tailwind build
+- Name: Tailwind Watch
+- Script: `manage.py`
+- Parameters: `tailwind watch`
 
-## Troubleshooting Checklist
+Use the project's Python environment and working directory. The running watcher handles template
+changes; a separate file watcher that runs a production build on every save is unnecessary.
 
-### Before Asking for Help
+## Troubleshooting
 
-1. **Check Configuration:**
+### A class is missing from the stylesheet
 
-   ```bash
-   python manage.py tailwind config
-   ```
+Check whether the template is outside `BASE_DIR` or excluded by `.gitignore`. Add missing paths
+with `@source` in custom CSS, or enable the external-app setting described above. Explicit
+`@source` directives add to automatic detection; `source(none)` disables automatic detection.
+See [Tailwind's source detection guide](https://tailwindcss.com/docs/detecting-classes-in-source-files)
+for exclusions and class-name detection rules.
 
-2. **Verify Template Sources:**
+### CSS is not updating in the browser
 
-   Check automatic detection exclusions such as `.gitignore`, and register missing
-   external paths with `@source`. Those paths are relative to the source CSS file.
-   See [Tailwind's source detection guide](https://tailwindcss.com/docs/detecting-classes-in-source-files).
+Run a build with diagnostics:
 
-3. **Test CLI Functionality:**
+```bash
+python manage.py tailwind build --verbose
+```
 
-   ```bash
-   python manage.py tailwind download_cli
-   python manage.py tailwind build --verbose
-   ```
+If the build fails, address the reported error. If it succeeds, check that your page includes the
+stylesheet through `{% tailwind_css %}` and that the browser loads the updated file. During
+development, keep the watcher running to rebuild after subsequent edits.
 
-4. **Run Diagnostics:**
+### Configuration or CLI problems
 
-   ```bash
-   python manage.py tailwind troubleshoot
-   ```
+```bash
+python manage.py tailwind config
+python manage.py tailwind troubleshoot
+```
 
-5. **Check System Requirements:**
-   - Python 3.10+
-   - Django 4.2+
-   - Sufficient disk space
-   - Network access for CLI download
+`config` shows the resolved binary and stylesheet paths. Check those paths against your project
+layout. If the binary is missing, `python manage.py tailwind download_cli` downloads it separately
+from a build; managed downloads require network access. If using a system binary, check the
+[system binary setting](settings.md#tailwind_cli_use_system_binary).
 
-### Filing the Report
-
-If the checklist above does not explain the behaviour, open an issue. What to include and what makes
-a report easy to act on is described in
-[CONTRIBUTING.md](https://github.com/django-commons/django-tailwind-cli/blob/main/CONTRIBUTING.md).
+If these checks do not explain the behavior, include the diagnostics, versions and reproduction
+steps in a report as described in [Contributing](contributing.md#reporting-a-bug).

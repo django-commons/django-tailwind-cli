@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### 📚 Documentation
+- Reorganized the README into a working quickstart, the installation guide into setup and optional integrations, and the workflow guide into recurring tasks and troubleshooting.
+
 ### 🐛 Bug Fixes
 - **Source detection guidance corrected:** Tailwind scans automatically by default; `@source` adds paths. Documentation and command guides now explain when to add external sources and how `source(none)` limits scanning to explicit sources.
 - **Failed CLI downloads leave an existing binary intact.** Downloads are staged on the destination filesystem and replace the binary only after a successful transfer. A mismatch with the advertised `Content-Length` now fails instead of installing an incomplete file; responses without that header remain supported.
