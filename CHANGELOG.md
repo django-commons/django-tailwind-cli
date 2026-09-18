@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### 📚 Documentation
+- Clarified contribution expectations around focused submissions, actionable reports, contributor responsibility and variable review times.
 - Reorganized the README into a working quickstart, the installation guide into setup and optional integrations, and the workflow guide into recurring tasks and troubleshooting.
 
 ### 🐛 Bug Fixes

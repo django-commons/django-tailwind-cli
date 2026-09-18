@@ -6,23 +6,22 @@ follows the
 
 ## Before you open an issue or a pull request
 
-This project is maintained in spare time. Some weeks are quiet, some weeks the queue is longer than
-the time available for it. A few expectations keep that workable:
+This project is maintained in spare time. Response and review times depend on the available
+capacity and the scope of the work; a quick response to one submission does not set a timeline
+for others.
 
-- **One topic per issue, one change per pull request.** Small and focused gets handled quickly.
-  A submission that bundles four unrelated things waits until there is time for all four.
-- **Write it so it can be understood on the first read.** What you did, what you expected, what
-  happened instead. An unclear report gets closed rather than investigated — reconstructing the
-  missing half costs more time than the fix does.
-- **AI-assisted work is fine, unreviewed AI output is not.** You are the author of what you submit.
-  If you cannot explain every line of it, it is not ready.
-- **A quick answer is not an invitation.** A first issue fixed within the hour was well written,
-  not proof of spare capacity waiting for the next five.
-- **The subject line does most of the work.** Say what is broken, not that something is.
+- **Keep submissions focused.** Use one topic per issue and one change per pull request. Submit
+  unrelated changes separately so each can be reviewed on its own.
+- **Make reports actionable.** Describe what you did, what you expected, and what happened instead.
+  Include reproduction steps and relevant diagnostics so the problem can be investigated.
+- **Review and understand your contribution.** You are responsible for what you submit, including
+  work produced with assistance. Check it before submitting and be prepared to explain each change.
+- **Use a specific subject line.** Name the affected command or feature and describe the problem
+  or proposed change.
 
-If you are unsure whether something warrants an issue, ask first: open a
+For questions about scope or direction, open a
 [discussion](https://github.com/django-commons/django-tailwind-cli/discussions) or mail
-<oliver@andrich.me>. Questions about direction are welcome and cheaper than a rejected pull request.
+<oliver@andrich.me> before starting substantial work.
 
 ## Reporting a bug
 
@@ -98,7 +97,7 @@ Use the scope that names the area you touched. `config`, `management`, `build`, 
 `runserver`, `download`, `http`, `docs`, `tests`, `ci`, and `deps` are the common ones; `git log`
 shows the rest.
 
-Keep the message short — a title plus one or two sentences on the *why*. The diff already shows
+Keep the message short — a title plus one or two sentences on the _why_. The diff already shows
 what changed, and test counts or coverage numbers belong in the pull request, not in the history.
 
 Commit under your own name and without bot co-author trailers. Whatever tools you used, the change
@@ -118,7 +117,7 @@ Tailwind 4.x, and the major only moves when Tailwind's does. A change that would
 elsewhere under semver — a dropped dependency, a different exit code — goes into a minor here and
 is called out in the changelog instead.
 
-Releasing is a tag. `[tool.hatch.version]` reads the version from git, so `v4.8.0` *is* the
+Releasing is a tag. `[tool.hatch.version]` reads the version from git, so `v4.8.0` _is_ the
 version. Pushing the tag starts the release rather than finishing it: the workflow builds, uploads
 to TestPyPI, and then waits — the `pypi` environment requires a reviewer, so PyPI publishing needs
 an admin to approve it in the GitHub UI. Do not push a tag and walk away.
