@@ -40,7 +40,7 @@ Available template tags:
 from django import template
 from django.conf import settings
 
-from django_tailwind_cli.config import get_config
+from django_tailwind_cli.config import get_css_entries
 
 register = template.Library()
 
@@ -90,11 +90,11 @@ def tailwind_css(name: str | None = None) -> dict[str, bool | list[str]]:
         - TAILWIND_CLI_CSS_MAP: List of (source, destination) tuples for multiple CSS files
         - DEBUG: Controls cache behavior and development features
     """
-    config = get_config()
+    entries = get_css_entries()
 
     if name:
         # Specific file requested - find matching entry
-        for entry in config.css_entries:
+        for entry in entries:
             if entry.name == name:
                 return {
                     "debug": settings.DEBUG,
@@ -106,5 +106,5 @@ def tailwind_css(name: str | None = None) -> dict[str, bool | list[str]]:
         # All files
         return {
             "debug": settings.DEBUG,
-            "tailwind_css_files": [entry.dist_css_base for entry in config.css_entries],
+            "tailwind_css_files": [entry.dist_css_base for entry in entries],
         }

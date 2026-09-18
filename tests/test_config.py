@@ -668,7 +668,7 @@ def test_system_binary_empty_name_raises(settings: Settings):
 
 
 def test_get_config_never_reads_the_binary_version(settings: Settings, mocker: MockerFixture):
-    """The template tag calls get_config() on every render — no subprocess may hide in there.
+    """Resolving command configuration must not execute the binary.
 
     The version comparison for a binary this library did not download lives on the command path;
     see the system-binary tests in test_management_commands.py.

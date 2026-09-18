@@ -4,6 +4,11 @@
 
 Put this template tag in the head of your base template. It includes the `link`-tags to load the CSS stylesheets.
 
+The tag resolves CSS paths and uses Django's static storage to generate URLs. It does not look up
+Tailwind releases or search for a CLI binary, so the server can serve prebuilt CSS without a
+Tailwind installation. CSS settings are still validated; CLI settings are checked by the management
+commands.
+
 ```htmldjango
 {% load tailwind_cli %}
 ...

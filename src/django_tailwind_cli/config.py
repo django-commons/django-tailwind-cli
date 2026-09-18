@@ -240,24 +240,11 @@ def _validate_required_settings() -> None:
     Raises:
         ValueError: If required settings are missing or invalid.
     """
-    if settings.STATICFILES_DIRS is None or len(settings.STATICFILES_DIRS) == 0:
-        raise ConfigurationError(
-            "STATICFILES_DIRS is empty. Please add a path to your static files. "
-            "Add STATICFILES_DIRS = [BASE_DIR / 'assets'] to your Django settings."
-        )
-
     # Validate TAILWIND_CLI_ASSET_NAME if set
     asset_name = getattr(settings, "TAILWIND_CLI_ASSET_NAME", None)
     if asset_name is not None and not asset_name:
         raise ConfigurationError(
             "TAILWIND_CLI_ASSET_NAME must not be empty. Either remove the setting or provide a valid asset name."
-        )
-
-    # Validate TAILWIND_CLI_DIST_CSS if set
-    dist_css = getattr(settings, "TAILWIND_CLI_DIST_CSS", None)
-    if dist_css is not None and not dist_css:
-        raise ConfigurationError(
-            "TAILWIND_CLI_DIST_CSS must not be empty. Either remove the setting or provide a valid CSS path."
         )
 
     # Validate TAILWIND_CLI_SRC_REPO if set
@@ -270,7 +257,6 @@ def _validate_required_settings() -> None:
     # Validate system-binary settings
     _validate_system_binary_settings()
 
-    # Validate mutual exclusivity of CSS settings
     _validate_css_settings()
 
 
@@ -298,11 +284,24 @@ def _validate_system_binary_settings() -> None:
 
 
 def _validate_css_settings() -> None:
-    """Validate CSS configuration settings for mutual exclusivity.
+    """Validate required static paths and CSS entry configuration.
 
     Raises:
-        ValueError: If both single-file and multi-file configurations are present.
+        ValueError: If CSS settings are missing, invalid or contradictory.
     """
+    if settings.STATICFILES_DIRS is None or len(settings.STATICFILES_DIRS) == 0:
+        raise ConfigurationError(
+            "STATICFILES_DIRS is empty. Please add a path to your static files. "
+            "Add STATICFILES_DIRS = [BASE_DIR / 'assets'] to your Django settings."
+        )
+
+    # Validate TAILWIND_CLI_DIST_CSS if set
+    dist_css = getattr(settings, "TAILWIND_CLI_DIST_CSS", None)
+    if dist_css is not None and not dist_css:
+        raise ConfigurationError(
+            "TAILWIND_CLI_DIST_CSS must not be empty. Either remove the setting or provide a valid CSS path."
+        )
+
     has_css_map = bool(getattr(settings, "TAILWIND_CLI_CSS_MAP", None))
     has_src_css = bool(getattr(settings, "TAILWIND_CLI_SRC_CSS", None))
     has_dist_css = bool(getattr(settings, "TAILWIND_CLI_DIST_CSS", None))
@@ -735,6 +734,17 @@ def _resolve_css_paths() -> tuple[list[CSSEntry], bool]:
     return [entry], overwrite_default_config
 
 
+def get_css_entries() -> list[CSSEntry]:
+    """Resolve validated stylesheet paths without looking up a CLI binary or release.
+
+    Uses the same CSS validation and path resolution as ``get_config()``. Template rendering
+    needs these paths even when the Tailwind CLI is unavailable on the serving machine.
+    """
+    _validate_css_settings()
+    entries, _ = _resolve_css_paths()
+    return entries
+
+
 def _get_repository_settings(*, use_daisy_ui: bool) -> tuple[str, str]:
     """Get repository URL and asset name based on DaisyUI setting.
 
@@ -799,8 +809,8 @@ def get_config() -> Config:
         cli_path = _resolve_system_binary(binary_name)
         # System binary mode implies auto-download is off — we never downloaded it.
         automatic_download = False
-        # The version comparison runs a subprocess, so it belongs on the command path, not here:
-        # get_config() is uncached and the template tag calls it on every render.
+        # Configuration resolution does not execute the binary; commands check its version
+        # when they are about to use it.
         manages_cli_binary = False
     else:
         cli_path, manages_cli_binary = _resolve_cli_path(platform_info, version_str, asset_name)
