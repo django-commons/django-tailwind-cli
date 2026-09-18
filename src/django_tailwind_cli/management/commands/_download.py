@@ -114,7 +114,6 @@ def ensure_cli_binary(*, verbose: bool = False, force_download: bool = False) ->
             click.secho("✅ CLI found, automatic download not needed", fg="green")
         return
 
-    # Use optimized CLI check for existing installations
     if not force_download and _is_cli_usable(c.cli_path):
         if verbose:
             click.secho("✅ CLI is up-to-date and functional", fg="green")
@@ -143,10 +142,8 @@ def ensure_cli_binary(*, verbose: bool = False, force_download: bool = False) ->
 
     click.secho(f"Downloading Tailwind CSS CLI from '{c.download_url}'.", fg="yellow")
 
-    # Download with progress indication
     _download_cli_with_progress(c.download_url, c.cli_path)
 
-    # Make CLI executable
     c.cli_path.chmod(0o755)
 
     # detect_binary_version is cached per path for the life of the process; the file behind that

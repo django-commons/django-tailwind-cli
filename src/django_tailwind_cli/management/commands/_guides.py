@@ -20,7 +20,6 @@ def print_troubleshooting_guide() -> None:
     click.secho("\n🔍 Django Tailwind CLI Troubleshooting Guide", fg="cyan", bold=True)
     click.secho("=" * 55, fg="cyan")
 
-    # Issue 1: CSS not updating
     click.secho("\n❓ Issue 1: CSS not updating in browser", fg="yellow", bold=True)
     click.secho("   Symptoms: Changes to templates don't reflect in styles", fg="blue")
     click.secho("   Solutions:", fg="green")
@@ -31,7 +30,6 @@ def print_troubleshooting_guide() -> None:
     click.secho("   4. Check if CSS file exists:", fg="white")
     click.secho("      python manage.py tailwind config", fg="green")
 
-    # Issue 2: Build failures
     click.secho("\n❓ Issue 2: Build/watch command fails", fg="yellow", bold=True)
     click.secho("   Symptoms: Commands exit with errors", fg="blue")
     click.secho("   Solutions:", fg="green")
@@ -44,7 +42,6 @@ def print_troubleshooting_guide() -> None:
     click.secho("   4. Rebuild the CSS:", fg="white")
     click.secho("      python manage.py tailwind build", fg="green")
 
-    # Issue 3: Configuration errors
     click.secho("\n❓ Issue 3: Configuration errors", fg="yellow", bold=True)
     click.secho("   Symptoms: Settings-related error messages", fg="blue")
     click.secho("   Solutions:", fg="green")
@@ -56,7 +53,6 @@ def print_troubleshooting_guide() -> None:
     click.secho("   3. Check current configuration:", fg="white")
     click.secho("      python manage.py tailwind config", fg="green")
 
-    # Issue 4: Template integration
     click.secho("\n❓ Issue 4: Template integration problems", fg="yellow", bold=True)
     click.secho("   Symptoms: CSS not loading in templates", fg="blue")
     click.secho("   Solutions:", fg="green")
@@ -69,7 +65,6 @@ def print_troubleshooting_guide() -> None:
     click.secho("   4. Verify static URL in settings:", fg="white")
     click.secho("      STATIC_URL = '/static/'", fg="green")
 
-    # Issue 5: Permission issues
     click.secho("\n❓ Issue 5: Permission denied errors", fg="yellow", bold=True)
     click.secho("   Symptoms: Cannot write files or execute CLI", fg="blue")
     click.secho("   Solutions:", fg="green")
@@ -81,7 +76,6 @@ def print_troubleshooting_guide() -> None:
     click.secho("   4. Re-download CLI binary:", fg="white")
     click.secho("      python manage.py tailwind download_cli", fg="green")
 
-    # Issue 6: Network/download issues
     click.secho("\n❓ Issue 6: Download or network failures", fg="yellow", bold=True)
     click.secho("   Symptoms: Cannot download CLI binary", fg="blue")
     click.secho("   Solutions:", fg="green")
@@ -92,7 +86,6 @@ def print_troubleshooting_guide() -> None:
     click.secho("      TAILWIND_CLI_REQUEST_TIMEOUT = 30", fg="green")
     click.secho("   4. Try manual download from GitHub releases", fg="white")
 
-    # Issue 7: Tailwind classes not working
     click.secho("\n❓ Issue 7: Tailwind classes not working", fg="yellow", bold=True)
     click.secho("   Symptoms: Classes in HTML don't produce styles", fg="blue")
     click.secho("   Solutions:", fg="green")
@@ -104,7 +97,6 @@ def print_troubleshooting_guide() -> None:
     click.secho("   4. Rebuild the CSS:", fg="white")
     click.secho("      python manage.py tailwind build", fg="green")
 
-    # Issue 8: Deployment / collectstatic ordering
     click.secho("\n❓ Issue 8: Styles missing after deployment", fg="yellow", bold=True)
     click.secho(
         "   Symptoms: ValueError: Missing staticfiles manifest entry for 'css/tailwind.css'",
@@ -120,14 +112,12 @@ def print_troubleshooting_guide() -> None:
     click.secho("   3. See the WhiteNoise notes for a full sample configuration:", fg="white")
     click.secho("      https://django-tailwind-cli.rtfd.io/latest/whitenoise.html", fg="green")
 
-    # Diagnostic commands
     click.secho("\n🔧 Diagnostic Commands", fg="cyan", bold=True)
     click.secho("   Run these to gather information:", fg="blue")
     click.secho("   python manage.py tailwind config          # Show configuration", fg="green")
     click.secho("   python manage.py tailwind build --verbose # Detailed build info", fg="green")
     click.secho("   python manage.py tailwind setup           # Guided setup", fg="green")
 
-    # Getting more help
     click.secho("\n💬 Need More Help?", fg="cyan", bold=True)
     click.secho("   • Documentation: https://django-tailwind-cli.rtfd.io/", fg="blue")
     click.secho("   • GitHub Issues: https://github.com/django-commons/django-tailwind-cli/issues", fg="blue")
@@ -140,14 +130,12 @@ def print_performance_tips() -> None:
     click.secho("\n⚡ Django Tailwind CLI Performance Optimization", fg="cyan", bold=True)
     click.secho("=" * 55, fg="cyan")
 
-    # Build Performance
     click.secho("\n🏗️ Build Performance", fg="yellow", bold=True)
     click.secho("   Optimize your CSS build times:", fg="blue")
     click.secho("   • Use watch mode for incremental rebuilds during development", fg="green")
     click.secho("   • Pin Tailwind version in production: TAILWIND_CLI_VERSION", fg="green")
     click.secho("   • Disable automatic downloads in CI: TAILWIND_CLI_AUTOMATIC_DOWNLOAD=False", fg="green")
 
-    # File Watching
     click.secho("\n👀 File Watching Efficiency", fg="yellow", bold=True)
     click.secho("   Optimize development file watching:", fg="blue")
     click.secho("   • Use 'tailwind runserver' for integrated development", fg="green")
@@ -155,7 +143,6 @@ def print_performance_tips() -> None:
     click.secho("   • Keep templates organized in standard Django locations", fg="green")
     click.secho("   • Use .gitignore patterns for large file trees", fg="green")
 
-    # Template Optimization
     click.secho("\n📄 Template Scanning", fg="yellow", bold=True)
     click.secho("   Optimize template discovery:", fg="blue")
     click.secho("   • Use source(none) with @source in custom CSS to scan only listed paths", fg="green")
@@ -163,7 +150,6 @@ def print_performance_tips() -> None:
     click.secho("   • Avoid deeply nested template hierarchies", fg="green")
     click.secho("   • Use standard Django template patterns", fg="green")
 
-    # Production Optimization
     click.secho("\n🚀 Production Deployment", fg="yellow", bold=True)
     click.secho("   Best practices for production:", fg="blue")
     click.secho("   • Pre-install CLI binary in Docker images", fg="green")
@@ -171,7 +157,6 @@ def print_performance_tips() -> None:
     click.secho("   • Build CSS during container build, not runtime", fg="green")
     click.secho("   • Serve CSS with proper cache headers", fg="green")
 
-    # Development Workflow
     click.secho("\n🛠️ Development Workflow", fg="yellow", bold=True)
     click.secho("   Streamline your development process:", fg="blue")
     click.secho("   • Use verbose mode for troubleshooting: --verbose", fg="green")
@@ -179,7 +164,6 @@ def print_performance_tips() -> None:
     click.secho("   • Configure IDE for Tailwind CSS IntelliSense", fg="green")
     click.secho("   • Set up proper static file serving", fg="green")
 
-    # Common Pitfalls
     click.secho("\n⚠️ Common Performance Pitfalls", fg="yellow", bold=True)
     click.secho("   Avoid these common issues:", fg="blue")
     click.secho("   ❌ Running builds on every request", fg="red")
@@ -187,7 +171,6 @@ def print_performance_tips() -> None:
     click.secho("   ❌ Scanning unnecessary file types", fg="red")
     click.secho("   ❌ Not pinning versions in production", fg="red")
 
-    # Configuration Examples
     click.secho("\n⚙️ Performance Configuration Examples", fg="yellow", bold=True)
     click.secho("   Development settings:", fg="blue")
     click.secho("   TAILWIND_CLI_VERSION = 'latest'  # Auto-update", fg="green")
@@ -197,7 +180,6 @@ def print_performance_tips() -> None:
     click.secho("   TAILWIND_CLI_AUTOMATIC_DOWNLOAD = False", fg="green")
     click.secho("   TAILWIND_CLI_PATH = '/usr/local/bin/tailwindcss'", fg="green")
 
-    # Monitoring
     click.secho("\n📊 Performance Monitoring", fg="yellow", bold=True)
     click.secho("   Monitor and measure performance:", fg="blue")
     click.secho("   • Build times: python manage.py tailwind build --verbose", fg="green")
@@ -216,19 +198,16 @@ def print_configuration() -> None:
     click.secho("\n🔧 Django Tailwind CLI Configuration", fg="cyan", bold=True)
     click.secho("=" * 50, fg="cyan")
 
-    # Version information
     click.secho("\n📦 Version Information:", fg="yellow", bold=True)
     click.secho(f"   Tailwind CSS Version: {config.version_str}", fg="green")
     click.secho(f"   DaisyUI Enabled: {'Yes' if config.use_daisy_ui else 'No'}", fg="green")
     click.secho(f"   Auto Download: {'Yes' if config.automatic_download else 'No'}", fg="green")
 
-    # Path information
     click.secho("\n📁 File Paths:", fg="yellow", bold=True)
     cli_exists = "✅" if config.cli_path.exists() else "❌"
     origin = "system binary" if config.uses_system_binary else "managed download"
     click.secho(f"   CLI Binary: {config.cli_path} {cli_exists} ({origin})", fg="green")
 
-    # CSS Entries
     click.secho(f"\n📄 CSS Entries ({len(config.css_entries)}):", fg="yellow", bold=True)
     for entry in config.css_entries:
         src_exists = "✅" if entry.src_css.exists() else "❌"
@@ -237,7 +216,6 @@ def print_configuration() -> None:
         click.secho(f"      Source: {entry.src_css} {src_exists}", fg="green")
         click.secho(f"      Output: {entry.dist_css} {dist_exists}", fg="green")
 
-    # Django Settings
     click.secho("\n⚙️ Django Settings:", fg="yellow", bold=True)
     staticfiles_dirs = getattr(settings, "STATICFILES_DIRS", None)
     click.secho(f"   STATICFILES_DIRS: {staticfiles_dirs}", fg="green")
@@ -255,7 +233,6 @@ def print_configuration() -> None:
         if system_binary_name:
             click.secho(f"   TAILWIND_CLI_SYSTEM_BINARY_NAME: {system_binary_name}", fg="green")
 
-    # Show CSS settings based on mode
     css_map_setting = getattr(settings, "TAILWIND_CLI_CSS_MAP", None)
     if css_map_setting:
         click.secho(f"   TAILWIND_CLI_CSS_MAP: {css_map_setting}", fg="green")
@@ -268,18 +245,15 @@ def print_configuration() -> None:
         if dist_css_setting:
             click.secho(f"   TAILWIND_CLI_DIST_CSS: {dist_css_setting}", fg="green")
 
-    # Platform information
     platform_info = get_platform_info()
     click.secho("\n💻 Platform Information:", fg="yellow", bold=True)
     click.secho(f"   Operating System: {platform_info.system}", fg="green")
     click.secho(f"   Architecture: {platform_info.machine}", fg="green")
     click.secho(f"   Binary Extension: {platform_info.extension or 'none'}", fg="green")
 
-    # Commands
     click.secho("\n🔗 Command URLs:", fg="yellow", bold=True)
     click.secho(f"   Download URL: {config.download_url}", fg="blue")
 
-    # Status summary
     click.secho("\n📊 Status Summary:", fg="yellow", bold=True)
     cli_exists = config.cli_path.exists()
     all_src_exist = all(entry.src_css.exists() for entry in config.css_entries)

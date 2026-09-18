@@ -103,7 +103,6 @@ class _BaseProcessManager:
         while not self.shutdown_requested and any(p.poll() is None for p in self.processes):
             time.sleep(0.5)
 
-            # Check if any process has exited unexpectedly
             for index, process in enumerate(self.processes):
                 if process.poll() is not None and process.returncode != 0:
                     click.secho(self._exit_notice(index, process.returncode), fg="red")
@@ -169,7 +168,6 @@ class ProcessManager(_BaseProcessManager):
             # Give Tailwind a moment to start
             time.sleep(1)
 
-            # Start Django development server
             server_process = subprocess.Popen(
                 server_cmd,
                 cwd=settings.BASE_DIR,

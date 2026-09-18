@@ -57,9 +57,6 @@ def app():
     """
 
 
-# COMMANDS ---------------------------------------------------------------------
-
-
 @app.command()
 @click.option("--force", is_flag=True, help="Accepted for compatibility; every build rebuilds the CSS.")
 @click.option("--verbose", "-v", is_flag=True, help="Show detailed build information and diagnostics.")
@@ -118,7 +115,6 @@ def build(*, force: bool, verbose: bool, minify: bool | None) -> None:  # noqa: 
 
     setup_tailwind_environment(verbose=verbose)
 
-    # Build each CSS entry
     entries_built = 0
 
     for entry in config.css_entries:
@@ -305,14 +301,11 @@ def setup_guide():
     click.secho("\n🚀 Django Tailwind CLI Setup Guide", fg="cyan", bold=True)
     click.secho("=" * 50, fg="cyan")
 
-    # Step 1: Check installation
     click.secho("\n📦 Step 1: Installation Check", fg="yellow", bold=True)
     click.secho(f"   ✅ django-tailwind-cli is installed (version: {__version__})", fg="green")
 
-    # Step 2: Check Django settings
     click.secho("\n⚙️ Step 2: Django Settings Check", fg="yellow", bold=True)
 
-    # Check INSTALLED_APPS
     installed_apps = getattr(settings, "INSTALLED_APPS", [])
     if "django_tailwind_cli" in installed_apps:
         click.secho("   ✅ 'django_tailwind_cli' in INSTALLED_APPS", fg="green")
@@ -324,7 +317,6 @@ def setup_guide():
         click.secho("       'django_tailwind_cli',", fg="green")
         click.secho("   ]", fg="green")
 
-    # Check STATICFILES_DIRS
     staticfiles_dirs = getattr(settings, "STATICFILES_DIRS", None)
     if staticfiles_dirs and len(staticfiles_dirs) > 0:
         click.secho(f"   ✅ STATICFILES_DIRS configured: {staticfiles_dirs[0]}", fg="green")
@@ -335,7 +327,6 @@ def setup_guide():
         click.secho("   (or any directory name you prefer)", fg="blue")
         return
 
-    # Step 3: Configuration check
     click.secho("\n🔧 Step 3: Configuration Status", fg="yellow", bold=True)
     try:
         config = get_config()
@@ -348,7 +339,6 @@ def setup_guide():
         click.secho(f"   ❌ Configuration error: {e}", fg="red")
         return
 
-    # Step 4: CLI Binary check
     click.secho("\n💾 Step 4: Tailwind CLI Binary", fg="yellow", bold=True)
     if config.cli_path.exists():
         click.secho("   ✅ Tailwind CLI binary exists", fg="green")
@@ -361,7 +351,6 @@ def setup_guide():
             click.secho(f"   ❌ Download failed: {e}", fg="red")
             return
 
-    # Step 5: CSS files check
     click.secho("\n🎨 Step 5: CSS Files Setup", fg="yellow", bold=True)
     # The same calls `build` makes, so what setup leaves behind is what build expects — including
     # the @source directives when TAILWIND_CLI_AUTO_SOURCE_EXTERNAL_APPS is on, and the .gitignore
@@ -376,7 +365,6 @@ def setup_guide():
         if entry.src_css not in written:
             click.secho(f"   ✅ [{entry.name}] Source CSS file is up to date", fg="green")
 
-    # Step 6: Build
     click.secho("\n🏗️ Step 6: Build", fg="yellow", bold=True)
     minify = bool(getattr(settings, "TAILWIND_CLI_AUTOMATIC_MINIFY", True))
     for entry in config.css_entries:
@@ -396,7 +384,6 @@ def setup_guide():
             click.secho(f"\n⏹️  Setup stopped during the [{entry.name}] build.", fg="yellow")
             return
 
-    # Step 7: Template integration guide
     click.secho("\n📄 Step 7: Template Integration", fg="yellow", bold=True)
     click.secho("   Add this to your base template:", fg="blue")
     click.secho("", fg="blue")
@@ -412,7 +399,6 @@ def setup_guide():
     click.secho("   </body>", fg="green")
     click.secho("   </html>", fg="green")
 
-    # Step 8: Development workflow
     click.secho("\n🔄 Step 8: Development Workflow", fg="yellow", bold=True)
     click.secho("   For development, use one of these workflows:", fg="blue")
     click.secho("", fg="blue")
@@ -427,7 +413,6 @@ def setup_guide():
     click.secho("   python manage.py tailwind build", fg="green")
     click.secho("   python manage.py collectstatic --noinput", fg="green")
 
-    # Success message
     click.secho("\n🎉 Setup Complete!", fg="green", bold=True)
     click.secho("   Your Django project is now ready to use Tailwind CSS!", fg="green")
     click.secho("   Start development with: python manage.py tailwind runserver", fg="cyan")
@@ -583,12 +568,3 @@ def runserver(ctx: click.Context, *, force_default_runserver: bool):
 
     process_manager = ProcessManager()
     process_manager.start_concurrent_processes(watch_cmd, server_cmd)
-
-
-# DOWNLOAD AND BUILD HELPERS ----------------------------------------------------------------------
-
-
-# FILE OPERATION OPTIMIZATIONS --------------------------------------------------------------------
-
-
-# UTILITY FUNCTIONS -------------------------------------------------------------------------------

@@ -45,7 +45,6 @@ def run_watch_loop(*, verbose: bool = False) -> None:
         click.secho("🔄 Starting file watcher...", fg="cyan")
 
     if len(config.css_entries) == 1:
-        # Single entry - use existing simple approach
         execute_tailwind_command(
             config.watch_cmd,
             success_message="Stopped watching for changes.",
@@ -54,7 +53,6 @@ def run_watch_loop(*, verbose: bool = False) -> None:
             verbose=verbose,
         )
     else:
-        # Multiple entries - use multi-process manager
         manager = MultiWatchProcessManager()
         manager.start_watch_processes(config, verbose=verbose)
 
