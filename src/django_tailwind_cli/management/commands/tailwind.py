@@ -17,7 +17,6 @@ from django_tailwind_cli.management.commands._build import (
     execute_tailwind_command,
     run_watch_loop,
     setup_tailwind_environment,
-    should_rebuild_css,
 )
 from django_tailwind_cli.management.commands._download import ensure_cli_binary, ensure_default_gitignore
 from django_tailwind_cli.management.commands._source_css import ensure_source_css
@@ -45,7 +44,6 @@ def app():
     Examples:
       python manage.py tailwind setup          # Guided setup (start here)
       python manage.py tailwind build          # Build production CSS
-      python manage.py tailwind build --force  # Force rebuild ignoring cache
       python manage.py tailwind watch          # Watch for changes during development
       python manage.py tailwind runserver      # Run Django with Tailwind watch mode
       python manage.py tailwind download_cli   # Download Tailwind CLI binary
@@ -63,7 +61,7 @@ def app():
 
 
 @app.command()
-@click.option("--force", is_flag=True, help="Force rebuild even if output is up to date.")
+@click.option("--force", is_flag=True, help="Accepted for compatibility; every build rebuilds the CSS.")
 @click.option("--verbose", "-v", is_flag=True, help="Show detailed build information and diagnostics.")
 @click.option(
     "--minify/--no-minify",
@@ -74,7 +72,7 @@ def app():
     ),
 )
 @handle_command_errors
-def build(*, force: bool, verbose: bool, minify: bool | None) -> None:
+def build(*, force: bool, verbose: bool, minify: bool | None) -> None:  # noqa: ARG001  (--force compatibility)
     """Build production-ready CSS file(s).
 
     This command processes your Tailwind CSS input file(s) and generates optimized
@@ -89,11 +87,8 @@ def build(*, force: bool, verbose: bool, minify: bool | None) -> None:
 
     \b
     Examples:
-        # Build production CSS (skips if already up-to-date)
+        # Build production CSS
         python manage.py tailwind build
-
-        # Force rebuild even if output seems current
-        python manage.py tailwind build --force
 
         # Show detailed build information
         python manage.py tailwind build --verbose
@@ -125,21 +120,8 @@ def build(*, force: bool, verbose: bool, minify: bool | None) -> None:
 
     # Build each CSS entry
     entries_built = 0
-    entries_skipped = 0
 
     for entry in config.css_entries:
-        # Check if rebuild is necessary (unless forced)
-        if not force and not should_rebuild_css(entry.src_css, entry.dist_css):
-            entries_skipped += 1
-            if verbose:
-                click.secho(f"⏭️  [{entry.name}] Build skipped: output is up-to-date", fg="yellow")
-                if entry.src_css.exists() and entry.dist_css.exists():
-                    src_mtime = entry.src_css.stat().st_mtime
-                    dist_mtime = entry.dist_css.stat().st_mtime
-                    click.secho(f"   • Source modified: {time.ctime(src_mtime)}", fg="blue")
-                    click.secho(f"   • Output modified: {time.ctime(dist_mtime)}", fg="blue")
-            continue
-
         if verbose:
             build_cmd = config.get_build_cmd(entry, minify=effective_minify)
             click.secho(f"⚡ [{entry.name}] Executing Tailwind CSS build command...", fg="cyan")
@@ -153,17 +135,11 @@ def build(*, force: bool, verbose: bool, minify: bool | None) -> None:
         )
         entries_built += 1
 
-    # Summary
-    if entries_skipped > 0 and entries_built == 0:
-        click.secho(
-            f"All {entries_skipped} stylesheet(s) are up to date. Use --force to rebuild.",
-            fg="cyan",
-        )
-    elif verbose:
+    if verbose:
         end_time = time.time()
         build_duration = end_time - start_time
         click.secho(
-            f"✅ Build completed in {build_duration:.3f}s ({entries_built} built, {entries_skipped} skipped)",
+            f"✅ Build completed in {build_duration:.3f}s ({entries_built} built)",
             fg="green",
         )
 
@@ -301,8 +277,8 @@ def setup_guide():
     """Guided setup for django-tailwind-cli.
 
     Walks the setup in order and stops at the first blocker with instructions
-    for fixing it. Downloads the CLI and runs a first build when they are
-    missing, and brings the source CSS to the state a build expects — which
+    for fixing it. Downloads the CLI if missing, builds every stylesheet,
+    and brings the source CSS to the state a build expects — which
     replaces hand edits to the managed file, after saying so and keeping a
     copy. It prompts for nothing, so it is safe to run repeatedly.
 
@@ -400,25 +376,21 @@ def setup_guide():
         if entry.src_css not in written:
             click.secho(f"   ✅ [{entry.name}] Source CSS file is up to date", fg="green")
 
-    # Step 6: First build
-    click.secho("\n🏗️ Step 6: First Build", fg="yellow", bold=True)
+    # Step 6: Build
+    click.secho("\n🏗️ Step 6: Build", fg="yellow", bold=True)
     minify = bool(getattr(settings, "TAILWIND_CLI_AUTOMATIC_MINIFY", True))
     for entry in config.css_entries:
         # One entry in a single-file setup, one per pair with TAILWIND_CLI_CSS_MAP. Building only
         # the first left the rest missing, and the next `build` then failed on them.
-        if not should_rebuild_css(entry.src_css, entry.dist_css):
-            click.secho(f"   ✅ [{entry.name}] CSS output file is up to date", fg="green")
-            continue
-
-        click.secho(f"   🔨 [{entry.name}] Building CSS for the first time...", fg="yellow")
+        click.secho(f"   🔨 [{entry.name}] Building CSS...", fg="yellow")
         entry.dist_css.parent.mkdir(parents=True, exist_ok=True)
         # execute_tailwind_command swallows Ctrl+C, so without checking the result the guide would
         # walk on to its closing "Setup Complete" over a stylesheet that never got built.
         completed = execute_tailwind_command(
             config.get_build_cmd(entry, minify=minify),
-            success_message=f"   ✅ [{entry.name}] First build completed successfully!",
+            success_message=f"   ✅ [{entry.name}] Build completed successfully!",
             # Plain, like the other two call sites: handle_command_errors frames it as an error.
-            error_message=f"Failed to run the first build for [{entry.name}]",
+            error_message=f"Failed to build CSS for [{entry.name}]",
         )
         if not completed:
             click.secho(f"\n⏹️  Setup stopped during the [{entry.name}] build.", fg="yellow")

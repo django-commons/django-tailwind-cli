@@ -10,7 +10,6 @@ import os
 import platform
 import signal
 import threading
-import time
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -36,7 +35,7 @@ from django_tailwind_cli.management.commands._source_css import (
     DEFAULT_SOURCE_CSS,
 )
 from django_tailwind_cli.management.commands.tailwind import run_watch_loop
-from tests.helpers import install_fake_cli, write_fake_cli
+from tests.helpers import write_fake_cli
 
 
 def _clear_legacy_css_settings(settings: LazySettings) -> None:
@@ -126,34 +125,64 @@ class TestBuildWorkflowIntegration:
             assert config.src_css.read_text() == DAISY_UI_SOURCE_CSS
             assert config.use_daisy_ui is True
 
-    def test_build_force_rebuild_workflow(self, settings: LazySettings, tmp_project: Path):
-        """Test force rebuild bypasses optimization checks."""
-        settings.TAILWIND_CLI_SRC_CSS = tmp_project / "source.css"
-
-        # Setup existing files
+    @pytest.mark.parametrize(
+        "command, change",
+        [
+            ("build", "template"),
+            ("build", "import"),
+            ("build", "minify"),
+            ("build", "unchanged"),
+            ("build", "force"),
+            ("setup", "template"),
+        ],
+    )
+    def test_build_runs_again_with_existing_output(
+        self,
+        settings: LazySettings,
+        tmp_project_with_cli: Path,
+        stub_subprocess_run: Mock,
+        command: str,
+        change: str,
+    ):
+        """Every explicit build must let Tailwind process all inputs and options."""
+        settings.TAILWIND_CLI_VERSION = "latest"
+        settings.TAILWIND_CLI_SRC_CSS = tmp_project_with_cli.parent / "source.css"
         config = get_config()
-        install_fake_cli(config.cli_path, content=b"fake-cli")
-        config.src_css.parent.mkdir(parents=True, exist_ok=True)
-        config.src_css.write_text(DEFAULT_SOURCE_CSS)
+        imported = config.src_css.parent / "theme.css"
+        imported.write_text("@theme { --color-brand: red; }")
+        config.src_css.write_text('@import "tailwindcss";\n@import "./theme.css";\n')
+        template = config.src_css.parent / "index.html"
+        template.write_text('<div class="text-red-500">Hello</div>')
+
+        call_command("tailwind", "build")
+        stub_subprocess_run.assert_called_once()
+        # Stand in for the output of the successful CLI call; deterministic mtimes
+        # make the old shortcut skip the next build regardless of clock resolution.
         config.dist_css.parent.mkdir(parents=True, exist_ok=True)
-        config.dist_css.write_text("/* existing css */")
+        config.dist_css.write_text("/* first build */")
+        os.utime(config.src_css, (100, 100))
+        os.utime(config.dist_css, (200, 200))
+        stub_subprocess_run.reset_mock()
 
-        # Make dist_css newer than src_css
-        src_mtime = time.time() - 100
-        dist_mtime = time.time() - 50
-        os.utime(config.src_css, (src_mtime, src_mtime))
-        os.utime(config.dist_css, (dist_mtime, dist_mtime))
+        options: list[str] = []
+        if change == "template":
+            template.write_text('<div class="text-blue-500">Hello</div>')
+        elif change == "import":
+            imported.write_text("@theme { --color-brand: blue; }")
+        elif change == "minify":
+            options = ["--no-minify"]
+        elif change == "force":
+            options = ["--force"]
 
-        with patch("subprocess.run") as mock_subprocess:
-            mock_subprocess.return_value = Mock(returncode=0, stdout="", stderr="")
+        call_command("tailwind", command, *options)
 
-            # Test normal build (should skip)
-            call_command("tailwind", "build")
-            mock_subprocess.assert_not_called()
-
-            # Test force build (should execute)
-            call_command("tailwind", "build", "--force")
-            mock_subprocess.assert_called_once()
+        stub_subprocess_run.assert_called_once_with(
+            config.get_build_cmd(config.css_entries[0], minify=change != "minify"),
+            cwd=settings.BASE_DIR,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
 
     def test_build_with_multiple_css_entries(self, settings: LazySettings, tmp_project: Path):
         """Test build command processes all CSS entries from CSS_MAP."""

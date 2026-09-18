@@ -343,9 +343,7 @@ def _validate_css_settings() -> None:
                 )
             names_seen.add(name)
 
-            # Two entries writing one file is silently lossy rather than an error: the first build
-            # updates the output, the mtime check then finds the second entry up to date, and it is
-            # reported as built without ever having run. Compare normalised paths, because
+            # Two entries writing one file would overwrite each other. Compare normalised paths, because
             # './out.css' and 'out.css' are two spellings of one file once the destination is
             # joined onto the static dir, and the raw strings do not collide.
             normalised_dist = os.path.normpath(dist)

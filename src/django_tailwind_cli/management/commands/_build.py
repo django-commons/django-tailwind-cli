@@ -1,4 +1,4 @@
-"""Running the Tailwind CLI, and deciding whether it needs running at all.
+"""Running the Tailwind CLI.
 
 Watch lives here too: a single CSS entry runs the CLI directly, several hand off to
 `_process.MultiWatchProcessManager`, and both are the same command from the outside.
@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import subprocess
 import time
-from pathlib import Path
 
 import click
 from django.conf import settings
@@ -58,31 +57,6 @@ def run_watch_loop(*, verbose: bool = False) -> None:
         # Multiple entries - use multi-process manager
         manager = MultiWatchProcessManager()
         manager.start_watch_processes(config, verbose=verbose)
-
-
-def should_rebuild_css(src_css: Path, dist_css: Path) -> bool:
-    """Check if CSS should be rebuilt based on file modification times.
-
-    Args:
-        src_css: Source CSS file path.
-        dist_css: Distribution CSS file path.
-
-    Returns:
-        True if CSS should be rebuilt.
-    """
-    if not dist_css.exists():
-        return True
-
-    if not src_css.exists():
-        return True
-
-    try:
-        src_mtime = src_css.stat().st_mtime
-        dist_mtime = dist_css.stat().st_mtime
-        return src_mtime > dist_mtime
-    except OSError:
-        # If we can't get modification times, rebuild to be safe
-        return True
 
 
 def setup_tailwind_environment(*, verbose: bool = False) -> None:

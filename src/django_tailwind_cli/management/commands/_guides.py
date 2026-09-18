@@ -41,8 +41,8 @@ def print_troubleshooting_guide() -> None:
     click.secho("      STATICFILES_DIRS = [BASE_DIR / 'assets']", fg="green")
     click.secho("   3. Check file permissions:", fg="white")
     click.secho("      chmod 755 .django_tailwind_cli/", fg="green")
-    click.secho("   4. Try force rebuild:", fg="white")
-    click.secho("      python manage.py tailwind build --force", fg="green")
+    click.secho("   4. Rebuild the CSS:", fg="white")
+    click.secho("      python manage.py tailwind build", fg="green")
 
     # Issue 3: Configuration errors
     click.secho("\n❓ Issue 3: Configuration errors", fg="yellow", bold=True)
@@ -100,8 +100,8 @@ def print_troubleshooting_guide() -> None:
     click.secho("   2. Check if using Tailwind CSS 4.x syntax:", fg="white")
     click.secho("      Some v3 classes may have changed", fg="blue")
     click.secho("   3. Verify class names are correct (no typos)", fg="white")
-    click.secho("   4. Try rebuild with force:", fg="white")
-    click.secho("      python manage.py tailwind build --force", fg="green")
+    click.secho("   4. Rebuild the CSS:", fg="white")
+    click.secho("      python manage.py tailwind build", fg="green")
 
     # Issue 8: Deployment / collectstatic ordering
     click.secho("\n❓ Issue 8: Styles missing after deployment", fg="yellow", bold=True)
@@ -142,8 +142,7 @@ def print_performance_tips() -> None:
     # Build Performance
     click.secho("\n🏗️ Build Performance", fg="yellow", bold=True)
     click.secho("   Optimize your CSS build times:", fg="blue")
-    click.secho("   • Use file modification checks (automatic)", fg="green")
-    click.secho("   • Only force rebuild when necessary: --force", fg="green")
+    click.secho("   • Use watch mode for incremental rebuilds during development", fg="green")
     click.secho("   • Pin Tailwind version in production: TAILWIND_CLI_VERSION", fg="green")
     click.secho("   • Disable automatic downloads in CI: TAILWIND_CLI_AUTOMATIC_DOWNLOAD=False", fg="green")
 
@@ -185,7 +184,6 @@ def print_performance_tips() -> None:
     click.secho("   ❌ Running builds on every request", fg="red")
     click.secho("   ❌ Not using file watching in development", fg="red")
     click.secho("   ❌ Scanning unnecessary file types", fg="red")
-    click.secho("   ❌ Using --force without need", fg="red")
     click.secho("   ❌ Not pinning versions in production", fg="red")
 
     # Configuration Examples

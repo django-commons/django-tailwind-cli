@@ -534,7 +534,7 @@ def test_css_map_duplicate_names(settings: Settings):
     ],
 )
 def test_css_map_rejects_a_duplicate_destination(first: str, second: str, settings: Settings):
-    """Two entries writing one file: the second is skipped as up to date and reported as built.
+    """Two entries must not overwrite each other by writing to the same output file.
 
     The spellings below all name the same file once joined onto the static dir, so comparing the
     raw setting strings would let every case but the first one through.

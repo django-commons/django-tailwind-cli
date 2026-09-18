@@ -26,7 +26,7 @@ The compiled stylesheet is a different matter. It is written into your static fi
 
 ### build
 
-Run `python manage.py tailwind build` to create an optimized production build of the stylesheet. Afterwards you are ready to deploy. Make sure this command runs before `python manage.py collectstatic` in your build process — with a manifest storage backend, the wrong order [fails at render time rather than at build time](whitenoise.md#build-the-css-before-collectstatic).
+Run `python manage.py tailwind build` to create an optimized production build of the stylesheet. Every invocation rebuilds all configured stylesheets, including changes to templates, imported CSS and build options. `--force` remains accepted for compatibility and has no additional effect. Afterwards you are ready to deploy. Make sure this command runs before `python manage.py collectstatic` in your build process — with a manifest storage backend, the wrong order [fails at render time rather than at build time](whitenoise.md#build-the-css-before-collectstatic).
 
 ### watch
 
@@ -89,7 +89,7 @@ The command shows:
 
 ### setup
 
-Run `python manage.py tailwind setup` for a guided first-time setup. The command walks the steps in order, stops at the first blocker with instructions, and performs the CLI download and first build when they are missing. It does not prompt for anything, so it is safe to run repeatedly.
+Run `python manage.py tailwind setup` for a guided first-time setup. The command walks the steps in order and stops at the first blocker with instructions. Once the configuration is ready, it downloads the CLI if missing and builds every configured stylesheet, even if output files already exist. It does not prompt for anything, so it is safe to run repeatedly.
 
 The guide covers:
 1. Installation verification

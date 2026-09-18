@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### 🐛 Bug Fixes
+- **`tailwind build` always rebuilds every stylesheet.** Template changes, imported CSS and build options could previously leave stale output because only the source CSS timestamp was checked. `--force` remains accepted for compatibility but is no longer needed. The build step in `tailwind setup` also always runs.
+
 ## 4.8.0 (2026-08-30)
 
 ### 💥 Dependencies

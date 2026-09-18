@@ -21,8 +21,7 @@ follows the approach of the [Tailwind integration for Phoenix](https://github.co
 
 - Downloads and manages the Tailwind CLI binary for your platform
 - Rebuilds CSS on change, running under Django's own auto-reloader
-- Produces minified production builds containing only the classes you use, and skips work when
-  nothing changed
+- Produces minified production builds containing only the classes you use
 - Includes the CSS via a `{% tailwind_css %}` template tag
 - Supports [DaisyUI](https://daisyui.com) through [tailwindcss-cli-extra](https://github.com/dobicinaitis/tailwind-cli-extra)
 - Targets Tailwind CSS 4.x
@@ -103,8 +102,7 @@ auto-generated `source.css`. The directory is automatically git-ignored — no e
 project-level `.gitignore` needed.
 
 `python manage.py tailwind setup` walks the same ground: it checks each piece in order, stops at
-the first one that is missing with instructions, and performs the download and first build when
-they are needed.
+the first one that is missing with instructions, downloads the CLI if needed, and builds the CSS.
 
 ## Management commands
 
@@ -120,8 +118,9 @@ they are needed.
 | `download_cli` | Fetch the CLI binary without building                | `python manage.py tailwind download_cli` |
 | `remove_cli`   | Delete the downloaded CLI binary                     | `python manage.py tailwind remove_cli`   |
 
-`build` takes `--force` to rebuild regardless of change detection; `build` and `watch` both take
-`--verbose` for detailed diagnostics.
+`build` always rebuilds every configured stylesheet, so template changes, imported CSS and build
+options are picked up. `--force` remains accepted for compatibility and has no additional effect.
+`build` and `watch` both take `--verbose` for detailed diagnostics.
 
 `tailwind runserver` is a transparent passthrough: every positional argument and option (apart from
 `--force-default-runserver`) is forwarded verbatim to the underlying `runserver` or
@@ -189,7 +188,7 @@ its component classes available:
 **CSS not updating?**
 
 ```bash
-python manage.py tailwind build --force
+python manage.py tailwind build
 python manage.py tailwind troubleshoot
 ```
 
