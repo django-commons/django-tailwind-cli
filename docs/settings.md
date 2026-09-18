@@ -52,7 +52,7 @@ Enable or disable the automatic downloading of the official CLI to your machine.
 
 When enabled, the auto-generated default source CSS file gains one `@source` directive per installed Django app whose path lives **outside** `BASE_DIR` **and** outside every known site-packages directory. This covers exactly one real-world case: editable-installed packages that ship with their own templates, e.g. `pip install -e ../my-ui-library`.
 
-Why it matters: Tailwind CSS 4.x discovers source files by walking the current working directory tree. Apps installed as editable packages from a sibling repository sit outside that tree and are therefore invisible to Tailwind unless declared explicitly. Turning this setting on makes `django-tailwind-cli` emit the declarations for you, using absolute paths that Tailwind can follow.
+Why it matters: the default `@import "tailwindcss";` enables automatic source detection. This package runs the CLI from `BASE_DIR`, which is where that scan starts. Apps installed as editable packages from a sibling repository sit outside that tree and are therefore invisible to Tailwind unless declared explicitly. Turning this setting on makes `django-tailwind-cli` emit the declarations for you, using absolute paths that Tailwind can follow.
 
 ```python
 # settings.py
@@ -69,7 +69,8 @@ With the setting enabled and an editable package `extra` installed, the auto-gen
 ```
 
 :::{note}
-The directive points at the app base dir, not at a glob. Tailwind CSS 4.x walks the directory and applies its own exclusions (`.gitignore`, binaries, etc.) — this also means class names embedded in Python files (e.g. form widget `attrs={"class": "..."}` strings) are picked up automatically.
+The directive points at the app base dir, not just its templates. This also covers class names
+embedded in Python files, such as form widget `attrs={"class": "..."}` strings.
 :::
 
 :::{warning}
@@ -311,11 +312,14 @@ TAILWIND_CLI_CSS_MAP = [
 ]
 ```
 
-Example source files:
+Example source files using `source(none)` to disable automatic detection and scan only the
+listed templates. Plain `@source` directives supplement automatic detection; they do not
+restrict it. Add any shared template or Python directories that also contain class names. See
+[Tailwind's source detection guide](https://tailwindcss.com/docs/detecting-classes-in-source-files#disabling-automatic-detection).
 
 `styles/admin.css`:
 ```css
-@import "tailwindcss";
+@import "tailwindcss" source(none);
 
 @source "../templates/admin/**/*.html";
 
@@ -328,7 +332,7 @@ Example source files:
 
 `styles/web.css`:
 ```css
-@import "tailwindcss";
+@import "tailwindcss" source(none);
 
 @source "../templates/web/**/*.html";
 

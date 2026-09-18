@@ -45,8 +45,9 @@ src/django_tailwind_cli/
 
 ## Things that are easy to get wrong
 
-- **Tailwind CSS 4.x only.** There is no config-file-based v3 path left; template discovery happens
-  exclusively through `@source` directives in the source CSS.
+- **Tailwind CSS 4.x only.** There is no config-file-based v3 path left; the default source CSS enables
+  automatic source detection from `BASE_DIR`. `@source` adds paths; only `source(none)` disables
+  automatic detection in favor of explicitly registered sources.
 - **`mise run build-docs` fails on any Sphinx warning**, which is how a dead cross-reference or a moved `literalinclude` target gets caught — a plain build reports both as warnings and publishes regardless. `docs/conf.py` suppresses only `misc.highlighting_failure`, the class Pygments raises on Tailwind 4 at-rules.
 - **`mise run lint` only sees git-tracked files.** It is `pre-commit run --all-files`, and
   pre-commit's idea of "all files" is what git knows about — a new module that has never been

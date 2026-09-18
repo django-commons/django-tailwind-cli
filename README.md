@@ -201,9 +201,11 @@ python manage.py tailwind setup
 
 **Classes from some templates are missing?**
 
-Make sure every template directory is covered by an `@source` directive in your Tailwind CSS input
-file — Tailwind CSS 4.x discovers templates exclusively through those directives. Declaring them
-explicitly also keeps builds fast, because Tailwind only scans what you list.
+Tailwind CSS 4.x detects sources automatically, starting from `BASE_DIR` with this package's
+default source CSS. Check whether the missing templates are outside that directory or ignored
+by `.gitignore`. Add `@source` directives to a custom source CSS file for additional paths, or use
+`TAILWIND_CLI_AUTO_SOURCE_EXTERNAL_APPS` for editable-installed external apps. See
+[Tailwind's source detection guide](https://tailwindcss.com/docs/detecting-classes-in-source-files).
 
 ## Documentation and related projects
 

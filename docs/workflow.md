@@ -46,11 +46,12 @@ python manage.py runserver          # Terminal 2: Django server
    {% endblock %}
    ```
 
-2. **Declare template sources**
+2. **Check template discovery**
 
-   Make sure your Tailwind CSS input file contains `@source` directives for the
-   template directories you want scanned. Tailwind CSS 4.x relies on these
-   directives exclusively — there is no external template-listing command.
+   The default source CSS enables Tailwind's automatic detection from `BASE_DIR`.
+   Add `@source` directives in a custom source CSS file for paths outside that tree
+   or excluded from automatic detection. For editable-installed external apps, see
+   [`TAILWIND_CLI_AUTO_SOURCE_EXTERNAL_APPS`](settings.md#tailwind_cli_auto_source_external_apps).
 
 3. **Build and Test**
 
@@ -131,8 +132,9 @@ python manage.py runserver          # Terminal 2: Django server
 
 2. **Verify Template Sources:**
 
-   Open your Tailwind CSS input file and confirm that every template directory
-   you expect to be scanned is referenced by an `@source` directive.
+   Check automatic detection exclusions such as `.gitignore`, and register missing
+   external paths with `@source`. Those paths are relative to the source CSS file.
+   See [Tailwind's source detection guide](https://tailwindcss.com/docs/detecting-classes-in-source-files).
 
 3. **Test CLI Functionality:**
 

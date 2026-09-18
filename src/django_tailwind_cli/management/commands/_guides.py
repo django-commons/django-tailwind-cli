@@ -96,7 +96,8 @@ def print_troubleshooting_guide() -> None:
     click.secho("\n❓ Issue 7: Tailwind classes not working", fg="yellow", bold=True)
     click.secho("   Symptoms: Classes in HTML don't produce styles", fg="blue")
     click.secho("   Solutions:", fg="green")
-    click.secho("   1. Ensure templates are covered by @source directives in your CSS", fg="white")
+    click.secho("   1. Check automatic source detection and exclusions such as .gitignore", fg="white")
+    click.secho("      Add @source in custom CSS for external or ignored template paths", fg="blue")
     click.secho("   2. Check if using Tailwind CSS 4.x syntax:", fg="white")
     click.secho("      Some v3 classes may have changed", fg="blue")
     click.secho("   3. Verify class names are correct (no typos)", fg="white")
@@ -157,7 +158,7 @@ def print_performance_tips() -> None:
     # Template Optimization
     click.secho("\n📄 Template Scanning", fg="yellow", bold=True)
     click.secho("   Optimize template discovery:", fg="blue")
-    click.secho("   • Declare template sources with @source directives in your CSS", fg="green")
+    click.secho("   • Use source(none) with @source in custom CSS to scan only listed paths", fg="green")
     click.secho("   • Organize templates in app-specific directories", fg="green")
     click.secho("   • Avoid deeply nested template hierarchies", fg="green")
     click.secho("   • Use standard Django template patterns", fg="green")
