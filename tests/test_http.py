@@ -6,6 +6,7 @@ and the error paths (timeouts, connection failures, HTTP 4xx/5xx, generic URLErr
 """
 
 import socket
+import errno
 from io import BytesIO
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -325,7 +326,7 @@ class TestDownloadWithProgressErrorBranches:
             with pytest.raises(http.RequestError, match="URL error"):
                 http.download_with_progress("https://example.com/file.bin", filepath)
 
-    def test_os_error_during_file_write_raises_request_error(self, tmp_path: Path):
+    def test_os_error_opening_temporary_file_raises_request_error(self, tmp_path: Path):
         body = b"data"
         response = _build_response_mock(code=200, content_length=str(len(body)), body=body)
         filepath = tmp_path / "readonly.bin"
@@ -532,6 +533,26 @@ class TestAtomicDownloads:
         ):
             with pytest.raises(http.RequestError, match="replacement denied"):
                 http.download_with_progress("https://example.com/cli", filepath)
+
+        assert filepath.read_bytes() == b"working binary"
+        assert filepath.stat().st_mode == before_mode
+        assert set(tmp_path.iterdir()) == {filepath}
+
+    def test_disk_full_during_write_preserves_destination(self, tmp_path: Path):
+        filepath = install_fake_cli(tmp_path / "tailwindcss", content=b"working binary")
+        before_mode = filepath.stat().st_mode
+        response = _build_response_mock(content_length="4", body=b"data")
+        with (
+            patch("django_tailwind_cli.utils.http.urlopen", return_value=response),
+            patch.object(Path, "open") as open_file,
+        ):
+            writer = open_file.return_value.__enter__.return_value
+            writer.write.side_effect = OSError(errno.ENOSPC, "No space left on device")
+            with pytest.raises(http.RequestError, match="File error") as error:
+                http.download_with_progress("https://example.com/cli", filepath)
+            assert isinstance(error.value.__cause__, OSError)
+            assert error.value.__cause__.errno == errno.ENOSPC
+            writer.write.assert_called_once_with(b"data")
 
         assert filepath.read_bytes() == b"working binary"
         assert filepath.stat().st_mode == before_mode

@@ -1,7 +1,7 @@
 """Integration tests for django-tailwind-cli workflows.
 
-These tests verify end-to-end functionality including CLI download,
-file operations, and cross-platform compatibility.
+These tests exercise command workflows and file operations with stubbed downloads and subprocesses.
+They do not run the real Tailwind compiler.
 """
 # pyright: reportPrivateUsage=false
 
@@ -16,7 +16,6 @@ from unittest.mock import Mock, patch
 
 import pytest
 from django.conf import LazySettings
-from django_tailwind_cli.utils import http
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from pytest import CaptureFixture
@@ -177,7 +176,8 @@ class TestBuildWorkflowIntegration:
         call_command("tailwind", command, *options)
 
         stub_subprocess_run.assert_called_once_with(
-            config.get_build_cmd(config.css_entries[0], minify=change != "minify"),
+            [str(config.cli_path), "--input", str(config.src_css), "--output", str(config.dist_css)]
+            + ([] if change == "minify" else ["--minify"]),
             cwd=settings.BASE_DIR,
             check=True,
             capture_output=True,
@@ -550,23 +550,14 @@ class TestCLIDownloadIntegration:
     """Test CLI download and setup workflows."""
 
     @pytest.mark.usefixtures("tmp_project")
-    def test_cli_download_with_progress_tracking(self, capsys: CaptureFixture[str]):
-        """Test CLI download shows progress information."""
+    def test_cli_download_announces_start_and_completion(self, capsys: CaptureFixture[str]):
+        """The command announces start and completion; byte progress is covered in test_http.py."""
         with patch("django_tailwind_cli.utils.http.download_with_progress", side_effect=write_fake_cli):
             call_command("tailwind", "download_cli")
 
             captured = capsys.readouterr()
             assert "Downloading Tailwind CSS CLI..." in captured.out
             assert "Download completed!" in captured.out
-
-    @pytest.mark.usefixtures("tmp_project")
-    def test_cli_download_network_error_handling(self):
-        """Test CLI download handles network errors gracefully."""
-        with patch("django_tailwind_cli.utils.http.download_with_progress") as mock_download:
-            mock_download.side_effect = http.RequestError("Network error")
-
-            with pytest.raises(CommandError, match="Failed to download"):
-                call_command("tailwind", "download_cli")
 
     @pytest.mark.usefixtures("tmp_project")
     def test_cli_permissions_after_download(self):
@@ -627,31 +618,6 @@ class TestCrossPlatformCompatibility:
 
 class TestErrorRecoveryScenarios:
     """Test error recovery and resilience scenarios."""
-
-    @pytest.mark.usefixtures("tmp_project")
-    def test_recovery_from_corrupted_cli_binary(self):
-        """Test recovery when CLI binary is corrupted."""
-        # Create corrupted CLI binary (not executable)
-        config = get_config()
-        config.cli_path.parent.mkdir(parents=True, exist_ok=True)
-        config.cli_path.write_text("corrupted")  # Text file, not binary
-        config.cli_path.chmod(0o644)  # Not executable
-
-        with (
-            patch("django_tailwind_cli.utils.http.download_with_progress") as mock_download,
-            patch("subprocess.run") as mock_subprocess,
-        ):
-            # Mock download function to create actual file
-            mock_download.side_effect = write_fake_cli
-            mock_subprocess.return_value = Mock(returncode=0, stdout="", stderr="")
-
-            # Should re-download and fix the binary
-            call_command("tailwind", "build")
-
-            # Verify new binary was downloaded
-            assert config.cli_path.read_bytes() == b"fake-cli-binary"
-            if platform.system() != "Windows":
-                assert os.access(config.cli_path, os.X_OK)
 
     def test_recovery_from_missing_directories(self, settings: LazySettings, tmp_path: Path):
         """Test recovery when required directories are missing."""

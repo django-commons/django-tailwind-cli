@@ -157,18 +157,6 @@ class TestNetworkErrorScenarios:
             version_str, _ = get_version()
             assert version_str == "4.1.3"  # FALLBACK_VERSION
 
-    def test_cli_download_network_error(self, settings: LazySettings, tmp_path: Path):
-        """Test network error during CLI download."""
-        settings.BASE_DIR = tmp_path
-        settings.STATICFILES_DIRS = [tmp_path / "assets"]
-        settings.TAILWIND_CLI_PATH = tmp_path / ".cli"
-
-        with patch("django_tailwind_cli.utils.http.download_with_progress") as mock_download:
-            mock_download.side_effect = http.RequestError("Network error")
-
-            with pytest.raises(CommandError, match="Failed to download Tailwind CSS CLI"):
-                call_command("tailwind", "download_cli")
-
     def test_automatic_download_disabled_without_a_cli_is_an_error(self, settings: LazySettings, tmp_path: Path):
         """With the download turned off, a missing binary has to be reported, not fetched.
 
@@ -198,18 +186,20 @@ class TestNetworkErrorScenarios:
 
         call_command("tailwind", "build")
 
-    def test_cli_download_reports_incomplete_transfer(
+    @pytest.mark.parametrize("message", ["Network error", "Content-Length mismatch: expected 10 bytes, received 4"])
+    def test_cli_download_failure_preserves_binary_and_reports_error(
         self,
         tmp_project_with_cli: Path,
         capsys: CaptureFixture[str],
+        message: str,
     ):
         before = tmp_project_with_cli.read_bytes()
         before_mode = tmp_project_with_cli.stat().st_mode
         with patch(
             "django_tailwind_cli.utils.http.download_with_progress",
-            side_effect=http.RequestError("Content-Length mismatch: expected 10 bytes, received 4"),
+            side_effect=http.RequestError(message),
         ):
-            with pytest.raises(CommandError, match="Content-Length mismatch"):
+            with pytest.raises(CommandError, match=f"Failed to download Tailwind CSS CLI: {message}"):
                 call_command("tailwind", "download_cli")
 
         assert tmp_project_with_cli.read_bytes() == before
@@ -255,6 +245,8 @@ class TestSubprocessErrorScenarios:
 
             captured = capsys.readouterr()
             assert "Failed to build production stylesheet" in captured.err
+            assert "Build failed: syntax error" in captured.err
+            assert "Built production stylesheet" not in captured.out
 
     def test_watch_command_execution_failure(self, settings: LazySettings, tmp_path: Path, capsys: CaptureFixture[str]):
         """Test handling of CLI execution failure during watch."""
@@ -301,6 +293,8 @@ class TestSubprocessErrorScenarios:
 
                 # Verify new CLI was downloaded
                 assert config.cli_path.read_bytes() == b"real-cli-binary"
+                if os.name != "nt":
+                    assert os.access(config.cli_path, os.X_OK)
 
     def test_subprocess_permission_denied(self, settings: LazySettings, tmp_path: Path):
         """Test handling of permission denied during subprocess execution."""
@@ -404,39 +398,6 @@ class TestFileSystemErrorScenarios:
             with pytest.raises(FileNotFoundError):
                 _get_cache_path()  # This will fail due to nonexistent directory
 
-    def test_disk_full_simulation(self, settings: LazySettings, tmp_path: Path):
-        """Test handling of disk full errors during file operations."""
-        settings.BASE_DIR = tmp_path
-        settings.STATICFILES_DIRS = [tmp_path / "assets"]
-        settings.TAILWIND_CLI_PATH = tmp_path / ".cli"
-
-        # Create the CLI directory but make it read-only to simulate write errors
-        if os.name != "nt":  # Skip on Windows
-            config = get_config()
-            config.cli_path.parent.mkdir(parents=True, exist_ok=True)
-            config.cli_path.parent.chmod(0o555)  # Read-only directory
-
-            try:
-                with patch(
-                    "django_tailwind_cli.utils.http.download_with_progress",
-                    side_effect=partial(write_fake_cli, content=b"cli-binary"),
-                ):
-                    # Should handle permission/disk errors gracefully
-                    with pytest.raises((CommandError, PermissionError, OSError)):
-                        call_command("tailwind", "download_cli")
-            finally:
-                # Cleanup: restore write permissions
-                config.cli_path.parent.chmod(0o755)
-        else:
-            # On Windows, just test that the command can complete normally
-            with patch(
-                "django_tailwind_cli.utils.http.download_with_progress",
-                side_effect=partial(write_fake_cli, content=b"cli-binary"),
-            ):
-                call_command("tailwind", "download_cli")
-                config = get_config()
-                assert config.cli_path.exists()
-
 
 class TestConcurrencyErrorScenarios:
     """Test concurrency and race condition handling."""
@@ -533,23 +494,6 @@ class TestConcurrencyErrorScenarios:
         mock_process.terminate.assert_called_once()
         mock_process.kill.assert_called_once()
 
-    def test_concurrent_cli_download_simulation(self, settings: LazySettings, tmp_path: Path):
-        """Test handling of concurrent CLI download attempts."""
-        settings.BASE_DIR = tmp_path
-        settings.STATICFILES_DIRS = [tmp_path / "assets"]
-        settings.TAILWIND_CLI_PATH = tmp_path / ".cli"
-
-        with patch(
-            "django_tailwind_cli.utils.http.download_with_progress",
-            side_effect=partial(write_fake_cli, content=b"our-cli-binary"),
-        ):
-            # Should complete successfully
-            call_command("tailwind", "download_cli")
-
-            config = get_config()
-            assert config.cli_path.exists()
-            assert config.cli_path.read_bytes() == b"our-cli-binary"
-
     def test_version_cache_race_condition(self, settings: LazySettings, tmp_path: Path):
         """Test handling of version cache race conditions."""
         settings.STATICFILES_DIRS = [tmp_path / "assets"]
@@ -566,24 +510,6 @@ class TestConcurrencyErrorScenarios:
 
 class TestEdgeCaseScenarios:
     """Test edge cases and boundary conditions."""
-
-    def test_zero_byte_cli_download(self, settings: LazySettings, tmp_path: Path):
-        """Test handling of zero-byte CLI download."""
-        settings.BASE_DIR = tmp_path
-        settings.STATICFILES_DIRS = [tmp_path / "assets"]
-        settings.TAILWIND_CLI_PATH = tmp_path / ".cli"
-
-        with patch(
-            "django_tailwind_cli.utils.http.download_with_progress", side_effect=partial(write_fake_cli, content=b"")
-        ):
-            # Ensure directory exists before attempting download
-            config = get_config()
-            config.cli_path.parent.mkdir(parents=True, exist_ok=True)
-
-            call_command("tailwind", "download_cli")
-
-            assert config.cli_path.exists()
-            assert config.cli_path.read_bytes() == b""
 
     def test_extremely_long_paths(self, settings: LazySettings, tmp_path: Path):
         """Test handling of extremely long file paths."""
