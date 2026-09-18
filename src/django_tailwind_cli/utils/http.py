@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import socket
+from tempfile import TemporaryDirectory
 from pathlib import Path
 from typing import TYPE_CHECKING
 from collections.abc import Callable
@@ -113,7 +114,7 @@ def fetch_redirect_location(url: str, timeout: int = 10) -> tuple[bool, str | No
 def download_with_progress(
     url: str, filepath: Path, timeout: int = 30, progress_callback: Callable[[int, int, float], None] | None = None
 ) -> None:
-    """Download a file with progress indication.
+    """Download a file with progress indication, replacing the destination only on success.
 
     Args:
         url: Download URL
@@ -128,34 +129,37 @@ def download_with_progress(
         req = Request(url)
         req.add_header("User-Agent", "django-tailwind-cli")
 
-        with urlopen(req, timeout=timeout) as response:
-            # Check for HTTP errors
-            if response.getcode() >= 400:
-                raise HTTPError(f"HTTP {response.getcode()}: {response.reason}")
+        filepath.parent.mkdir(parents=True, exist_ok=True)
+        # Keep the temporary file on the destination filesystem so replace is atomic.
+        # The context also cleans up on transfer failures and KeyboardInterrupt.
+        with TemporaryDirectory(prefix=".download-", dir=filepath.parent) as temporary_dir:
+            temporary_path = Path(temporary_dir) / filepath.name
+            with urlopen(req, timeout=timeout) as response:
+                if response.getcode() >= 400:
+                    raise HTTPError(f"HTTP {response.getcode()}: {response.reason}")
 
-            # Get content length for progress tracking
-            content_length_header = response.headers.get("Content-Length")
-            total_size = int(content_length_header) if content_length_header else 0
+                content_length_header = response.headers.get("Content-Length")
+                total_size = int(content_length_header) if content_length_header is not None else 0
+                downloaded = 0
 
-            # Ensure parent directory exists
-            filepath.parent.mkdir(parents=True, exist_ok=True)
+                with temporary_path.open("wb") as f:
+                    while True:
+                        chunk = response.read(8192)
+                        if not chunk:
+                            break
 
-            downloaded = 0
-            chunk_size = 8192
+                        f.write(chunk)
+                        downloaded += len(chunk)
 
-            with filepath.open("wb") as f:
-                while True:
-                    chunk = response.read(chunk_size)
-                    if not chunk:
-                        break
+                        if progress_callback and total_size > 0:
+                            progress = (downloaded / total_size) * 100
+                            progress_callback(downloaded, total_size, progress)
 
-                    f.write(chunk)
-                    downloaded += len(chunk)
+                if content_length_header is not None and downloaded != total_size:
+                    raise RequestError(f"Content-Length mismatch: expected {total_size} bytes, received {downloaded}")
 
-                    # Call progress callback if provided
-                    if progress_callback and total_size > 0:
-                        progress = (downloaded / total_size) * 100
-                        progress_callback(downloaded, total_size, progress)
+            # Close the file and response before publishing the completed download.
+            temporary_path.replace(filepath)
 
     except RequestError:
         # Don't re-wrap exceptions we raised ourselves (e.g. the HTTPError

@@ -15,6 +15,7 @@ from urllib.error import URLError
 import pytest
 
 from django_tailwind_cli.utils import http
+from tests.helpers import install_fake_cli
 
 # This module tests the HTTP layer itself, so it must see the real functions.
 pytestmark = pytest.mark.unpatched_http
@@ -461,3 +462,77 @@ class TestTheUrllibErrorIsClosed:
                 http.download_with_progress("https://example.com", tmp_path / "cli")
 
         assert error.fp.closed
+
+
+class TestAtomicDownloads:
+    @pytest.mark.parametrize("existing", [False, True])
+    @pytest.mark.parametrize("failure", ["timeout", "short", "interrupt"])
+    def test_failed_transfer_leaves_destination_untouched(self, tmp_path: Path, existing: bool, failure: str):
+        filepath = tmp_path / "tailwindcss"
+        if existing:
+            install_fake_cli(filepath, content=b"working binary")
+        before_mode = filepath.stat().st_mode if existing else None
+        response = _build_response_mock(content_length="10")
+        endings = {"timeout": TimeoutError("connection lost"), "short": b"", "interrupt": KeyboardInterrupt()}
+        response.read = MagicMock(side_effect=[b"part", endings[failure]])
+        expected = KeyboardInterrupt if failure == "interrupt" else http.RequestError
+
+        with patch("django_tailwind_cli.utils.http.urlopen", return_value=response):
+            with pytest.raises(expected):
+                http.download_with_progress("https://example.com/cli", filepath)
+
+        if existing:
+            assert filepath.read_bytes() == b"working binary"
+            assert filepath.stat().st_mode == before_mode
+        else:
+            assert not filepath.exists()
+        assert set(tmp_path.iterdir()) == ({filepath} if existing else set())
+
+    @pytest.mark.parametrize("content_length", ["0", "2", "10"])
+    def test_content_length_must_match_bytes_received(self, tmp_path: Path, content_length: str):
+        filepath = tmp_path / "tailwindcss"
+        response = _build_response_mock(content_length=content_length, body=b"data")
+        with patch("django_tailwind_cli.utils.http.urlopen", return_value=response):
+            with pytest.raises(http.RequestError, match="Content-Length mismatch"):
+                http.download_with_progress("https://example.com/cli", filepath)
+        assert list(tmp_path.iterdir()) == []
+
+    @pytest.mark.parametrize("existing", [False, True])
+    def test_destination_is_published_only_after_transfer(self, tmp_path: Path, existing: bool):
+        filepath = tmp_path / "tailwindcss"
+        if existing:
+            install_fake_cli(filepath, content=b"working binary")
+        body = b"A" * 20000
+        response = _build_response_mock(content_length=str(len(body)), body=body)
+        progress_events: list[int] = []
+
+        def progress_callback(downloaded: int, total_size: int, progress: float) -> None:
+            progress_events.append(downloaded)
+            assert total_size == len(body)
+            assert progress > 0
+            if existing:
+                assert filepath.read_bytes() == b"working binary"
+            else:
+                assert not filepath.exists()
+
+        with patch("django_tailwind_cli.utils.http.urlopen", return_value=response):
+            http.download_with_progress("https://example.com/cli", filepath, progress_callback=progress_callback)
+
+        assert progress_events == [8192, 16384, 20000]
+        assert filepath.read_bytes() == body
+        assert set(tmp_path.iterdir()) == {filepath}
+
+    def test_failed_replace_preserves_binary_and_removes_temporary_files(self, tmp_path: Path):
+        filepath = install_fake_cli(tmp_path / "tailwindcss", content=b"working binary")
+        before_mode = filepath.stat().st_mode
+        response = _build_response_mock(content_length="4", body=b"data")
+        with (
+            patch("django_tailwind_cli.utils.http.urlopen", return_value=response),
+            patch.object(Path, "replace", side_effect=PermissionError("replacement denied")),
+        ):
+            with pytest.raises(http.RequestError, match="replacement denied"):
+                http.download_with_progress("https://example.com/cli", filepath)
+
+        assert filepath.read_bytes() == b"working binary"
+        assert filepath.stat().st_mode == before_mode
+        assert set(tmp_path.iterdir()) == {filepath}

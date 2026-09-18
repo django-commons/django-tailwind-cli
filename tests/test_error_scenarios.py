@@ -198,22 +198,23 @@ class TestNetworkErrorScenarios:
 
         call_command("tailwind", "build")
 
-    def test_cli_download_incomplete_response(self, settings: LazySettings, tmp_path: Path):
-        """Test handling of incomplete download response."""
-        settings.BASE_DIR = tmp_path
-        settings.STATICFILES_DIRS = [tmp_path / "assets"]
-        settings.TAILWIND_CLI_PATH = tmp_path / ".cli"
-
+    def test_cli_download_reports_incomplete_transfer(
+        self,
+        tmp_project_with_cli: Path,
+        capsys: CaptureFixture[str],
+    ):
+        before = tmp_project_with_cli.read_bytes()
+        before_mode = tmp_project_with_cli.stat().st_mode
         with patch(
             "django_tailwind_cli.utils.http.download_with_progress",
-            side_effect=partial(write_fake_cli, content=b"incomplete"),
+            side_effect=http.RequestError("Content-Length mismatch: expected 10 bytes, received 4"),
         ):
-            # Should complete download despite size mismatch
-            call_command("tailwind", "download_cli")
+            with pytest.raises(CommandError, match="Content-Length mismatch"):
+                call_command("tailwind", "download_cli")
 
-            config = get_config()
-            assert config.cli_path.exists()
-            assert config.cli_path.read_bytes() == b"incomplete"
+        assert tmp_project_with_cli.read_bytes() == before
+        assert tmp_project_with_cli.stat().st_mode == before_mode
+        assert "Download completed!" not in capsys.readouterr().out
 
     def test_version_cache_corruption_handling(self, settings: LazySettings, tmp_path: Path, version_cache_path: Path):
         """Test handling of corrupted version cache."""

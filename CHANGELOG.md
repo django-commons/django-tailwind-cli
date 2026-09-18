@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### 🐛 Bug Fixes
+- **Failed CLI downloads leave an existing binary intact.** Downloads are staged on the destination filesystem and replace the binary only after a successful transfer. A mismatch with the advertised `Content-Length` now fails instead of installing an incomplete file; responses without that header remain supported.
 - **`{% tailwind_css %}` resolves only stylesheet paths.** Rendering no longer looks up Tailwind releases or searches for a CLI binary, so serving prebuilt CSS does not require a Tailwind installation. CSS configuration errors are still reported; CLI settings are validated by management commands.
 - **`tailwind build` always rebuilds every stylesheet.** Template changes, imported CSS and build options could previously leave stale output because only the source CSS timestamp was checked. `--force` remains accepted for compatibility but is no longer needed. The build step in `tailwind setup` also always runs.
 
