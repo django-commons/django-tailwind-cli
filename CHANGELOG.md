@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### 🛠️ Developer Experience
+- **Python 3.15 is tested against the final release** instead of 3.15.0rc1.
+
 ## 4.8.1 (2026-09-18)
 
 ### 🐛 Bug Fixes
