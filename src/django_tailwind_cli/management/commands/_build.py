@@ -49,7 +49,9 @@ def run_watch_loop(*, verbose: bool = False) -> None:
             config.watch_cmd,
             success_message="Stopped watching for changes.",
             error_message="Failed to start in watch mode",
-            capture_output=True,
+            # The watcher runs until Ctrl+C: its rebuilds and errors belong on the terminal, and a
+            # captured pipe would only grow for as long as it runs.
+            capture_output=False,
             verbose=verbose,
         )
     else:
