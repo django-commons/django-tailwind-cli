@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### 🐛 Bug Fixes
+- **`tailwind watch` with one stylesheet shows the watcher's output again.** It ran the CLI with its output captured, so rebuild messages and build errors never reached the terminal, and the captured text grew for as long as the watcher ran. Multiple stylesheets were not affected.
+
 ### 🛠️ Developer Experience
 - **Python 3.15 is tested against the final release** instead of 3.15.0rc1.
 

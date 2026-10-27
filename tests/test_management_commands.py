@@ -245,6 +245,14 @@ class TestSubprocessCommands:
         assert self.mock_subprocess_run.call_count >= 1
 
     @pytest.mark.timeout(5)
+    def test_watch_streams_output(self):
+        """A single watcher writes straight to the terminal; captured output would never be shown."""
+        call_command("tailwind", "watch")
+
+        self.mock_subprocess_run.assert_called_once()
+        assert not self.mock_subprocess_run.call_args.kwargs.get("capture_output")
+
+    @pytest.mark.timeout(5)
     def test_watch_with_keyboard_interrupt(self, capsys: CaptureFixture[str]):
         """Test watch command handling of KeyboardInterrupt."""
         self.mock_subprocess_run.side_effect = KeyboardInterrupt
