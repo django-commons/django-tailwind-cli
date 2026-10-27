@@ -18,10 +18,10 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
 
-    # pre-commit pins its hook environments to 3.10 (default_language_version),
+    # pre-commit pins its hook environments to 3.13 (default_language_version),
     # and the linters only ever need one interpreter.
     env:
-      MISE_PYTHON_VERSION: "3.10"
+      MISE_PYTHON_VERSION: "3.13"
       # tmux only exists for the optional `mise run dev` session, which CI never starts. Disabling
       # beats limiting install_args, because `mise run` would auto-install it again.
       MISE_DISABLE_TOOLS: tmux
