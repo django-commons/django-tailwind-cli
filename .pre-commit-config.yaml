@@ -1,5 +1,5 @@
 default_language_version:
-  python: python3.10
+  python: python3.13
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -39,11 +39,11 @@ repos:
     -   id: djade
         args: [--target-version, "4.2"]
 
-  - repo: https://github.com/owenlamont/uv-secure
-    rev: 0.17.1
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    rev: 0.13.6
     hooks:
-      - id: uv-secure
-        exclude: ^docs/
+      - id: uv-audit
+        args: [--preview-features, audit-command]
 
   - repo: https://github.com/DetachHead/basedpyright-pre-commit-mirror
     rev: 1.39.0

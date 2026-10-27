@@ -55,14 +55,14 @@ mise run bootstrap
 ```bash
 mise run test        # pytest with coverage on the default interpreter
 mise run test-all    # the full Python/Django matrix via tox
-mise run lint        # pre-commit: ruff, basedpyright, uv-secure, upgrade hooks
+mise run lint        # pre-commit: ruff, basedpyright, uv-audit, upgrade hooks
 ```
 
 `mise run test` and `mise run lint` both have to pass before a pull request is ready. `test-all`
 takes a while; CI runs the matrix on every pull request, so running it locally is optional unless
 you are touching something version-specific.
 
-One of the lint hooks, `uv-secure`, checks the lock file against published security advisories. If
+One of the lint hooks, `uv-audit`, checks the lock file against published security advisories. If
 it fails on a dependency your change never touched, a new advisory appeared and the lock needs a
 bump — mention it in the pull request instead of working around it.
 

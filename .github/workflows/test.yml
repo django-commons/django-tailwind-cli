@@ -18,10 +18,10 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
 
-    # pre-commit pins its hook environments to 3.10 (default_language_version),
+    # pre-commit pins its hook environments to 3.13 (default_language_version),
     # and the linters only ever need one interpreter.
     env:
-      MISE_PYTHON_VERSION: "3.10"
+      MISE_PYTHON_VERSION: "3.13"
       # tmux only exists for the optional `mise run dev` session, which CI never starts. Disabling
       # beats limiting install_args, because `mise run` would auto-install it again.
       MISE_DISABLE_TOOLS: tmux
@@ -61,11 +61,11 @@ jobs:
       # which is why the original pre-commit job was dropped back in 2022.
       # --locked, unlike `mise run bootstrap`: a uv.lock that has drifted from
       # pyproject.toml should fail the job, not be silently re-resolved into
-      # something uv-secure then audits instead of the committed lock.
+      # something uv-audit then audits instead of the committed lock.
       - name: Install dependencies
         run: uv sync --all-extras --locked
 
-      # uv-secure audits uv.lock against the published advisories, so a new one
+      # uv-audit checks uv.lock against the published advisories, so a new one
       # can turn an unrelated pull request red. That is deliberate: it is how we
       # hear about it. Fix the lock rather than skipping the hook.
       - name: Run pre-commit
