@@ -7,6 +7,7 @@
 
 ### 🛠️ Developer Experience
 - **Python 3.15 is tested against the final release** instead of 3.15.0rc1.
+- **`uv audit` replaces `uv-secure`** in the lint hooks. The `uv-secure` project is archived. `uv audit` checks `uv.lock` but not the installed uv binary.
 
 ## 4.8.1 (2026-09-18)
 

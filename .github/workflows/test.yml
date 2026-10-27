@@ -61,11 +61,11 @@ jobs:
       # which is why the original pre-commit job was dropped back in 2022.
       # --locked, unlike `mise run bootstrap`: a uv.lock that has drifted from
       # pyproject.toml should fail the job, not be silently re-resolved into
-      # something uv-secure then audits instead of the committed lock.
+      # something uv-audit then audits instead of the committed lock.
       - name: Install dependencies
         run: uv sync --all-extras --locked
 
-      # uv-secure audits uv.lock against the published advisories, so a new one
+      # uv-audit checks uv.lock against the published advisories, so a new one
       # can turn an unrelated pull request red. That is deliberate: it is how we
       # hear about it. Fix the lock rather than skipping the hook.
       - name: Run pre-commit
