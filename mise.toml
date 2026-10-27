@@ -1,7 +1,9 @@
 [tools]
 # 3.13 is the active default; the rest are installed for the tox matrix.
 python = ["3.13", "3.10", "3.11", "3.12", "3.14", "3.15"]
-uv = "latest"
+# Pinned because uv-secure audits this binary. The CI mise cache key hashes this
+# file, not resolved versions, so "latest" stayed on a cached old uv.
+uv = "0.13.6"
 pre-commit = "latest"
 # For `mise run dev`, which runs its own tmux server on a socket named after the project. Every client of
 # that socket needs this version — a hand-run `tmux -L tailwind-cli attach`, and the dev script itself: its
