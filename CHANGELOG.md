@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 4.8.2 (2026-10-27)
 
 ### 🐛 Bug Fixes
 - **`tailwind watch` with one stylesheet shows the watcher's output again.** It ran the CLI with its output captured, so rebuild messages and build errors never reached the terminal, and the captured text grew for as long as the watcher ran. Multiple stylesheets were not affected.
