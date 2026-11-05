@@ -79,6 +79,8 @@ This setting only affects the **auto-generated** default source CSS. If you set 
 
 The list of external apps is re-evaluated whenever the source CSS is written. When combined with the `tailwind watch` auto-reloader, installing a new app or editing `INSTALLED_APPS` automatically regenerates the declarations and triggers a Tailwind rebuild.
 
+Generated source CSS uses UTF-8 on every platform, including when external app paths contain non-ASCII characters.
+
 ### TAILWIND_CLI_USE_SYSTEM_BINARY
 
 **Default**: `False`
