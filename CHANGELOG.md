@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### 🐛 Bug Fixes
+- **Generated source CSS uses UTF-8 on every platform.** External app paths containing non-ASCII characters no longer fail to write on Windows, and existing UTF-8 source files can be checked and backed up without decoding errors. Backups preserve the original bytes.
+
 ## 4.8.2 (2026-10-27)
 
 ### 🐛 Bug Fixes
