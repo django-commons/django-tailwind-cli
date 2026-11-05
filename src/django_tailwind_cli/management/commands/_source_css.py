@@ -36,7 +36,7 @@ def _should_recreate_file(file_path: Path, content: str) -> bool:
         return True
 
     try:
-        current_content = file_path.read_text()
+        current_content = file_path.read_text(encoding="utf-8")
         if current_content != content:
             return True
     except (OSError, UnicodeDecodeError):
@@ -165,7 +165,7 @@ def _preserve_hand_edits(src_css: Path) -> None:
     managed directory, which carries its own ``.gitignore``.
     """
     backup = src_css.with_suffix(".css.bak")
-    backup.write_text(src_css.read_text())
+    backup.write_bytes(src_css.read_bytes())
 
     click.secho(
         f"⚠️  '{src_css}' has hand edits that are about to be replaced.",
@@ -239,14 +239,19 @@ def _ensure_one_source_css(src_css: Path, content: str, *, manages_the_file: boo
             click.secho("⏭️  Source CSS file is up-to-date, no changes needed", fg="green")
         return False
 
-    if manages_the_file and src_css.exists() and not _looks_auto_generated(src_css.read_text()):
-        _preserve_hand_edits(src_css)
+    if manages_the_file and src_css.exists():
+        try:
+            generated = _looks_auto_generated(src_css.read_text(encoding="utf-8"))
+        except UnicodeDecodeError:
+            generated = False
+        if not generated:
+            _preserve_hand_edits(src_css)
 
     if verbose:
         click.secho("📝 Creating/updating source CSS file...", fg="cyan")
 
     src_css.parent.mkdir(parents=True, exist_ok=True)
-    src_css.write_text(content)
+    src_css.write_text(content, encoding="utf-8")
 
     if verbose:
         click.secho(f"✅ Created directory: {src_css.parent}", fg="green")
