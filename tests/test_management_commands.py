@@ -710,6 +710,41 @@ pytestmark = [
 ]
 
 
+class TestSourceCssEncoding:
+    @pytest.mark.parametrize("already_exists", [False, True])
+    def test_generated_unicode_source_is_written_once(self, tmp_path: Path, already_exists: bool):
+        from django_tailwind_cli.management.commands._source_css import _ensure_one_source_css
+
+        src_css = tmp_path / "source.css"
+        content = f'{DEFAULT_SOURCE_CSS}\n{AUTO_SOURCE_COMMENT}\n@source "/editable/\u0645\u0644\u0641\u0627\u062a";\n'
+        if already_exists:
+            src_css.write_bytes(content.encode("utf-8"))
+
+        assert _ensure_one_source_css(src_css, content, manages_the_file=True, verbose=False) is not already_exists
+        assert src_css.read_text(encoding="utf-8") == content
+        assert not _ensure_one_source_css(src_css, content, manages_the_file=True, verbose=False)
+        assert not src_css.with_suffix(".css.bak").exists()
+
+    @pytest.mark.parametrize(
+        "edited_bytes",
+        [
+            f'{DEFAULT_SOURCE_CSS}@source "../\u0645\u0644\u0641\u0627\u062a";\n'.encode(),
+            b'@import "tailwindcss";\n@source "../caf\xe9";\n',
+        ],
+        ids=["utf8", "legacy-encoding"],
+    )
+    def test_hand_edits_are_backed_up_without_changing_bytes(self, tmp_path: Path, edited_bytes: bytes):
+        from django_tailwind_cli.management.commands._source_css import _ensure_one_source_css
+
+        src_css = tmp_path / "source.css"
+        src_css.write_bytes(edited_bytes)
+
+        assert _ensure_one_source_css(src_css, DEFAULT_SOURCE_CSS, manages_the_file=True, verbose=False)
+
+        assert src_css.with_suffix(".css.bak").read_bytes() == edited_bytes
+        assert src_css.read_text(encoding="utf-8") == DEFAULT_SOURCE_CSS
+
+
 class TestSourceCssOverwriteWarning:
     """The managed source.css is overwritten; hand edits should not vanish silently."""
 
