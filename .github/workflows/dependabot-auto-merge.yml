@@ -1,0 +1,34 @@
+name: Dependabot auto-merge
+
+# pull_request rather than pull_request_target: the job needs no secrets, and
+# Dependabot pull requests honour the permissions block below.
+on:
+  pull_request:
+
+permissions: {}
+
+jobs:
+  auto-merge:
+    name: Enable auto-merge
+    runs-on: ubuntu-latest
+    # The pull request author, not github.actor, which a re-run by anyone changes.
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    permissions:
+      contents: write # gh pr merge needs it to merge into main
+      pull-requests: write # gh pr merge --auto enables auto-merge on the PR
+    steps:
+      - name: Fetch Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
+
+      # Only action bumps below a major version. PR CI never runs release.yml,
+      # so a major bump of an action used there would pass unseen.
+      # The main ruleset holds the merge until the ci-ok check passes.
+      - name: Enable auto-merge for patch and minor action updates
+        if: >-
+          steps.metadata.outputs.package-ecosystem == 'github_actions' &&
+          steps.metadata.outputs.update-type != 'version-update:semver-major'
+        run: gh pr merge --auto --squash "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
