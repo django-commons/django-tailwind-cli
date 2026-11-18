@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 4.8.3 (2026-11-18)
 
 ### 🐛 Bug Fixes
 - **`tailwind watch` keeps watching without a terminal.** The Tailwind 4 CLI stops `--watch` when its stdin closes. A parallel `mise run` task or a container without `tty: true` has no open stdin. There the watcher stopped after the first build. The CLI now reads stdin from a pipe that only the Python process holds. This also fixes `tailwind runserver`, which starts `tailwind watch`.
