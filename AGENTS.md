@@ -96,12 +96,15 @@ nobody checked.
 - Shared fixtures belong in `tests/conftest.py`. Five are autouse: the network guard, the
   version-cache path, the version-cache reset, the version-lookup patch, and
   `no_writes_into_the_checkout`, which fails a test that builds into the repository instead of
-  into its `tmp_path` sandbox. Six are opt-in:
+  into its `tmp_path` sandbox. Eight are opt-in:
   `bypass_autoreload` (run `tailwind watch` in-process instead of under Django's autoreloader),
   `fake_project_settings` (a `BASE_DIR` that does not exist on disk, so expected paths stay
   readable literals), `tmp_project` (a real project under `tmp_path` with the CLI settings
   pointing inside it, and deliberately **no** binary — whether the CLI exists is what several
   tests are about), `tmp_project_with_cli` (`tmp_project` plus the binary already on disk),
+  `tmp_project_with_css_map` (`tmp_project` with an `admin`/`web` `TAILWIND_CLI_CSS_MAP`, its
+  source files, and no spawn stagger), `stub_watch_popen` (a `subprocess.Popen` whose watcher has
+  already exited with code 0),
   `stub_subprocess_run` (a `subprocess.run` that succeeds and says nothing — not the same as a
   bare `mocker.patch`, whose MagicMock has a truthy `stdout`), and `stdin_from_dev_null` (fd 0
   on `/dev/null`, as under a task runner without a terminal; pair it with

@@ -1,7 +1,7 @@
 """Running the Tailwind CLI.
 
-Watch lives here too: a single CSS entry runs the CLI directly, several hand off to
-`_process.MultiWatchProcessManager`, and both are the same command from the outside.
+Watch lives here too. It starts one watcher per CSS entry through
+`_process.MultiWatchProcessManager`.
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ from django.core.management.base import CommandError
 
 from django_tailwind_cli.config import get_config
 from django_tailwind_cli.management.commands._download import ensure_cli_binary, ensure_default_gitignore
-from django_tailwind_cli.management.commands._process import MultiWatchProcessManager, watcher_stdin
+from django_tailwind_cli.management.commands._process import MultiWatchProcessManager, lifeline
 from django_tailwind_cli.management.commands._source_css import ensure_source_css
 
 
@@ -44,21 +44,8 @@ def run_watch_loop(*, verbose: bool = False) -> None:
     if verbose:
         click.secho("🔄 Starting file watcher...", fg="cyan")
 
-    with watcher_stdin() as stdin:
-        if len(config.css_entries) == 1:
-            execute_tailwind_command(
-                config.watch_cmd,
-                success_message="Stopped watching for changes.",
-                error_message="Failed to start in watch mode",
-                # The watcher runs until Ctrl+C: its rebuilds and errors belong on the terminal, and a
-                # captured pipe would only grow for as long as it runs.
-                capture_output=False,
-                stdin=stdin,
-                verbose=verbose,
-            )
-        else:
-            manager = MultiWatchProcessManager()
-            manager.start_watch_processes(config, stdin=stdin, verbose=verbose)
+    with lifeline() as stdin:
+        MultiWatchProcessManager().start_watch_processes(config, stdin=stdin, verbose=verbose)
 
 
 def setup_tailwind_environment(*, verbose: bool = False) -> None:
@@ -75,8 +62,6 @@ def execute_tailwind_command(
     *,
     success_message: str,
     error_message: str,
-    capture_output: bool = True,
-    stdin: int | None = None,
     verbose: bool = False,
 ) -> bool:
     """Execute a Tailwind command with consistent error handling and optional verbose output.
@@ -85,9 +70,6 @@ def execute_tailwind_command(
         cmd: Command to execute.
         success_message: Message to display on success.
         error_message: Message prefix for errors.
-        capture_output: Whether to capture subprocess output.
-        stdin: File descriptor for the command's stdin. Applies only with ``capture_output=False``,
-            the watch path. None inherits this process's stdin.
         verbose: Whether to show detailed execution information.
 
     Returns:
@@ -99,17 +81,13 @@ def execute_tailwind_command(
         if verbose:
             click.secho(f"🚀 Executing: {' '.join(cmd)}", fg="cyan")
             click.secho(f"   • Working directory: {settings.BASE_DIR}", fg="blue")
-            click.secho(f"   • Capture output: {capture_output}", fg="blue")
 
         start_time = time.time()
 
-        if capture_output:
-            result = subprocess.run(cmd, cwd=settings.BASE_DIR, check=True, capture_output=True, text=True)
-            if verbose and result.stdout:
-                click.secho("📤 Command output:", fg="blue")
-                click.echo(result.stdout)
-        else:
-            subprocess.run(cmd, cwd=settings.BASE_DIR, check=True, stdin=stdin)
+        result = subprocess.run(cmd, cwd=settings.BASE_DIR, check=True, capture_output=True, text=True)
+        if verbose and result.stdout:
+            click.secho("📤 Command output:", fg="blue")
+            click.echo(result.stdout)
 
         if verbose:
             end_time = time.time()
@@ -119,12 +97,7 @@ def execute_tailwind_command(
         click.secho(success_message, fg="green")
         return True
     except KeyboardInterrupt:
-        if "build" in error_message.lower():
-            click.secho("Canceled building production stylesheet.", fg="red")
-        elif "watch" in error_message.lower():
-            click.secho("Stopped watching for changes.", fg="red")
-        else:
-            click.secho(f"Canceled {error_message.lower()}.", fg="red")
+        click.secho("Canceled building production stylesheet.", fg="red")
         return False
     except subprocess.CalledProcessError as e:  # pragma: no cover
         if verbose:

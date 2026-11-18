@@ -1,12 +1,14 @@
 """`tailwind` management command."""
 
 import importlib.util
+import os
 import sys
 import time
 from pathlib import Path
 
 import click
 from django.conf import settings
+from django.core.management import execute_from_command_line
 from django.core.management.base import CommandError
 
 from django_tailwind_cli import __version__
@@ -22,6 +24,8 @@ from django_tailwind_cli.management.commands._download import ensure_cli_binary,
 from django_tailwind_cli.management.commands._source_css import ensure_source_css
 from django_tailwind_cli.management.commands._process import (
     ProcessManager,
+    exported_lifeline,
+    stop_with_lifeline,
 )
 from django_tailwind_cli.management.commands._guides import (
     print_configuration,
@@ -187,13 +191,39 @@ def watch(*, verbose: bool, no_reloader: bool):
 
     Press Ctrl+C to stop watching.
     """
+    stop_with_lifeline()
+
     if no_reloader:
         run_watch_loop(verbose=verbose)
         return
 
     from django.utils import autoreload
 
-    autoreload.run_with_reloader(run_watch_loop, verbose=verbose)
+    if os.environ.get(autoreload.DJANGO_AUTORELOAD_ENV) == "true":
+        autoreload.run_with_reloader(_run_watch_loop_in_reloader_child, verbose=verbose)
+        return
+
+    # The reloader parent: the child inherits the lifeline through Django's close_fds=False.
+    # The reloader ends this process with sys.exit, so the block still closes it.
+    with exported_lifeline():
+        autoreload.run_with_reloader(_run_watch_loop_in_reloader_child, verbose=verbose)
+
+
+def _run_watch_loop_in_reloader_child(*, verbose: bool) -> None:
+    """Run the watch loop, and end the process with code 1 on a reported error.
+
+    The reloader runs this in a worker thread, so an exception would end only that thread and leave
+    the process running. Only `os._exit` ends the process from there. The reloader parent then
+    exits with the same code. The output matches `--noreload`: the `handle_command_errors` report,
+    then the line Django prints for a CommandError.
+    """
+    try:
+        handle_command_errors(run_watch_loop)(verbose=verbose)
+    except CommandError as e:
+        click.secho(f"CommandError: {e}", fg="red", err=True)
+        sys.stdout.flush()
+        sys.stderr.flush()
+        os._exit(1)
 
 
 @app.command(name="download_cli")
@@ -516,8 +546,10 @@ def remove_cli():
     is_flag=True,
     help="Force vanilla runserver even if django-extensions is installed.",
 )
+# Runs only this server command, for the subprocess `tailwind runserver` starts. Not public.
+@click.option("--server-command", type=click.Choice(["runserver", "runserver_plus"]), hidden=True)
 @click.pass_context
-def runserver(ctx: click.Context, *, force_default_runserver: bool):
+def runserver(ctx: click.Context, *, force_default_runserver: bool, server_command: str | None):
     """Run Django development server with Tailwind CSS watch mode.
 
     Combines `tailwind watch` and Django's runserver in one terminal, with
@@ -543,6 +575,13 @@ def runserver(ctx: click.Context, *, force_default_runserver: bool):
         python manage.py runserver --help
         python manage.py runserver_plus --help   (with django-extensions)
     """
+    if server_command:
+        # Django's runserver does not read the lifeline, so this command does before starting it.
+        # Django's reloader restarts this command from sys.argv, so its child reads it too.
+        stop_with_lifeline()
+        execute_from_command_line([sys.argv[0], server_command, *ctx.args])
+        return
+
     # Both commands below are `python manage.py ...` run from BASE_DIR. Without that file the
     # subprocesses start, fail, and report a returncode — after this command has already claimed
     # to have started them. Say it up front instead.
@@ -561,10 +600,21 @@ def runserver(ctx: click.Context, *, force_default_runserver: bool):
         and importlib.util.find_spec("werkzeug")
         and not force_default_runserver
     )
-    server_command = "runserver_plus" if use_plus else "runserver"
 
     watch_cmd = [sys.executable, "manage.py", "tailwind", "watch"]
-    server_cmd = [sys.executable, "manage.py", server_command, *ctx.args]
+    # Django's runserver runs the system checks itself.
+    server_command = "runserver_plus" if use_plus else "runserver"
+    server_cmd = [
+        sys.executable,
+        "manage.py",
+        "tailwind",
+        "runserver",
+        "--skip-checks",
+        "--server-command",
+        server_command,
+    ]
+    # After "--", the subprocess's click forwards every argument without parsing it again.
+    server_cmd += ["--", *ctx.args]
 
     process_manager = ProcessManager()
     process_manager.start_concurrent_processes(watch_cmd, server_cmd)

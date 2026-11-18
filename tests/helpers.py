@@ -74,8 +74,10 @@ sys.stdin.buffer.read()
 """
 
 
-def _install_python_cli(path: Path, tail: str) -> Path:
+def install_python_cli(path: Path, tail: str) -> Path:
     """Put an executable fake CLI at ``path`` that runs the preamble plus ``tail`` with this interpreter.
+
+    The preamble answers ``--help`` with a version line and sets ``output_path`` from ``--output``.
 
     A ``/bin/sh`` wrapper rather than a ``#!python`` shebang: the kernel rejects a shebang with
     spaces in the interpreter path or one longer than its limit.
@@ -94,7 +96,7 @@ def install_stdin_probe_cli(path: Path) -> Path:
     ``open`` to its ``--output`` file instead, then exits so the watch command returns.
     POSIX only: ``select()`` on a pipe is not available on Windows.
     """
-    return _install_python_cli(path, _STDIN_PROBE_TAIL)
+    return install_python_cli(path, _STDIN_PROBE_TAIL)
 
 
 def install_stdin_wait_cli(path: Path) -> Path:
@@ -103,4 +105,4 @@ def install_stdin_wait_cli(path: Path) -> Path:
     It writes its PID to its ``--output`` file, then blocks on stdin, as the Tailwind 4 CLI does.
     POSIX only.
     """
-    return _install_python_cli(path, _STDIN_WAIT_TAIL)
+    return install_python_cli(path, _STDIN_WAIT_TAIL)

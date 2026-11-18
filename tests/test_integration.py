@@ -5,6 +5,7 @@ They do not run the real Tailwind compiler.
 """
 # pyright: reportPrivateUsage=false
 
+import contextlib
 import io
 import os
 import platform
@@ -14,6 +15,7 @@ import sys
 import threading
 import time
 from collections.abc import Callable
+from typing import Any
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -38,7 +40,7 @@ from django_tailwind_cli.management.commands._source_css import (
     DEFAULT_SOURCE_CSS,
 )
 from django_tailwind_cli.management.commands.tailwind import run_watch_loop
-from tests.helpers import install_stdin_probe_cli, install_stdin_wait_cli, write_fake_cli
+from tests.helpers import install_python_cli, install_stdin_probe_cli, install_stdin_wait_cli, write_fake_cli
 
 
 def _clear_legacy_css_settings(settings: LazySettings) -> None:
@@ -235,23 +237,19 @@ class TestBuildWorkflowIntegration:
 class TestWatchModeIntegration:
     """Test watch mode functionality and process management."""
 
-    def test_watch_mode_setup_and_execution(self, settings: LazySettings, tmp_project: Path):
+    def test_watch_mode_setup_and_execution(self, settings: LazySettings, tmp_project: Path, stub_watch_popen: Mock):
         """Test watch mode command execution flow."""
         settings.TAILWIND_CLI_SRC_CSS = tmp_project / "source.css"
         settings.TAILWIND_CLI_VERSION = "4.1.3"  # Avoid latest version fetch
 
-        with (
-            patch("django_tailwind_cli.utils.http.download_with_progress") as mock_download,
-            patch("subprocess.run") as mock_subprocess,
-        ):
+        with patch("django_tailwind_cli.utils.http.download_with_progress") as mock_download:
             # Mock download function to create actual file
             mock_download.side_effect = write_fake_cli
-            mock_subprocess.return_value = Mock(returncode=0, stdout="", stderr="")
 
             call_command("tailwind", "watch")
 
             # Verify watch command was constructed correctly
-            call_args = mock_subprocess.call_args[0][0]
+            call_args = stub_watch_popen.call_args[0][0]
             assert "--watch" in call_args
             assert "--input" in call_args
             assert "--output" in call_args
@@ -351,23 +349,80 @@ class TestWatchModeIntegration:
 
     @pytest.mark.skipif(sys.platform == "win32", reason="select() does not accept pipes on Windows")
     @pytest.mark.usefixtures("stdin_from_dev_null")
-    @pytest.mark.parametrize("css_map", [None, [("admin.css", "admin.output.css"), ("web.css", "web.output.css")]])
+    @pytest.mark.parametrize("project", ["tmp_project", "tmp_project_with_css_map"])
     def test_watcher_stdin_stays_open_without_terminal(
-        self, settings: LazySettings, tmp_project: Path, mocker: MockerFixture, css_map: list[tuple[str, str]] | None
+        self, settings: LazySettings, request: pytest.FixtureRequest, project: str
     ):
         """The Tailwind 4 CLI ends `--watch` on stdin EOF, which happens at once under `mise run`."""
-        if css_map:
-            settings.TAILWIND_CLI_CSS_MAP = css_map
-            _clear_legacy_css_settings(settings)
-            for src, _ in css_map:
-                (tmp_project / src).write_text('@import "tailwindcss";')
-        mocker.patch("django_tailwind_cli.management.commands._process._WATCH_SPAWN_STAGGER_S", 0)
+        request.getfixturevalue(project)
         install_stdin_probe_cli(settings.TAILWIND_CLI_PATH)
 
         run_watch_loop()
 
         entries = get_config().css_entries
         assert [entry.dist_css.read_text() for entry in entries] == ["open"] * len(entries)
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="the fake CLI is a shell script")
+    @pytest.mark.parametrize("project", ["tmp_project", "tmp_project_with_css_map"])
+    def test_a_watcher_that_exits_with_an_error_fails_the_command(
+        self, settings: LazySettings, request: pytest.FixtureRequest, capsys: CaptureFixture[str], project: str
+    ):
+        """One message naming the stylesheet, and a non-zero exit, with one stylesheet or several."""
+        request.getfixturevalue(project)
+        install_python_cli(settings.TAILWIND_CLI_PATH, "sys.exit(2)\n")
+        first_entry = get_config().css_entries[0].name
+
+        with pytest.raises(CommandError, match=f"Watch process for '{first_entry}' exited with code 2"):
+            run_watch_loop()
+
+        assert "Stopped watching for changes." not in capsys.readouterr().out
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="the fake CLI is a shell script")
+    @pytest.mark.usefixtures("tmp_project_with_css_map")
+    def test_failed_watcher_stderr_is_kept_and_the_others_shutdown_output_dropped(
+        self, settings: LazySettings, capfd: CaptureFixture[str]
+    ):
+        """The failed watcher's last lines say why; the stopped watchers' output would bury them."""
+        install_python_cli(
+            settings.TAILWIND_CLI_PATH,
+            """\
+import signal
+import time
+
+def stop(*_):
+    sys.stderr.write("web: shutting down\\n")
+    sys.exit(0)
+
+if "admin" in output_path:
+    time.sleep(0.2)
+    sys.stderr.write("admin: cannot parse admin.css\\n")
+    sys.exit(2)
+signal.signal(signal.SIGTERM, stop)
+time.sleep(30)
+""",
+        )
+
+        with pytest.raises(CommandError, match="Watch process for 'admin' exited with code 2"):
+            run_watch_loop()
+
+        err = capfd.readouterr().err
+        assert "admin: cannot parse admin.css" in err
+        assert "web: shutting down" not in err
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="the fake CLI is a shell script")
+    @pytest.mark.usefixtures("tmp_project")
+    def test_single_watcher_stderr_drops_bun_noise(self, settings: LazySettings, capfd: CaptureFixture[str]):
+        """The Bun filter used to cover only TAILWIND_CLI_CSS_MAP setups."""
+        install_python_cli(
+            settings.TAILWIND_CLI_PATH,
+            'sys.stderr.write("EIO: i/o error\\nError: Cannot apply unknown utility class\\n")\n',
+        )
+
+        run_watch_loop()
+
+        err = capfd.readouterr().err
+        assert "Cannot apply unknown utility class" in err
+        assert "EIO" not in err
 
     @pytest.mark.parametrize(
         "entry_count,expected_staggers",
@@ -414,11 +469,11 @@ class TestWatchModeIntegration:
 
         with (
             patch("django_tailwind_cli.utils.http.download_with_progress") as mock_download,
-            patch("subprocess.run") as mock_subprocess,
+            patch("subprocess.Popen") as mock_popen,
         ):
             # Mock download function to create actual file
             mock_download.side_effect = write_fake_cli
-            mock_subprocess.side_effect = KeyboardInterrupt()
+            mock_popen.side_effect = KeyboardInterrupt()
 
             call_command("tailwind", "watch")
 
@@ -426,28 +481,84 @@ class TestWatchModeIntegration:
             assert "Stopped watching for changes." in captured.out
 
 
-# Runs `run_watch_loop` in its own process, so the test can SIGKILL it. argv: BASE_DIR, "single" or "multi".
-# Starts from tests.settings, as the suite does, and points the project at BASE_DIR like `tmp_project`.
-_WATCH_PROCESS_SCRIPT = """\
+# A manage.py for a project in its own directory, so a test can run real commands and SIGKILL them.
+# Starts from tests.settings, as the suite does, and points the project at its directory like
+# `tmp_project`. `_CSS_MAP_ENV` adds an admin/web `TAILWIND_CLI_CSS_MAP`.
+_CSS_MAP_ENV = "TEST_TAILWIND_CLI_CSS_MAP"
+_MANAGE_PY = f"""\
+import os
 import sys
 from pathlib import Path
 
 import django
 from django.conf import settings
+from django.core.management import execute_from_command_line
 
-base = Path(sys.argv[1])
+base = Path(__file__).resolve().parent
 settings.BASE_DIR = base
 settings.STATICFILES_DIRS = (base / "assets",)
 settings.TAILWIND_CLI_PATH = base / "tailwindcss"
 settings.TAILWIND_CLI_VERSION = "4.0.0"
-if sys.argv[2] == "multi":
+if os.environ.get("{_CSS_MAP_ENV}"):
     settings.TAILWIND_CLI_CSS_MAP = [("admin.css", "admin.output.css"), ("web.css", "web.output.css")]
 django.setup()
 
-from django_tailwind_cli.management.commands._build import run_watch_loop
+from django_tailwind_cli.management.commands import _process
 
-run_watch_loop()
+_process._WATCH_SPAWN_STAGGER_S = 0
+
+execute_from_command_line(sys.argv)
 """
+
+# Runs its argv as a shell does, without a lifeline.
+_SHELL_PARENT = [sys.executable, "-c", "import subprocess, sys; subprocess.run(sys.argv[1:])"]
+
+
+def _start_manage_py(
+    tmp_path: Path, args: list[str], *, multi: bool = False, parent: list[str] | None = None, **popen_kwargs: Any
+) -> subprocess.Popen[Any]:
+    """Run `_MANAGE_PY` with ``args`` in ``tmp_path``, below ``parent`` if given."""
+    manage_py = tmp_path / "manage.py"
+    manage_py.write_text(_MANAGE_PY)
+    repo_root = Path(__file__).resolve().parent.parent
+    env = {
+        **os.environ,
+        "DJANGO_SETTINGS_MODULE": "tests.settings",
+        "PYTHONPATH": str(repo_root),
+        "PYTHONUNBUFFERED": "1",
+    }
+    if multi:
+        env[_CSS_MAP_ENV] = "1"
+    return subprocess.Popen(
+        [*(parent or []), sys.executable, str(manage_py), *args], cwd=tmp_path, env=env, **popen_kwargs
+    )
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="the fake CLI is a shell script")
+@pytest.mark.timeout(30)
+def test_a_failing_watcher_ends_the_command_under_the_reloader(tmp_path: Path):
+    """The reloader runs the watch loop in a thread, where a CommandError used to end only that thread.
+
+    The reloader and ``--noreload`` report the failure in the same words.
+    """
+    install_python_cli(tmp_path / "tailwindcss", "sys.exit(2)\n")
+
+    stderrs: list[str] = []
+    for args in (["tailwind", "watch"], ["tailwind", "watch", "--noreload"]):
+        watch_process = _start_manage_py(
+            tmp_path, args, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE
+        )
+        try:
+            _, stderr = watch_process.communicate(timeout=15)
+        finally:
+            watch_process.kill()
+        assert watch_process.returncode == 1, args
+        stderrs.append(stderr.decode())
+
+    under_reloader, without_reloader = stderrs
+    assert "❌ Command error: Watch process for 'tailwind' exited with code 2" in under_reloader
+    assert "Traceback" not in under_reloader
+    assert under_reloader == without_reloader
 
 
 def _wait_for(condition: Callable[[], bool], what: str, timeout: float = 10) -> None:
@@ -457,52 +568,87 @@ def _wait_for(condition: Callable[[], bool], what: str, timeout: float = 10) -> 
         time.sleep(0.05)
 
 
-def _is_running(pid: int) -> bool:
+def _is_running(pid: int, kill: Callable[[int, int], None] = os.kill) -> bool:
+    """Whether the process, or with ``os.killpg`` the process group, still exists."""
     try:
-        os.kill(pid, 0)
+        kill(pid, 0)
     except ProcessLookupError:
         return False
     return True
 
 
+_RUNSERVER = ["tailwind", "runserver", "--force-default-runserver", "127.0.0.1:0"]
+
+
 @pytest.mark.skipif(sys.platform == "win32", reason="POSIX signals and pipes")
 @pytest.mark.timeout(30)
 @pytest.mark.parametrize(
-    "mode,outputs",
-    [("single", ["css/tailwind.css"]), ("multi", ["admin.output.css", "web.output.css"])],
+    "args,multi,parent,survives",
+    [
+        (["tailwind", "watch", "--noreload"], False, None, False),
+        (["tailwind", "watch", "--noreload"], True, None, False),
+        (["tailwind", "watch"], True, None, False),
+        (_RUNSERVER, True, None, False),
+        (["tailwind", "watch"], False, _SHELL_PARENT, True),
+    ],
+    ids=["noreload-single", "noreload-multi", "reloader", "runserver", "background"],
 )
-def test_watcher_exits_when_the_watch_process_is_killed(tmp_path: Path, mode: str, outputs: list[str]):
-    """A watcher must not outlive the Python process that started it, even after SIGKILL."""
+def test_processes_after_sigkill(
+    tmp_path: Path, args: list[str], multi: bool, parent: list[str] | None, survives: bool
+):
+    """Nothing `tailwind watch` or `tailwind runserver` starts may outlive it, even after SIGKILL.
+
+    "reloader" kills Django's reloader parent while the watcher runs in its child. "runserver" kills
+    `tailwind runserver` while Django's runserver and its reloader child run. "background" kills a
+    parent without a lifeline, as a shell is, and the watcher has to keep running.
+    """
     install_stdin_wait_cli(tmp_path / "tailwindcss")
     (tmp_path / "admin.css").write_text('@import "tailwindcss";')
     (tmp_path / "web.css").write_text('@import "tailwindcss";')
+    outputs = ["admin.output.css", "web.output.css"] if multi else ["css/tailwind.css"]
     pid_files = [tmp_path / "assets" / output for output in outputs]
-    # The test holds this stdin open, as a terminal does, so only the watch command can end the watcher.
+    # The test holds this stdin open, as a terminal does, so only the command can end the watcher.
     terminal_read, terminal_write = os.pipe()
-    watch_process = subprocess.Popen(
-        [sys.executable, "-c", _WATCH_PROCESS_SCRIPT, str(tmp_path), mode],
-        cwd=Path(__file__).resolve().parent.parent,
-        env={**os.environ, "DJANGO_SETTINGS_MODULE": "tests.settings"},
+    process = _start_manage_py(
+        tmp_path,
+        args,
+        multi=multi,
+        parent=parent,
         stdin=terminal_read,
-        stdout=subprocess.DEVNULL,
+        # Only the runserver case reads stdout. An unread pipe can fill and block the children.
+        stdout=subprocess.PIPE if args == _RUNSERVER else subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
+        # Its own process group, so the finally block also reaches orphaned children.
+        start_new_session=True,
     )
     os.close(terminal_read)
-    cli_pids: list[int] = []
     try:
         _wait_for(lambda: all(f.exists() and f.read_text() for f in pid_files), "the watchers to start")
         cli_pids = [int(f.read_text()) for f in pid_files]
+        if args == _RUNSERVER:
+            assert process.stdout is not None
+            # Django prints this line once its reloader child serves.
+            for line in process.stdout:
+                if b"Quit the server with" in line:
+                    break
+            else:
+                pytest.fail("Django's runserver did not start")
 
-        watch_process.kill()
-        watch_process.wait()
+        process.kill()
+        process.wait()
 
-        _wait_for(lambda: not any(_is_running(pid) for pid in cli_pids), "the watchers to exit", timeout=5)
+        if survives:
+            time.sleep(0.3)
+            assert all(_is_running(pid) for pid in cli_pids)
+        else:
+            _wait_for(lambda: not _is_running(process.pid, os.killpg), "every process in the group to exit")
     finally:
         os.close(terminal_write)
-        watch_process.kill()
-        watch_process.wait()
-        for pid in filter(_is_running, cli_pids):
-            os.kill(pid, signal.SIGKILL)
+        with contextlib.suppress(ProcessLookupError):
+            os.killpg(process.pid, signal.SIGKILL)
+        process.wait()
+        if process.stdout is not None:
+            process.stdout.close()
 
 
 class TestProcessManagerIntegration:
@@ -513,6 +659,19 @@ class TestProcessManagerIntegration:
         manager = ProcessManager()
         assert manager.processes == []
         assert manager.shutdown_requested is False
+
+    def test_children_get_no_lifeline_on_windows(self, monkeypatch: pytest.MonkeyPatch, mocker: MockerFixture):
+        """Popen refuses ``pass_fds`` on Windows, so neither child may get it there."""
+        monkeypatch.setattr(sys, "platform", "win32")
+        popen = mocker.patch("subprocess.Popen")
+        mocker.patch("signal.signal")
+        mocker.patch("time.sleep")
+        mocker.patch.object(ProcessManager, "_monitor_processes")
+
+        ProcessManager().start_concurrent_processes(["watch"], ["server"])
+
+        assert popen.call_count == 2
+        assert all("pass_fds" not in call.kwargs for call in popen.call_args_list)
 
     def test_process_manager_cleanup_on_shutdown(self):
         """Test ProcessManager properly cleans up processes."""
@@ -788,16 +947,12 @@ class TestVerboseLoggingIntegration:
             assert "⚙️  Setting up Tailwind environment..." in captured.out
             assert "✅ Build completed in" in captured.out
 
-    @pytest.mark.usefixtures("tmp_project")
+    @pytest.mark.usefixtures("tmp_project", "stub_watch_popen")
     def test_watch_verbose_logging(self, capsys: CaptureFixture[str]):
         """Test verbose logging in watch command."""
-        with (
-            patch("django_tailwind_cli.utils.http.download_with_progress") as mock_download,
-            patch("subprocess.run") as mock_subprocess,
-        ):
+        with patch("django_tailwind_cli.utils.http.download_with_progress") as mock_download:
             # Mock download function to create actual file
             mock_download.side_effect = write_fake_cli
-            mock_subprocess.return_value = Mock(returncode=0, stdout="", stderr="")
 
             call_command("tailwind", "watch", "--verbose")
 

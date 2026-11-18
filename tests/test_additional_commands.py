@@ -304,6 +304,7 @@ class TestErrorHandling:
         # Should show verbose output about build process
         assert "Built production stylesheet" in captured.out
 
+    @pytest.mark.usefixtures("bypass_autoreload", "stub_watch_popen")
     def test_watch_verbose_flag(self, capsys: CaptureFixture[str]):
         """Test watch command with verbose flag shows additional output."""
         config = get_config()
@@ -313,8 +314,7 @@ class TestErrorHandling:
         call_command("tailwind", "watch", "--verbose")
         captured = capsys.readouterr()
 
-        # Should show verbose output about watching process
-        assert "Watching for changes" in captured.out or "watch" in captured.out.lower()
+        assert "Starting watch for 'tailwind'" in captured.out
 
 
 class TestCommandErrorHandlingIsWiredUp:

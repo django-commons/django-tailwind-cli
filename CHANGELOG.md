@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### 💥 Breaking Changes
+- **`tailwind watch` runs one code path for one stylesheet or several.** A single stylesheet used to run the CLI directly. It now goes through the same process manager as `TAILWIND_CLI_CSS_MAP`. Messages at start and on Ctrl+C now match the multi-stylesheet output.
+- **A failing watcher fails `tailwind watch` with any number of stylesheets.** With `TAILWIND_CLI_CSS_MAP`, a watcher that exited with an error was only reported, and the command exited with code 0. Under the auto-reloader, a single failing watcher left a traceback and a running process. Now the command exits with code 1. The message names the stylesheet instead of a process index, and reads the same with and without `--noreload`. A watcher ended by Ctrl+C or SIGTERM is no failure.
+- **Bun runtime noise is filtered for a single stylesheet too.** The filter for `EIO` and `ERR_DLOPEN_FAILED` traces covered only `TAILWIND_CLI_CSS_MAP` setups.
+
+### 🐛 Bug Fixes
+- **The Tailwind CLI and Django's `runserver` also exit after a SIGKILL to `tailwind watch` or `tailwind runserver`.** A SIGKILL skips the cleanup of Django's auto-reloader and of `tailwind runserver`. Their child processes kept running, among them the CLI and Django's `runserver`, which kept its port. The reloader parent and `tailwind runserver` now hand their children a pipe. A child stops when that pipe closes.
+
 ## 4.8.3 (2026-11-18)
 
 ### 🐛 Bug Fixes

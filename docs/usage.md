@@ -34,7 +34,9 @@ Run `python manage.py tailwind watch` to start a Tailwind watcher process on its
 
 By default the watch command runs under Django's own auto-reloader (the same one `runserver` uses). Whenever you change a Python file — including `settings.py` — the watcher restarts its Python process, regenerates the default source CSS file (picking up freshly added `INSTALLED_APPS`), and respawns the Tailwind CLI subprocess. This pairs nicely with [`TAILWIND_CLI_AUTO_SOURCE_EXTERNAL_APPS`](settings.md#tailwind_cli_auto_source_external_apps): adding an editable-installed app and updating `INSTALLED_APPS` is enough — no manual restart needed.
 
-The watch command does not need a terminal or an open stdin. It runs as a parallel task under `mise run` or in a Docker container without `tty: true`. The Tailwind CLI stops watching when its stdin closes. The command therefore gives it a pipe that only the Python process holds. On SIGTERM or SIGINT to `tailwind watch` or `tailwind runserver`, the Tailwind CLI exits too. A SIGKILL to the command skips the cleanup of Django's auto-reloader, and its child process keeps running. With `--noreload`, the Tailwind CLI exits on SIGKILL too.
+The watch command does not need a terminal or an open stdin. It runs as a parallel task under `mise run` or in a Docker container without `tty: true`. The Tailwind CLI stops watching when its stdin closes. The command therefore gives it a pipe that only the Python process holds. On SIGTERM, SIGINT or SIGKILL to `tailwind watch` or `tailwind runserver`, the Tailwind CLI exits too. So does Django's `runserver` under `tailwind runserver`. A `tailwind watch` started in the background keeps running when its shell exits.
+
+The command starts one Tailwind CLI per stylesheet. If one of them exits with an error, the command stops the others, names the stylesheet and exits with a non-zero code.
 
 Pass `--noreload` if you want a single-process watch loop (e.g. in CI or when debugging the watcher itself):
 

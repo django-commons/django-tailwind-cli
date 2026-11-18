@@ -7,6 +7,7 @@ file operations, and subprocess execution.
 # pyright: reportPrivateUsage=false
 
 import os
+import signal
 import subprocess
 import time
 from pathlib import Path
@@ -248,27 +249,6 @@ class TestSubprocessErrorScenarios:
             assert "Build failed: syntax error" in captured.err
             assert "Built production stylesheet" not in captured.out
 
-    def test_watch_command_execution_failure(self, settings: LazySettings, tmp_path: Path, capsys: CaptureFixture[str]):
-        """Test handling of CLI execution failure during watch."""
-        settings.BASE_DIR = tmp_path
-        settings.STATICFILES_DIRS = [tmp_path / "assets"]
-        settings.TAILWIND_CLI_PATH = tmp_path / ".cli"
-
-        # Create a fake CLI
-        config = get_config()
-        install_fake_cli(config.cli_path, content=b"fake-cli")
-
-        with patch("subprocess.run") as mock_subprocess:
-            # Simulate subprocess failure
-            error = subprocess.CalledProcessError(2, ["fake-cli", "--watch"], stderr="Watch failed: permission denied")
-            mock_subprocess.side_effect = error
-
-            with pytest.raises(CommandError):
-                call_command("tailwind", "watch")
-
-            captured = capsys.readouterr()
-            assert "Failed to start in watch mode" in captured.err
-
     def test_cli_binary_not_executable(self, settings: LazySettings, tmp_path: Path):
         """Test handling when CLI binary exists but is not executable."""
         settings.BASE_DIR = tmp_path
@@ -435,7 +415,7 @@ class TestConcurrencyErrorScenarios:
         assert manager.shutdown_requested is True  # reporting one dead process ends the watch
 
     def test_multi_watch_manager_names_which_process_exited(self, capsys: CaptureFixture[str], mocker: MockerFixture):
-        """With several watchers running, the bare message would not say which one died."""
+        """With several watchers running, the bare message would not say which stylesheet died."""
         from django_tailwind_cli.management.commands._process import MultiWatchProcessManager
 
         mocker.patch("django_tailwind_cli.management.commands._process.time.sleep")
@@ -445,10 +425,28 @@ class TestConcurrencyErrorScenarios:
         dead.poll.return_value = 2
         dead.returncode = 2
         manager.processes = [alive, dead]
+        manager.entry_names = {alive: "admin", dead: "web"}
 
         manager._monitor_processes()
 
-        assert "Watch process 1 exited with code 2" in capsys.readouterr().out
+        assert manager.failure == "Watch process for 'web' exited with code 2"
+        # Raised as a CommandError after cleanup instead, so printing it here would show it twice.
+        assert "exited with code" not in capsys.readouterr().out
+
+    @pytest.mark.parametrize("returncode", [-signal.SIGINT, -signal.SIGTERM])
+    def test_a_watcher_stopped_by_a_signal_is_no_failure(self, returncode: int):
+        """Ctrl+C reaches the whole process group, so the watchers can end before the manager stops them."""
+        from django_tailwind_cli.management.commands._process import MultiWatchProcessManager
+
+        manager = MultiWatchProcessManager()
+        stopped = Mock()
+        stopped.poll.return_value = returncode
+        manager.processes = [stopped]
+        manager.entry_names = {stopped: "tailwind"}
+
+        manager._monitor_processes()
+
+        assert manager.failure is None
 
     def test_only_the_multi_watch_manager_reports_the_end_of_watching(self, capsys: CaptureFixture[str]):
         """The single-watch path prints this from tailwind.py; the manager must for the multi path."""
