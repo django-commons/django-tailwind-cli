@@ -1,6 +1,7 @@
 """Shared fixtures for the test suite."""
 
 import hashlib
+import os
 import socket
 from collections.abc import Iterator
 from pathlib import Path
@@ -186,6 +187,24 @@ def no_writes_into_the_checkout() -> Iterator[None]:
         f"the test wrote into the checkout — created {created}, deleted {deleted}, "
         f"changed {changed}. Point settings.BASE_DIR at tmp_path, as the tmp_project fixture does."
     )
+
+
+@pytest.fixture
+def stdin_from_dev_null() -> Iterator[None]:
+    """Point file descriptor 0 at /dev/null, as a task runner without a terminal does.
+
+    pytest's default fd capture does the same. Under ``-s``, fd 0 is the terminal instead.
+    This fixture makes the test independent of the capture mode.
+    """
+    saved = os.dup(0)
+    devnull = os.open(os.devnull, os.O_RDONLY)
+    os.dup2(devnull, 0)
+    os.close(devnull)
+    try:
+        yield
+    finally:
+        os.dup2(saved, 0)
+        os.close(saved)
 
 
 @pytest.fixture

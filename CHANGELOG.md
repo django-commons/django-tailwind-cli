@@ -3,6 +3,8 @@
 ## Unreleased
 
 ### 🐛 Bug Fixes
+- **`tailwind watch` keeps watching without a terminal.** The Tailwind 4 CLI stops `--watch` when its stdin closes. A parallel `mise run` task or a container without `tty: true` has no open stdin. There the watcher stopped after the first build. The CLI now reads stdin from a pipe that only the Python process holds. This also fixes `tailwind runserver`, which starts `tailwind watch`.
+- **The Tailwind CLI exits with `tailwind watch` and `tailwind runserver`.** A SIGTERM or SIGINT sent to the command alone left the CLI running. Only Ctrl+C in a terminal, which signals the whole process group, stopped it. Now the CLI exits on both signals.
 - **Generated source CSS uses UTF-8 on every platform.** External app paths containing non-ASCII characters no longer fail to write on Windows, and existing UTF-8 source files can be checked and backed up without decoding errors. Backups preserve the original bytes.
 
 ## 4.8.2 (2026-10-27)

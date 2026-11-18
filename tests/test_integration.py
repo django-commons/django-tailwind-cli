@@ -9,7 +9,11 @@ import io
 import os
 import platform
 import signal
+import subprocess
+import sys
 import threading
+import time
+from collections.abc import Callable
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -34,7 +38,7 @@ from django_tailwind_cli.management.commands._source_css import (
     DEFAULT_SOURCE_CSS,
 )
 from django_tailwind_cli.management.commands.tailwind import run_watch_loop
-from tests.helpers import write_fake_cli
+from tests.helpers import install_stdin_probe_cli, install_stdin_wait_cli, write_fake_cli
 
 
 def _clear_legacy_css_settings(settings: LazySettings) -> None:
@@ -345,6 +349,26 @@ class TestWatchModeIntegration:
             assert not worker.is_alive(), "run_watch_loop did not terminate within 5s"
             assert not errors, f"run_watch_loop crashed in worker thread: {errors[0]!r}"
 
+    @pytest.mark.skipif(sys.platform == "win32", reason="select() does not accept pipes on Windows")
+    @pytest.mark.usefixtures("stdin_from_dev_null")
+    @pytest.mark.parametrize("css_map", [None, [("admin.css", "admin.output.css"), ("web.css", "web.output.css")]])
+    def test_watcher_stdin_stays_open_without_terminal(
+        self, settings: LazySettings, tmp_project: Path, mocker: MockerFixture, css_map: list[tuple[str, str]] | None
+    ):
+        """The Tailwind 4 CLI ends `--watch` on stdin EOF, which happens at once under `mise run`."""
+        if css_map:
+            settings.TAILWIND_CLI_CSS_MAP = css_map
+            _clear_legacy_css_settings(settings)
+            for src, _ in css_map:
+                (tmp_project / src).write_text('@import "tailwindcss";')
+        mocker.patch("django_tailwind_cli.management.commands._process._WATCH_SPAWN_STAGGER_S", 0)
+        install_stdin_probe_cli(settings.TAILWIND_CLI_PATH)
+
+        run_watch_loop()
+
+        entries = get_config().css_entries
+        assert [entry.dist_css.read_text() for entry in entries] == ["open"] * len(entries)
+
     @pytest.mark.parametrize(
         "entry_count,expected_staggers",
         [(2, 1), (3, 2), (4, 3)],
@@ -400,6 +424,85 @@ class TestWatchModeIntegration:
 
             captured = capsys.readouterr()
             assert "Stopped watching for changes." in captured.out
+
+
+# Runs `run_watch_loop` in its own process, so the test can SIGKILL it. argv: BASE_DIR, "single" or "multi".
+# Starts from tests.settings, as the suite does, and points the project at BASE_DIR like `tmp_project`.
+_WATCH_PROCESS_SCRIPT = """\
+import sys
+from pathlib import Path
+
+import django
+from django.conf import settings
+
+base = Path(sys.argv[1])
+settings.BASE_DIR = base
+settings.STATICFILES_DIRS = (base / "assets",)
+settings.TAILWIND_CLI_PATH = base / "tailwindcss"
+settings.TAILWIND_CLI_VERSION = "4.0.0"
+if sys.argv[2] == "multi":
+    settings.TAILWIND_CLI_CSS_MAP = [("admin.css", "admin.output.css"), ("web.css", "web.output.css")]
+django.setup()
+
+from django_tailwind_cli.management.commands._build import run_watch_loop
+
+run_watch_loop()
+"""
+
+
+def _wait_for(condition: Callable[[], bool], what: str, timeout: float = 10) -> None:
+    deadline = time.monotonic() + timeout
+    while not condition():
+        assert time.monotonic() < deadline, f"timed out waiting for {what}"
+        time.sleep(0.05)
+
+
+def _is_running(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    return True
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX signals and pipes")
+@pytest.mark.timeout(30)
+@pytest.mark.parametrize(
+    "mode,outputs",
+    [("single", ["css/tailwind.css"]), ("multi", ["admin.output.css", "web.output.css"])],
+)
+def test_watcher_exits_when_the_watch_process_is_killed(tmp_path: Path, mode: str, outputs: list[str]):
+    """A watcher must not outlive the Python process that started it, even after SIGKILL."""
+    install_stdin_wait_cli(tmp_path / "tailwindcss")
+    (tmp_path / "admin.css").write_text('@import "tailwindcss";')
+    (tmp_path / "web.css").write_text('@import "tailwindcss";')
+    pid_files = [tmp_path / "assets" / output for output in outputs]
+    # The test holds this stdin open, as a terminal does, so only the watch command can end the watcher.
+    terminal_read, terminal_write = os.pipe()
+    watch_process = subprocess.Popen(
+        [sys.executable, "-c", _WATCH_PROCESS_SCRIPT, str(tmp_path), mode],
+        cwd=Path(__file__).resolve().parent.parent,
+        env={**os.environ, "DJANGO_SETTINGS_MODULE": "tests.settings"},
+        stdin=terminal_read,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    os.close(terminal_read)
+    cli_pids: list[int] = []
+    try:
+        _wait_for(lambda: all(f.exists() and f.read_text() for f in pid_files), "the watchers to start")
+        cli_pids = [int(f.read_text()) for f in pid_files]
+
+        watch_process.kill()
+        watch_process.wait()
+
+        _wait_for(lambda: not any(_is_running(pid) for pid in cli_pids), "the watchers to exit", timeout=5)
+    finally:
+        os.close(terminal_write)
+        watch_process.kill()
+        watch_process.wait()
+        for pid in filter(_is_running, cli_pids):
+            os.kill(pid, signal.SIGKILL)
 
 
 class TestProcessManagerIntegration:

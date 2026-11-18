@@ -8,13 +8,15 @@ one place and the two entry points differ only in what they start and how they r
 
 from __future__ import annotations
 
+import os
 import re
 import signal
 import sys
 import subprocess
 import threading
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from types import FrameType
 from typing import IO
 
@@ -49,6 +51,23 @@ _BUN_NOISE = re.compile(
 # crashes with ERR_DLOPEN_FAILED. Staggering by 300 ms sidesteps the race
 # without being noticeable in interactive use.
 _WATCH_SPAWN_STAGGER_S = 0.3
+
+
+@contextmanager
+def watcher_stdin() -> Iterator[int]:
+    """Yield the read end of a pipe whose write end only this process holds, as a watcher's stdin.
+
+    The Tailwind 4 CLI ends `--watch` when its stdin reaches EOF. An inherited stdin can be at EOF
+    from the start, for example in a parallel `mise run` task. This pipe reaches EOF only when its
+    write end closes. That happens on leaving this block or when this process dies, also by
+    SIGKILL. The CLI then stops watching, so it does not outlive this process.
+    """
+    read_fd, write_fd = os.pipe()
+    try:
+        yield read_fd
+    finally:
+        os.close(write_fd)
+        os.close(read_fd)
 
 
 def _is_bun_noise(line: str) -> bool:
@@ -195,11 +214,12 @@ class MultiWatchProcessManager(_BaseProcessManager):
     def _exit_notice(self, index: int, returncode: int) -> str:
         return f"Watch process {index} exited with code {returncode}"
 
-    def start_watch_processes(self, config: Config, *, verbose: bool = False) -> None:
+    def start_watch_processes(self, config: Config, *, stdin: int | None = None, verbose: bool = False) -> None:
         """Start watch processes for all CSS entries.
 
         Args:
             config: Configuration object with css_entries.
+            stdin: File descriptor for every watcher's stdin, see `watcher_stdin`. None inherits it.
             verbose: Whether to show detailed information.
         """
         # SIGINT propagates as KeyboardInterrupt via Python's default handler.
@@ -228,6 +248,7 @@ class MultiWatchProcessManager(_BaseProcessManager):
                     watch_cmd,
                     cwd=settings.BASE_DIR,
                     text=True,
+                    stdin=stdin,
                     stderr=subprocess.PIPE,
                 )
                 self.processes.append(process)

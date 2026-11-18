@@ -6,6 +6,7 @@ importing from it is a pytest anti-pattern. Fixtures still belong in ``conftest.
 
 from __future__ import annotations
 
+import sys
 from collections.abc import Callable
 from pathlib import Path
 
@@ -44,3 +45,62 @@ def install_fake_cli(path: Path, *, content: bytes = b"fake-cli-binary") -> Path
     path.write_bytes(content)
     path.chmod(0o755)
     return path
+
+
+# Shared start of the fake CLIs below: answer `--help` with a version line, otherwise find `--output`.
+_FAKE_CLI_PREAMBLE = """\
+import os
+import select
+import sys
+
+if "--watch" not in sys.argv:
+    print("tailwindcss v4.0.0")
+    sys.exit(0)
+output_path = sys.argv[sys.argv.index("--output") + 1]
+os.makedirs(os.path.dirname(output_path), exist_ok=True)
+"""
+
+_STDIN_PROBE_TAIL = """\
+ready, _, _ = select.select([sys.stdin], [], [], 0.1)
+state = "eof" if ready and sys.stdin.buffer.read(1) == b"" else "open"
+with open(output_path, "w") as output:
+    output.write(state)
+"""
+
+_STDIN_WAIT_TAIL = """\
+with open(output_path, "w") as output:
+    output.write(str(os.getpid()))
+sys.stdin.buffer.read()
+"""
+
+
+def _install_python_cli(path: Path, tail: str) -> Path:
+    """Put an executable fake CLI at ``path`` that runs the preamble plus ``tail`` with this interpreter.
+
+    A ``/bin/sh`` wrapper rather than a ``#!python`` shebang: the kernel rejects a shebang with
+    spaces in the interpreter path or one longer than its limit.
+    """
+    script_path = path.with_name(f"{path.name}.py")
+    script_path.parent.mkdir(parents=True, exist_ok=True)
+    script_path.write_text(_FAKE_CLI_PREAMBLE + tail)
+    wrapper = f'#!/bin/sh\nexec "{sys.executable}" -I -S "{script_path}" "$@"\n'
+    return install_fake_cli(path, content=wrapper.encode())
+
+
+def install_stdin_probe_cli(path: Path) -> Path:
+    """Put an executable fake CLI at ``path`` that reports its stdin state when watching.
+
+    The Tailwind 4 CLI ends ``--watch`` once stdin reaches EOF. This fake writes ``eof`` or
+    ``open`` to its ``--output`` file instead, then exits so the watch command returns.
+    POSIX only: ``select()`` on a pipe is not available on Windows.
+    """
+    return _install_python_cli(path, _STDIN_PROBE_TAIL)
+
+
+def install_stdin_wait_cli(path: Path) -> Path:
+    """Put an executable fake CLI at ``path`` that watches until its stdin reaches EOF.
+
+    It writes its PID to its ``--output`` file, then blocks on stdin, as the Tailwind 4 CLI does.
+    POSIX only.
+    """
+    return _install_python_cli(path, _STDIN_WAIT_TAIL)

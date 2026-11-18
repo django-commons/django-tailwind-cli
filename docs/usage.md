@@ -34,6 +34,8 @@ Run `python manage.py tailwind watch` to start a Tailwind watcher process on its
 
 By default the watch command runs under Django's own auto-reloader (the same one `runserver` uses). Whenever you change a Python file — including `settings.py` — the watcher restarts its Python process, regenerates the default source CSS file (picking up freshly added `INSTALLED_APPS`), and respawns the Tailwind CLI subprocess. This pairs nicely with [`TAILWIND_CLI_AUTO_SOURCE_EXTERNAL_APPS`](settings.md#tailwind_cli_auto_source_external_apps): adding an editable-installed app and updating `INSTALLED_APPS` is enough — no manual restart needed.
 
+The watch command does not need a terminal or an open stdin. It runs as a parallel task under `mise run` or in a Docker container without `tty: true`. The Tailwind CLI stops watching when its stdin closes. The command therefore gives it a pipe that only the Python process holds. On SIGTERM or SIGINT to `tailwind watch` or `tailwind runserver`, the Tailwind CLI exits too. A SIGKILL to the command skips the cleanup of Django's auto-reloader, and its child process keeps running. With `--noreload`, the Tailwind CLI exits on SIGKILL too.
+
 Pass `--noreload` if you want a single-process watch loop (e.g. in CI or when debugging the watcher itself):
 
 ```bash
@@ -130,19 +132,19 @@ Run `python manage.py tailwind remove_cli` to remove the installed CLI binary. T
 
 ## Use with Docker Compose
 
-When used in the `watch` mode, the Tailwind CLI requires a TTY-enabled environment to function correctly. In a Docker Compose setup, ensure that the container executing the Tailwind style rebuild command (either `python manage.py tailwind runserver` or `python manage.py tailwind watch`, as noted above) is configured with the `tty: true` setting in your `docker-compose.yml`.
+Both `python manage.py tailwind runserver` and `python manage.py tailwind watch` run in a container without further settings:
 
 ```yaml
 web:
   command: python manage.py tailwind runserver
-  tty: true
 
 # or
 
 tailwind-sidecar:
   command: python manage.py tailwind watch
-  tty: true
 ```
+
+Versions before 4.8.3 need `tty: true` on that service. Without it the watcher stops right after the first build.
 
 ## Use with WhiteNoise
 

@@ -15,7 +15,7 @@ from django.core.management.base import CommandError
 
 from django_tailwind_cli.config import get_config
 from django_tailwind_cli.management.commands._download import ensure_cli_binary, ensure_default_gitignore
-from django_tailwind_cli.management.commands._process import MultiWatchProcessManager
+from django_tailwind_cli.management.commands._process import MultiWatchProcessManager, watcher_stdin
 from django_tailwind_cli.management.commands._source_css import ensure_source_css
 
 
@@ -44,19 +44,21 @@ def run_watch_loop(*, verbose: bool = False) -> None:
     if verbose:
         click.secho("🔄 Starting file watcher...", fg="cyan")
 
-    if len(config.css_entries) == 1:
-        execute_tailwind_command(
-            config.watch_cmd,
-            success_message="Stopped watching for changes.",
-            error_message="Failed to start in watch mode",
-            # The watcher runs until Ctrl+C: its rebuilds and errors belong on the terminal, and a
-            # captured pipe would only grow for as long as it runs.
-            capture_output=False,
-            verbose=verbose,
-        )
-    else:
-        manager = MultiWatchProcessManager()
-        manager.start_watch_processes(config, verbose=verbose)
+    with watcher_stdin() as stdin:
+        if len(config.css_entries) == 1:
+            execute_tailwind_command(
+                config.watch_cmd,
+                success_message="Stopped watching for changes.",
+                error_message="Failed to start in watch mode",
+                # The watcher runs until Ctrl+C: its rebuilds and errors belong on the terminal, and a
+                # captured pipe would only grow for as long as it runs.
+                capture_output=False,
+                stdin=stdin,
+                verbose=verbose,
+            )
+        else:
+            manager = MultiWatchProcessManager()
+            manager.start_watch_processes(config, stdin=stdin, verbose=verbose)
 
 
 def setup_tailwind_environment(*, verbose: bool = False) -> None:
@@ -74,6 +76,7 @@ def execute_tailwind_command(
     success_message: str,
     error_message: str,
     capture_output: bool = True,
+    stdin: int | None = None,
     verbose: bool = False,
 ) -> bool:
     """Execute a Tailwind command with consistent error handling and optional verbose output.
@@ -83,6 +86,8 @@ def execute_tailwind_command(
         success_message: Message to display on success.
         error_message: Message prefix for errors.
         capture_output: Whether to capture subprocess output.
+        stdin: File descriptor for the command's stdin. Applies only with ``capture_output=False``,
+            the watch path. None inherits this process's stdin.
         verbose: Whether to show detailed execution information.
 
     Returns:
@@ -104,7 +109,7 @@ def execute_tailwind_command(
                 click.secho("📤 Command output:", fg="blue")
                 click.echo(result.stdout)
         else:
-            subprocess.run(cmd, cwd=settings.BASE_DIR, check=True)
+            subprocess.run(cmd, cwd=settings.BASE_DIR, check=True, stdin=stdin)
 
         if verbose:
             end_time = time.time()
