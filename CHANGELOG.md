@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 4.9.0 (2026-11-19)
 
 ### 💥 Breaking Changes
 - **`tailwind watch` runs one code path for one stylesheet or several.** A single stylesheet used to run the CLI directly. It now goes through the same process manager as `TAILWIND_CLI_CSS_MAP`. Messages at start and on Ctrl+C now match the multi-stylesheet output.
