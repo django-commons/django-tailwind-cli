@@ -1,16 +1,15 @@
 # django-tailwind-cli
 
-<p style="display: flex; gap: 4px; flex-wrap: wrap; align-items: flex-start; line-height: 1;">
-<img style="height: auto;" alt="GitHub Workflow Status" src="https://img.shields.io/github/actions/workflow/status/django-commons/django-tailwind-cli/test.yml">
-<a style="display: inline-block;" href="https://pypi.org/project/django-tailwind-cli/"><img style="height: auto;" alt="PyPI" src="https://img.shields.io/pypi/v/django-tailwind-cli.svg"></a>
-<a style="display: inline-block;" href="https://github.com/astral-sh/ruff"><img style="height: auto;" alt="Ruff" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json"></a>
-<a style="display: inline-block;" href="https://github.com/astral-sh/uv"><img style="height: auto;" alt="uv" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json"></a>
-<img style="height: auto;" alt="GitHub" src="https://img.shields.io/github/license/django-commons/django-tailwind-cli">
-<img style="height: auto;" alt="Django Versions" src="https://img.shields.io/pypi/frameworkversions/django/django-tailwind-cli">
-<img style="height: auto;" alt="Python Versions" src="https://img.shields.io/pypi/pyversions/django-tailwind-cli">
-<a style="display: inline-block;" href="https://pepy.tech/project/django-tailwind-cli"><img style="height: auto;" alt="Downloads" src="https://static.pepy.tech/badge/django-tailwind-cli"></a>
-<a style="display: inline-block;" href="https://pepy.tech/project/django-tailwind-cli"><img style="height: auto;" alt="Downloads / Month" src="https://pepy.tech/badge/django-tailwind-cli/month"></a>
-</p>
+[![Tests](https://img.shields.io/github/actions/workflow/status/django-commons/django-tailwind-cli/test.yml?branch=main)](https://github.com/django-commons/django-tailwind-cli/actions/workflows/test.yml)
+[![PyPI](https://img.shields.io/pypi/v/django-tailwind-cli.svg)](https://pypi.org/project/django-tailwind-cli/)
+[![Docs](https://readthedocs.org/projects/django-tailwind-cli/badge/?version=latest)](https://django-tailwind-cli.readthedocs.io/)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
+[![License](https://img.shields.io/pypi/l/django-tailwind-cli)](https://github.com/django-commons/django-tailwind-cli/blob/main/LICENSE)
+[![Django versions](https://img.shields.io/pypi/frameworkversions/django/django-tailwind-cli)](https://pypi.org/project/django-tailwind-cli/)
+[![Python versions](https://img.shields.io/pypi/pyversions/django-tailwind-cli)](https://pypi.org/project/django-tailwind-cli/)
+[![Downloads](https://static.pepy.tech/badge/django-tailwind-cli)](https://pepy.tech/project/django-tailwind-cli)
+[![Downloads/month](https://static.pepy.tech/badge/django-tailwind-cli/month)](https://pepy.tech/project/django-tailwind-cli)
 
 [Tailwind CSS](https://tailwindcss.com) for Django without Node.js. The library downloads the
 standalone [Tailwind CSS CLI](https://tailwindcss.com/blog/standalone-cli) and wires it into Django
