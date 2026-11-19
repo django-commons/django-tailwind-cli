@@ -14,6 +14,7 @@ from unittest.mock import Mock
 from functools import partial
 
 import pytest
+from django.apps import apps
 from django.conf import LazySettings
 from django.core.management import CommandError, call_command
 from pytest import CaptureFixture
@@ -360,8 +361,27 @@ class TestProcessManagementCommands:
         assert server_cmd[-5:] == ["runserver", "--", "8080", "--noreload", "--nothreading"]
 
     @pytest.mark.timeout(3)
-    def test_runserver_picks_runserver_plus_when_extensions_installed(self):
-        """With django-extensions + werkzeug available, runserver_plus is selected."""
+    def test_runserver_picks_runserver_plus_when_extensions_installed(self, mocker: MockerFixture):
+        """With django_extensions in INSTALLED_APPS and werkzeug available, runserver_plus is selected."""
+
+        def is_installed(name: str) -> bool:
+            return name == "django_extensions"
+
+        def mock_find_spec(name: str) -> object | None:
+            return Mock() if name == "werkzeug" else None
+
+        mocker.patch.object(apps, "is_installed", side_effect=is_installed)
+        self.mock_find_spec.side_effect = mock_find_spec
+
+        call_command("tailwind", "runserver")
+
+        mock_instance = self.mock_process_manager.return_value
+        _, server_cmd = mock_instance.start_concurrent_processes.call_args.args
+        assert server_cmd[server_cmd.index("--server-command") + 1] == "runserver_plus"
+
+    @pytest.mark.timeout(3)
+    def test_runserver_needs_django_extensions_in_installed_apps(self):
+        """django-extensions in the environment alone does not register runserver_plus."""
 
         def mock_find_spec(name: str) -> object | None:
             return Mock() if name in ["django_extensions", "werkzeug"] else None
@@ -372,7 +392,7 @@ class TestProcessManagementCommands:
 
         mock_instance = self.mock_process_manager.return_value
         _, server_cmd = mock_instance.start_concurrent_processes.call_args.args
-        assert server_cmd[server_cmd.index("--server-command") + 1] == "runserver_plus"
+        assert server_cmd[server_cmd.index("--server-command") + 1] == "runserver"
 
     @pytest.mark.timeout(3)
     def test_runserver_respects_force_default_runserver(self):

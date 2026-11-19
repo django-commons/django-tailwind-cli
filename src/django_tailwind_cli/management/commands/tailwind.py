@@ -7,6 +7,7 @@ import time
 from pathlib import Path
 
 import click
+from django.apps import apps
 from django.conf import settings
 from django.core.management import execute_from_command_line
 from django.core.management.base import CommandError
@@ -553,8 +554,8 @@ def runserver(ctx: click.Context, *, force_default_runserver: bool, server_comma
     """Run Django development server with Tailwind CSS watch mode.
 
     Combines `tailwind watch` and Django's runserver in one terminal, with
-    signal-clean shutdown of both processes on Ctrl+C. If `django-extensions`
-    plus `werkzeug` are installed, `runserver_plus` is used by default — pass
+    signal-clean shutdown of both processes on Ctrl+C. If `django_extensions` is
+    in INSTALLED_APPS and `werkzeug` is installed, `runserver_plus` is used by default — pass
     `--force-default-runserver` to opt out.
 
     \b
@@ -595,10 +596,9 @@ def runserver(ctx: click.Context, *, force_default_runserver: bool, server_comma
             "  python manage.py runserver"
         )
 
+    # runserver_plus exists only with django_extensions in INSTALLED_APPS, and it needs werkzeug.
     use_plus = (
-        importlib.util.find_spec("django_extensions")
-        and importlib.util.find_spec("werkzeug")
-        and not force_default_runserver
+        apps.is_installed("django_extensions") and importlib.util.find_spec("werkzeug") and not force_default_runserver
     )
 
     watch_cmd = [sys.executable, "manage.py", "tailwind", "watch"]

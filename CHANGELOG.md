@@ -9,6 +9,7 @@
 
 ### 🐛 Bug Fixes
 - **The Tailwind CLI and Django's `runserver` also exit after a SIGKILL to `tailwind watch` or `tailwind runserver`.** A SIGKILL skips the cleanup of Django's auto-reloader and of `tailwind runserver`. Their child processes kept running, among them the CLI and Django's `runserver`, which kept its port. The reloader parent and `tailwind runserver` now hand their children a pipe. A child stops when that pipe closes.
+- **`tailwind runserver` picks `runserver_plus` only with `django_extensions` in `INSTALLED_APPS`.** It checked only that the package was importable. With `django-extensions` installed but not in `INSTALLED_APPS`, the server failed at once with "Unknown command: 'runserver_plus'".
 
 ## 4.8.3 (2026-11-18)
 
