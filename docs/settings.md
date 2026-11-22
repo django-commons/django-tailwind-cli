@@ -91,6 +91,8 @@ When enabled:
 
 - The automatic download is skipped entirely — no network calls, no files created under `TAILWIND_CLI_PATH`.
 - `python manage.py tailwind remove_cli` refuses to delete the binary (since the library did not install it).
+- With `TAILWIND_CLI_DAISY_UI_SOURCE = "plugin"`, `build` and `watch` do not download the daisyUI bundles either.
+  Run `python manage.py tailwind download_cli` once to fetch them.
 - If `TAILWIND_CLI_VERSION` is pinned to a specific version and the system binary reports a different version, a warning is emitted so you can reconcile the discrepancy. No warning is issued when `TAILWIND_CLI_VERSION = "latest"`. The check runs on `build`, `watch`, `runserver` and `setup` — reading the version means running the binary, which has no business happening while a template renders.
 
 ```python
@@ -104,7 +106,7 @@ TAILWIND_CLI_USE_SYSTEM_BINARY = True
 
 ### TAILWIND_CLI_SYSTEM_BINARY_NAME
 
-**Default**: `"tailwindcss"` (or `"tailwindcss-extra"` when `TAILWIND_CLI_USE_DAISY_UI = True`)
+**Default**: `"tailwindcss"` (or `"tailwindcss-extra"` when `TAILWIND_CLI_USE_DAISY_UI = True` and `TAILWIND_CLI_DAISY_UI_SOURCE = "extra"`)
 
 Overrides the executable name that is looked up on `PATH` when `TAILWIND_CLI_USE_SYSTEM_BINARY = True`. You rarely need to set this — the default picks the right name automatically.
 
@@ -199,20 +201,75 @@ second one would be reported as built without ever having run.
 
 **Default**: `False`
 
-This switch determines what content is written to `TAILWIND_CLI_SRC_CSS` if it is automatically created by the library.
+Enables [daisyUI](https://daisyui.com).
+[`TAILWIND_CLI_DAISY_UI_SOURCE`](#tailwind_cli_daisy_ui_source) decides how daisyUI reaches the CLI.
 
-The default is:
+The switch also sets what the library writes to an automatically created `TAILWIND_CLI_SRC_CSS`.
+Without daisyUI, that is:
 ```css
 @import "tailwindcss";
 ```
 
-If `TAILWIND_CLI_USE_DAISY_UI = True` is put into the `settings.py` of your project, this is the output:
+With `TAILWIND_CLI_DAISY_UI_SOURCE = "plugin"`, the library loads daisyUI from the managed directory.
+The path is relative to the source CSS file:
+```css
+@import "tailwindcss";
+@source not "./daisyui{,*}.mjs";
+@plugin "./daisyui.mjs";
+```
+
+With the deprecated default, `"extra"`, it writes:
 ```css
 @import "tailwindcss";
 @plugin "daisyui";
 ```
 
-This switch can also be used as a shortcut to activate daisyUI and change `TAILWIND_CLI_SRC_REPO` and `TAILWIND_CLI_ASSET_NAME` as described above to fetch [tailwind-cli-extra](https://github.com/dobicinaitis/tailwind-cli-extra/releases/latest/).
+### TAILWIND_CLI_DAISY_UI_SOURCE
+
+**Default**: `"extra"`
+
+Selects how daisyUI reaches the Tailwind CLI when `TAILWIND_CLI_USE_DAISY_UI = True`.
+
+- `"plugin"` downloads the official Tailwind CLI and daisyUI's own plugin bundles.
+  The bundles are `daisyui.mjs` and `daisyui-theme.mjs` from the [daisyUI releases](https://github.com/saadeghi/daisyui/releases).
+  They are stored in `BASE_DIR/.django_tailwind_cli/`.
+  Their file names stay the same across daisyUI versions.
+- `"extra"` downloads [tailwind-cli-extra](https://github.com/dobicinaitis/tailwind-cli-extra), a CLI build with daisyUI bundled.
+  This source is deprecated and will be removed.
+  The system check `django_tailwind_cli.W002` reports it.
+  The [migration guide](daisyui.md) describes the switch to `"plugin"`.
+
+Neither source needs Node.js.
+
+```python
+# settings.py
+TAILWIND_CLI_USE_DAISY_UI = True
+TAILWIND_CLI_DAISY_UI_SOURCE = "plugin"
+```
+
+:::{warning}
+The official CLI cannot resolve `@plugin "daisyui";`.
+A source CSS of your own must load the plugin by its path when you switch to `"plugin"`.
+The system check `django_tailwind_cli.W003` reports a file that still loads daisyUI by name.
+See the [migration guide](daisyui.md#3-update-your-own-source-css).
+:::
+
+### TAILWIND_CLI_DAISY_UI_VERSION
+
+**Default**: `"latest"`
+
+The daisyUI version to download with `TAILWIND_CLI_DAISY_UI_SOURCE = "plugin"`.
+`"latest"` resolves the newest daisyUI release, as `TAILWIND_CLI_VERSION` does for Tailwind.
+Pin a version for reproducible builds.
+
+```python
+# settings.py
+TAILWIND_CLI_DAISY_UI_VERSION = "5.8.2"
+```
+
+A changed version is downloaded on the next `build` or `watch`.
+`TAILWIND_CLI_AUTOMATIC_DOWNLOAD = False` also stops this download.
+`python manage.py tailwind download_cli` downloads the plugin files again.
 
 ## Configuration Patterns
 
@@ -272,25 +329,53 @@ Example content of `src/styles/main.css`:
 
 ### DaisyUI
 
-[`TAILWIND_CLI_USE_DAISY_UI = True`](#tailwind_cli_use_daisy_ui) is all you need — it covers both the CLI build and the generated source CSS. The rest of this section is for setups that want more control than the switch gives them.
-
-You can configure the same thing manually, by pointing the library at the repository it should pull the CLI from and activating daisyUI support yourself.
+These two settings use the official Tailwind CLI with daisyUI:
 
 ```python
-TAILWIND_CLI_SRC_REPO = "dobicinaitis/tailwind-cli-extra"
-TAILWIND_CLI_ASSET_NAME = "tailwindcss-extra"
 TAILWIND_CLI_USE_DAISY_UI = True
+TAILWIND_CLI_DAISY_UI_SOURCE = "plugin"
 ```
 
-Or provide your custom configuration, too.
+The library then writes the source CSS itself.
+For theme configuration, point `TAILWIND_CLI_SRC_CSS` at a file of your own:
 
 ```python
-TAILWIND_CLI_SRC_REPO = "dobicinaitis/tailwind-cli-extra"
-TAILWIND_CLI_ASSET_NAME = "tailwindcss-extra"
+TAILWIND_CLI_USE_DAISY_UI = True
+TAILWIND_CLI_DAISY_UI_SOURCE = "plugin"
 TAILWIND_CLI_SRC_CSS = "src/styles/daisyui.css"
 ```
 
-Example content of `src/styles/daisyui.css` with theme configuration:
+Example content of `src/styles/daisyui.css` with theme configuration.
+The paths are relative to the CSS file and lead to `BASE_DIR/.django_tailwind_cli/`.
+`python manage.py tailwind config` prints the absolute path of `daisyui.mjs`.
+
+```css
+@import "tailwindcss";
+
+@source not "../../.django_tailwind_cli/daisyui{,*}.mjs";
+
+@plugin "../../.django_tailwind_cli/daisyui.mjs" {
+  themes: nord --default, abyss --prefersdark, cupcake, dracula;
+}
+```
+
+The `@source not` line keeps Tailwind from scanning the bundle.
+Without it, the output contains every daisyUI class.
+
+A custom theme uses the second bundle, `daisyui-theme.mjs`:
+
+```css
+@plugin "../../.django_tailwind_cli/daisyui-theme.mjs" {
+  name: "brand";
+  default: true;
+  --color-primary: oklch(55% 0.2 260);
+}
+```
+
+#### tailwind-cli-extra (deprecated)
+
+Without `TAILWIND_CLI_DAISY_UI_SOURCE`, daisyUI comes from tailwind-cli-extra.
+This CLI build resolves `@plugin "daisyui";` by name:
 
 ```css
 @import "tailwindcss";

@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### ✨ New Features
+- **daisyUI works with the official Tailwind CLI.** Set `TAILWIND_CLI_DAISY_UI_SOURCE = "plugin"` next to `TAILWIND_CLI_USE_DAISY_UI = True`. The library then downloads `daisyui.mjs` and `daisyui-theme.mjs` from the daisyUI releases. The generated source CSS loads them with `@plugin`. `TAILWIND_CLI_DAISY_UI_VERSION` pins the daisyUI version.
+- **tailwind-cli-extra is deprecated as the daisyUI source.** It stays the default for now. The system check `django_tailwind_cli.W002` reports its use. The [migration guide](https://django-tailwind-cli.readthedocs.io/latest/daisyui.html) describes the switch.
+- **The system check `django_tailwind_cli.W003` reports a source CSS that loads daisyUI by name in plugin mode.** The official CLI fails on `@plugin "daisyui";` and `@plugin "daisyui/theme";` with "Can't resolve". The hint names the replacement lines with a path relative to the file.
+
 ## 4.9.0 (2026-11-19)
 
 ### 💥 Breaking Changes

@@ -103,14 +103,16 @@ for a pinned, explicitly provisioned binary.
 
 ### DaisyUI
 
-To use the DaisyUI-enabled CLI build, set:
+To use daisyUI with the official Tailwind CLI, set:
 
 ```python
 TAILWIND_CLI_USE_DAISY_UI = True
+TAILWIND_CLI_DAISY_UI_SOURCE = "plugin"
 ```
 
-See the [DaisyUI settings](settings.md#tailwind_cli_use_daisy_ui) for how the CLI and generated
-source CSS change, and the [DaisyUI configuration examples](settings.md#daisyui) for custom CSS.
+The library downloads daisyUI's plugin bundle next to the CLI. No Node.js is involved.
+See the [daisyUI settings](settings.md#tailwind_cli_daisy_ui_source) for both sources.
+See the [daisyUI configuration examples](settings.md#daisyui) for custom CSS and themes.
 You can then use component classes in templates:
 
 ```html

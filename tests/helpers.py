@@ -35,6 +35,19 @@ def write_fake_cli(
     filepath.write_bytes(content)
 
 
+def answer_release_lookup(*, tailwind: str, daisy_ui: str) -> Callable[[str, int], tuple[bool, str]]:
+    """Stand-in for ``http.fetch_redirect_location`` that answers per repository, as GitHub does.
+
+    Installed as a ``side_effect``, so the returned function takes the production call's arguments.
+    """
+
+    def answer(url: str, timeout: int = 10) -> tuple[bool, str]:  # noqa: ARG001
+        version = daisy_ui if "/saadeghi/daisyui/" in url else tailwind
+        return True, url.replace("/releases/latest/", f"/releases/tag/v{version}")
+
+    return answer
+
+
 def install_fake_cli(path: Path, *, content: bytes = b"fake-cli-binary") -> Path:
     """Put an executable fake CLI binary at ``path``, as if it had already been installed.
 

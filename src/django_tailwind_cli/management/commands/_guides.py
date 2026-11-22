@@ -201,6 +201,13 @@ def print_configuration() -> None:
     click.secho("\n📦 Version Information:", fg="yellow", bold=True)
     click.secho(f"   Tailwind CSS Version: {config.version_str}", fg="green")
     click.secho(f"   DaisyUI Enabled: {'Yes' if config.use_daisy_ui else 'No'}", fg="green")
+    if config.use_daisy_ui:
+        deprecated = " (deprecated)" if config.daisy_ui_source == "extra" else ""
+        click.secho(f"   daisyUI Source: {config.daisy_ui_source}{deprecated}", fg="green")
+    if config.daisy_ui_plugin_dir:
+        plugin = config.daisy_ui_plugin_files["daisyui.mjs"]
+        click.secho(f"   daisyUI Version: {config.daisy_ui_version_str}", fg="green")
+        click.secho(f"   daisyUI Plugin: {plugin} {'✅' if plugin.exists() else '❌'}", fg="green")
     click.secho(f"   Auto Download: {'Yes' if config.automatic_download else 'No'}", fg="green")
 
     click.secho("\n📁 File Paths:", fg="yellow", bold=True)

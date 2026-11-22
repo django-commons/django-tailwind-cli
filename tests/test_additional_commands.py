@@ -73,6 +73,22 @@ class TestConfigCommand:
         captured = capsys.readouterr()
 
         assert "DaisyUI Enabled: Yes" in captured.out
+        assert "daisyUI Source: extra (deprecated)" in captured.out
+
+    def test_config_command_with_daisy_ui_plugin(
+        self, settings: LazySettings, tmp_path: Path, capsys: CaptureFixture[str]
+    ):
+        """The plugin path is what a hand-written source CSS has to reference."""
+        settings.TAILWIND_CLI_USE_DAISY_UI = True
+        settings.TAILWIND_CLI_DAISY_UI_SOURCE = "plugin"
+        settings.TAILWIND_CLI_DAISY_UI_VERSION = "5.8.2"
+
+        call_command("tailwind", "config")
+        captured = capsys.readouterr()
+
+        assert "daisyUI Source: plugin" in captured.out
+        assert "daisyUI Version: 5.8.2" in captured.out
+        assert f"daisyUI Plugin: {tmp_path / '.django_tailwind_cli' / 'daisyui.mjs'} ❌" in captured.out
 
     def test_config_command_with_auto_download_disabled(self, settings: LazySettings, capsys: CaptureFixture[str]):
         """Test config command shows correct auto download status when disabled."""

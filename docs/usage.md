@@ -130,7 +130,8 @@ Areas covered:
 
 ### remove_cli
 
-Run `python manage.py tailwind remove_cli` to remove the installed CLI binary. This only works with the managed download; system binaries (`TAILWIND_CLI_USE_SYSTEM_BINARY = True`) are refused.
+Run `python manage.py tailwind remove_cli` to remove the installed CLI binary.
+With `TAILWIND_CLI_DAISY_UI_SOURCE = "plugin"`, it also removes the daisyUI bundles and their version marker. This only works with the managed download; system binaries (`TAILWIND_CLI_USE_SYSTEM_BINARY = True`) are refused.
 
 ## Use with Docker Compose
 

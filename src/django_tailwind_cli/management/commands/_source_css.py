@@ -10,6 +10,7 @@ own scan does not reach them and they need an explicit `@source` directive.
 
 from __future__ import annotations
 
+import functools
 import re
 import site
 import sysconfig
@@ -19,7 +20,7 @@ import click
 from django.apps import apps
 from django.conf import settings
 
-from django_tailwind_cli.config import get_config
+from django_tailwind_cli.config import daisy_ui_directives, daisy_ui_plugin_reference, get_config
 
 
 def _should_recreate_file(file_path: Path, content: str) -> bool:
@@ -99,15 +100,20 @@ def discover_external_app_base_dirs() -> list[Path]:
     return sorted(external)
 
 
-def build_source_css_content(*, use_daisy_ui: bool, inject_external_apps: bool) -> str:
+def build_source_css_content(
+    *, use_daisy_ui: bool, inject_external_apps: bool, daisy_ui_plugin_dir: str | None = None
+) -> str:
     """Build the auto-generated source.css content.
 
-    Starts from the minimal ``@import "tailwindcss";`` (+ ``@plugin "daisyui";``
-    when DaisyUI is enabled) and appends one ``@source`` directive per
-    discovered external Django app base dir.
+    Starts from the minimal ``@import "tailwindcss";`` and adds daisyUI when it is enabled:
+    ``@plugin "daisyui";`` for tailwind-cli-extra, or ``daisyui.mjs`` in ``daisy_ui_plugin_dir`` for
+    the official CLI. A ``daisy_ui_plugin_dir`` implies daisyUI.
+    Appends one ``@source`` directive per discovered external Django app base dir.
     """
     lines = ['@import "tailwindcss";']
-    if use_daisy_ui:
+    if daisy_ui_plugin_dir is not None:
+        lines.extend(daisy_ui_directives(daisy_ui_plugin_dir))
+    elif use_daisy_ui:
         lines.append('@plugin "daisyui";')
 
     if inject_external_apps:
@@ -125,6 +131,8 @@ _GENERATED_LINE_PATTERNS = (
     r"\s*",  # blank lines
     r'@import\s+"tailwindcss";',
     r'@plugin\s+"daisyui";',
+    r'@plugin\s+"[^"]*/daisyui\.mjs";',
+    r'@source\s+not\s+"[^"]*/daisyui\{,\*\}\.mjs";',
     re.escape(AUTO_SOURCE_COMMENT),
 )
 _GENERATED_LINE = re.compile("^(?:" + "|".join(_GENERATED_LINE_PATTERNS) + ")$")
@@ -199,13 +207,17 @@ def ensure_source_css(*, verbose: bool = False) -> set[Path]:
         click.secho(f"   • Overwrite default: {c.overwrite_default_config}", fg="blue")
         click.secho(f"   • DaisyUI enabled: {c.use_daisy_ui}", fg="blue")
 
-    # Built once: every entry gets the same seed, only the destination differs. A file that
-    # already exists keeps whatever is in it — with a CSS_MAP those files are the user's, so
-    # a later DaisyUI or @source change does not reach them. That is deliberate; the docs say so.
-    content = build_source_css_content(
-        use_daisy_ui=c.use_daisy_ui,
-        inject_external_apps=c.auto_source_external_apps,
-    )
+    # A file that already exists keeps whatever is in it. With a CSS_MAP those files are the user's,
+    # so a later DaisyUI or @source change does not reach them. That is deliberate; the docs say so.
+    # The plugin path is relative to each file, so a committed seed works on other machines.
+    # Cached per directory: external app discovery resolves every app path.
+    @functools.cache
+    def content_for(css_dir: Path) -> str:
+        return build_source_css_content(
+            use_daisy_ui=c.use_daisy_ui,
+            inject_external_apps=c.auto_source_external_apps,
+            daisy_ui_plugin_dir=daisy_ui_plugin_reference(css_dir) if c.daisy_ui_plugin_dir else None,
+        )
 
     if verbose:
         click.secho(f"📝 Content template: {'DaisyUI' if c.use_daisy_ui else 'Default'}", fg="blue")
@@ -213,7 +225,12 @@ def ensure_source_css(*, verbose: bool = False) -> set[Path]:
     return {
         entry.src_css
         for entry in c.css_entries
-        if _ensure_one_source_css(entry.src_css, content, manages_the_file=c.overwrite_default_config, verbose=verbose)
+        if _ensure_one_source_css(
+            entry.src_css,
+            content_for(entry.src_css.parent),
+            manages_the_file=c.overwrite_default_config,
+            verbose=verbose,
+        )
     }
 
 

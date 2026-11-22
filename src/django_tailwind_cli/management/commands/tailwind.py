@@ -21,7 +21,12 @@ from django_tailwind_cli.management.commands._build import (
     run_watch_loop,
     setup_tailwind_environment,
 )
-from django_tailwind_cli.management.commands._download import ensure_cli_binary, ensure_default_gitignore
+from django_tailwind_cli.management.commands._download import (
+    ensure_cli_binary,
+    ensure_daisy_ui_plugin,
+    ensure_default_gitignore,
+    remove_daisy_ui_plugin,
+)
 from django_tailwind_cli.management.commands._source_css import ensure_source_css
 from django_tailwind_cli.management.commands._process import (
     ProcessManager,
@@ -265,6 +270,7 @@ def download_cli():
         - No Node.js or npm required!
     """
     ensure_cli_binary(force_download=True)
+    ensure_daisy_ui_plugin(force_download=True)
 
 
 @app.command(name="config")
@@ -380,6 +386,13 @@ def setup_guide():
             click.secho("   ✅ Tailwind CLI binary downloaded", fg="green")
         except Exception as e:
             click.secho(f"   ❌ Download failed: {e}", fg="red")
+            return
+    if config.daisy_ui_plugin_dir:
+        try:
+            ensure_daisy_ui_plugin()
+            click.secho("   ✅ daisyUI plugin files are in place", fg="green")
+        except Exception as e:
+            click.secho(f"   ❌ daisyUI download failed: {e}", fg="red")
             return
 
     click.secho("\n🎨 Step 5: CSS Files Setup", fg="yellow", bold=True)
@@ -517,7 +530,7 @@ def show_performance_tips():
 @app.command(name="remove_cli")
 @handle_command_errors
 def remove_cli():
-    """Remove the Tailwind CSS CLI."""
+    """Remove the Tailwind CSS CLI and, in plugin mode, the daisyUI bundles."""
     c = get_config()
 
     if c.uses_system_binary:
@@ -534,6 +547,9 @@ def remove_cli():
         click.secho(f"Removed Tailwind CSS CLI at '{c.cli_path}'.", fg="green")
     else:
         click.secho(f"Tailwind CSS CLI not found at '{c.cli_path}'.", fg="red")
+
+    for path in remove_daisy_ui_plugin():
+        click.secho(f"Removed daisyUI plugin file '{path}'.", fg="green")
 
 
 @app.command(

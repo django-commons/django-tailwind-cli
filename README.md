@@ -22,7 +22,7 @@ follows the approach of the [Tailwind integration for Phoenix](https://github.co
 - Rebuilds CSS on change, running under Django's own auto-reloader
 - Produces minified production builds containing only the classes you use
 - Includes the CSS via a `{% tailwind_css %}` template tag
-- Supports [DaisyUI](https://daisyui.com) through [tailwindcss-cli-extra](https://github.com/dobicinaitis/tailwind-cli-extra)
+- Supports [daisyUI](https://daisyui.com) as a plugin of the official Tailwind CLI
 - Targets Tailwind CSS 4.x
 
 ## Quickstart
@@ -115,7 +115,6 @@ python manage.py tailwind troubleshoot
 - [Full documentation](https://django-tailwind-cli.rtfd.io/)
 - [Tailwind CSS documentation](https://tailwindcss.com)
 - [DaisyUI components](https://daisyui.com)
-- [tailwindcss-cli-extra](https://github.com/dobicinaitis/tailwind-cli-extra) — the DaisyUI-enabled CLI build
 - [Django Extensions](https://django-extensions.readthedocs.io/) — provides `runserver_plus`
 - [Tailwind CSS IntelliSense](https://marketplace.visualstudio.com/items?itemName=bradlc.vscode-tailwindcss) — VS Code extension
 - [Django Commons](https://github.com/django-commons)

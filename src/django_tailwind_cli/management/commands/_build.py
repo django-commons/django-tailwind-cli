@@ -14,7 +14,11 @@ from django.conf import settings
 from django.core.management.base import CommandError
 
 from django_tailwind_cli.config import get_config
-from django_tailwind_cli.management.commands._download import ensure_cli_binary, ensure_default_gitignore
+from django_tailwind_cli.management.commands._download import (
+    ensure_cli_binary,
+    ensure_daisy_ui_plugin,
+    ensure_default_gitignore,
+)
 from django_tailwind_cli.management.commands._process import MultiWatchProcessManager, lifeline
 from django_tailwind_cli.management.commands._source_css import ensure_source_css
 
@@ -53,6 +57,7 @@ def setup_tailwind_environment(*, verbose: bool = False) -> None:
     if verbose:
         click.secho("⚙️  Setting up Tailwind environment...", fg="cyan")
     ensure_cli_binary(verbose=verbose)
+    ensure_daisy_ui_plugin()
     ensure_source_css(verbose=verbose)
     ensure_default_gitignore()
 

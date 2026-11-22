@@ -1,5 +1,7 @@
 """Tests for the Django system checks."""
 
+from pathlib import Path
+
 import pytest
 from pytest_django import Settings
 from pytest_mock import MockerFixture
@@ -7,7 +9,11 @@ from pytest_mock import MockerFixture
 from django.core.management import call_command
 from django.core.management.base import BaseCommand
 
-from django_tailwind_cli.checks import check_src_css_outside_static_dirs
+from django_tailwind_cli.checks import (
+    check_cli_extra_deprecation,
+    check_daisy_ui_plugin_reference,
+    check_src_css_outside_static_dirs,
+)
 from django_tailwind_cli.management.commands.tailwind import app
 
 
@@ -207,3 +213,141 @@ def test_skip_checks_after_the_subcommand_skips_them(mocker: MockerFixture):
     app.run_from_argv(["manage.py", "tailwind", "config", "--skip-checks"])
 
     check.assert_not_called()
+
+
+class TestCliExtraDeprecation:
+    def test_daisy_ui_through_cli_extra_is_deprecated(self, settings: Settings):
+        settings.TAILWIND_CLI_USE_DAISY_UI = True
+
+        warnings = check_cli_extra_deprecation(app_configs=None)
+
+        assert [w.id for w in warnings] == ["django_tailwind_cli.W002"]
+        assert 'TAILWIND_CLI_DAISY_UI_SOURCE = "plugin"' in (warnings[0].hint or "")
+
+    def test_an_explicit_cli_extra_repository_is_deprecated(self, settings: Settings):
+        settings.TAILWIND_CLI_SRC_REPO = "dobicinaitis/tailwind-cli-extra"
+
+        assert [w.id for w in check_cli_extra_deprecation(app_configs=None)] == ["django_tailwind_cli.W002"]
+
+    def test_the_plugin_source_passes(self, settings: Settings):
+        settings.TAILWIND_CLI_USE_DAISY_UI = True
+        settings.TAILWIND_CLI_DAISY_UI_SOURCE = "plugin"
+
+        assert check_cli_extra_deprecation(app_configs=None) == []
+
+    def test_no_daisy_ui_passes(self):
+        assert check_cli_extra_deprecation(app_configs=None) == []
+
+    def test_an_invalid_source_is_left_to_the_commands(self, settings: Settings):
+        settings.TAILWIND_CLI_USE_DAISY_UI = True
+        settings.TAILWIND_CLI_DAISY_UI_SOURCE = "npm"
+
+        assert check_cli_extra_deprecation(app_configs=None) == []
+
+
+class TestBareDaisyUiPluginReference:
+    """In plugin mode the official CLI cannot resolve @plugin "daisyui"; an own source CSS must say so."""
+
+    @pytest.fixture(autouse=True)
+    def plugin_mode(
+        self,
+        fake_project_settings: None,  # noqa: ARG002  (requested so that tmp_project overrides it)
+        tmp_project: Path,  # noqa: ARG002  (requested for its side effect)
+        settings: Settings,
+    ):
+        settings.TAILWIND_CLI_USE_DAISY_UI = True
+        settings.TAILWIND_CLI_DAISY_UI_SOURCE = "plugin"
+
+    def _own_css(self, settings: Settings, tmp_path: Path, content: str, name: str = "src/styles/main.css") -> Path:
+        path = tmp_path / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content)
+        settings.TAILWIND_CLI_SRC_CSS = name
+        return path
+
+    def test_a_bare_reference_is_reported_with_its_replacement(self, settings: Settings, tmp_path: Path):
+        path = self._own_css(settings, tmp_path, '@import "tailwindcss";\n@plugin "daisyui";\n')
+
+        warnings = check_daisy_ui_plugin_reference(app_configs=None)
+
+        assert [w.id for w in warnings] == ["django_tailwind_cli.W003"]
+        assert str(path) in warnings[0].msg
+        assert '@plugin "../../.django_tailwind_cli/daisyui.mjs"' in (warnings[0].hint or "")
+        assert '@source not "../../.django_tailwind_cli/daisyui{,*}.mjs";' in (warnings[0].hint or "")
+
+    @pytest.mark.parametrize(
+        "line",
+        ['@plugin "daisyui" {', "@plugin 'daisyui';", '@plugin   "daisyui"{', '@plugin "daisyui/theme" {'],
+    )
+    def test_every_spelling_of_the_bare_reference_is_reported(self, settings: Settings, tmp_path: Path, line: str):
+        self._own_css(settings, tmp_path, f'@import "tailwindcss";\n{line}\n')
+
+        assert len(check_daisy_ui_plugin_reference(app_configs=None)) == 1
+
+    def test_the_hint_names_the_theme_bundle(self, settings: Settings, tmp_path: Path):
+        self._own_css(settings, tmp_path, '@plugin "daisyui/theme" { name: "x"; }\n')
+
+        (warning,) = check_daisy_ui_plugin_reference(app_configs=None)
+
+        assert '@plugin "../../.django_tailwind_cli/daisyui-theme.mjs"' in (warning.hint or "")
+
+    def test_an_explicit_cli_extra_repository_passes(self, settings: Settings, tmp_path: Path):
+        """tailwind-cli-extra is still downloaded, and it resolves the name."""
+        settings.TAILWIND_CLI_SRC_REPO = "dobicinaitis/tailwind-cli-extra"
+        self._own_css(settings, tmp_path, '@plugin "daisyui";\n')
+
+        assert check_daisy_ui_plugin_reference(app_configs=None) == []
+
+    def test_a_source_css_on_another_drive_gets_an_absolute_path(
+        self, settings: Settings, tmp_path: Path, mocker: MockerFixture
+    ):
+        """os.path.relpath raises ValueError across Windows drives."""
+        self._own_css(settings, tmp_path, '@plugin "daisyui";\n')
+        mocker.patch("os.path.relpath", side_effect=ValueError("path is on mount 'D:'"))
+
+        (warning,) = check_daisy_ui_plugin_reference(app_configs=None)
+
+        assert f'@plugin "{(tmp_path / ".django_tailwind_cli").as_posix()}/daisyui.mjs"' in (warning.hint or "")
+
+    def test_a_path_reference_passes(self, settings: Settings, tmp_path: Path):
+        self._own_css(settings, tmp_path, '@import "tailwindcss";\n@plugin "../../.django_tailwind_cli/daisyui.mjs";\n')
+
+        assert check_daisy_ui_plugin_reference(app_configs=None) == []
+
+    def test_the_theme_plugin_passes(self, settings: Settings, tmp_path: Path):
+        self._own_css(settings, tmp_path, '@plugin "../../.django_tailwind_cli/daisyui-theme.mjs" { name: "x"; }\n')
+
+        assert check_daisy_ui_plugin_reference(app_configs=None) == []
+
+    def test_the_extra_source_passes(self, settings: Settings, tmp_path: Path):
+        settings.TAILWIND_CLI_DAISY_UI_SOURCE = "extra"
+        self._own_css(settings, tmp_path, '@plugin "daisyui";\n')
+
+        assert check_daisy_ui_plugin_reference(app_configs=None) == []
+
+    def test_the_managed_source_css_passes(self, tmp_path: Path):
+        """The library rewrites its own file on the next build."""
+        managed = tmp_path / ".django_tailwind_cli" / "source.css"
+        managed.parent.mkdir()
+        managed.write_text('@import "tailwindcss";\n@plugin "daisyui";\n')
+
+        assert check_daisy_ui_plugin_reference(app_configs=None) == []
+
+    def test_a_missing_source_css_passes(self, settings: Settings):
+        settings.TAILWIND_CLI_SRC_CSS = "src/styles/missing.css"
+
+        assert check_daisy_ui_plugin_reference(app_configs=None) == []
+
+    def test_every_css_map_source_is_checked(self, tmp_project_with_css_map: Path):
+        for name in ("admin.css", "web.css"):
+            (tmp_project_with_css_map / name).write_text('@plugin "daisyui";\n')
+
+        warnings = check_daisy_ui_plugin_reference(app_configs=None)
+
+        assert len(warnings) == 2
+        assert '@plugin ".django_tailwind_cli/daisyui.mjs"' in (warnings[0].hint or "")
+
+    def test_an_invalid_configuration_is_left_to_the_commands(self, settings: Settings):
+        settings.STATICFILES_DIRS = []
+
+        assert check_daisy_ui_plugin_reference(app_configs=None) == []

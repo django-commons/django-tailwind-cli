@@ -32,6 +32,19 @@ class ConfigurationError(ValueError):
 
 
 FALLBACK_VERSION = "4.1.3"
+FALLBACK_DAISY_UI_VERSION = "5.8.2"
+
+TAILWIND_REPO = "tailwindlabs/tailwindcss"
+CLI_EXTRA_REPO = "dobicinaitis/tailwind-cli-extra"
+DAISY_UI_REPO = "saadeghi/daisyui"
+
+# "extra" downloads tailwind-cli-extra, which bundles daisyUI. "plugin" downloads the official CLI
+# and daisyUI's own .mjs bundles, which the source CSS loads through @plugin.
+DAISY_UI_SOURCES = ("extra", "plugin")
+DAISY_UI_PLUGIN_NAMES = ("daisyui.mjs", "daisyui-theme.mjs")
+DAISY_UI_VERSION_MARKER = "daisyui.version"
+
+MANAGED_DIR = ".django_tailwind_cli"
 
 
 class CSSEntry(NamedTuple):
@@ -59,6 +72,21 @@ class Config:
     # TAILWIND_CLI_PATH. Such a binary carries no version in its name, so the only way to notice a
     # TAILWIND_CLI_VERSION bump is to ask the binary itself.
     manages_cli_binary: bool = True
+    daisy_ui_source: str = "extra"
+    # Empty and None unless daisyUI is loaded as a plugin.
+    daisy_ui_version_str: str = ""
+    daisy_ui_plugin_dir: Path | None = None
+
+    @property
+    def daisy_ui_plugin_files(self) -> dict[str, Path]:
+        """Return the daisyUI bundles by name, or nothing outside plugin mode."""
+        if self.daisy_ui_plugin_dir is None:
+            return {}
+        return {name: self.daisy_ui_plugin_dir / name for name in DAISY_UI_PLUGIN_NAMES}
+
+    def daisy_ui_download_url(self, name: str) -> str:
+        """Return the release download URL of one daisyUI plugin file."""
+        return f"https://github.com/{DAISY_UI_REPO}/releases/download/v{self.daisy_ui_version_str}/{name}"
 
     @property
     def src_css(self) -> Path:
@@ -263,27 +291,28 @@ def _get_cache_path() -> Path:
     return cache_dir / "version_cache.txt"
 
 
+def _read_cache_records() -> dict[str, tuple[str, str]]:
+    """Return ``{repository: (version, timestamp)}`` from the cache file.
+
+    The file holds one three-line record per repository: repository, version, timestamp.
+    Records are read in order, so a malformed one leaves the rest unread.
+    """
+    lines = _get_cache_path().read_text().splitlines()
+    return {lines[i].strip(): (lines[i + 1].strip(), lines[i + 2].strip()) for i in range(0, len(lines) - 2, 3)}
+
+
 def _load_cached_version(repo_url: str) -> VersionCache | None:
     """Return the repository's cached version if less than an hour old, otherwise None."""
-    cache_path = _get_cache_path()
-
-    if not cache_path.exists():
-        return None
-
     try:
-        with cache_path.open("r") as f:
-            lines = f.readlines()
-            if len(lines) >= 3:
-                cached_repo = lines[0].strip()
-                version_str = lines[1].strip()
-                timestamp = float(lines[2].strip())
-
-                # Cache is valid for 1 hour
-                if cached_repo == repo_url and (time.time() - timestamp) < 3600:
-                    return VersionCache(
-                        version_str=version_str, version=Version.parse(version_str), timestamp=timestamp
-                    )
-    except (OSError, ValueError, IndexError):
+        record = _read_cache_records().get(repo_url)
+        if record is None:
+            return None
+        version_str, timestamp_str = record
+        timestamp = float(timestamp_str)
+        # Cache is valid for 1 hour
+        if (time.time() - timestamp) < 3600:
+            return VersionCache(version_str=version_str, version=Version.parse(version_str), timestamp=timestamp)
+    except (OSError, ValueError):
         # Ignore cache read errors
         pass
 
@@ -291,19 +320,22 @@ def _load_cached_version(repo_url: str) -> VersionCache | None:
 
 
 def _save_cached_version(repo_url: str, version_str: str) -> None:
-    """Cache the repository version and timestamp; ignore write failures."""
-    cache_path = _get_cache_path()
+    """Cache the repository version and timestamp next to other repositories; ignore write failures."""
+    try:
+        records = _read_cache_records()
+    except (OSError, ValueError):
+        records = {}
+    records[repo_url] = (version_str, str(time.time()))
 
     try:
-        with cache_path.open("w") as f:
-            f.write(f"{repo_url}\n{version_str}\n{time.time()}\n")
+        _get_cache_path().write_text("".join(f"{repo}\n{v}\n{ts}\n" for repo, (v, ts) in records.items()))
     except OSError:  # pragma: no cover
         # Ignore cache write errors
         pass
 
 
-def _parse_configured_version(version_str: str) -> Version:
-    """Parse TAILWIND_CLI_VERSION, reporting a typo as the misconfiguration it is.
+def _parse_configured_version(version_str: str, setting: str = "TAILWIND_CLI_VERSION") -> Version:
+    """Parse a configured version, reporting a typo as the misconfiguration it is.
 
     semver raises a bare ValueError, which would reach the user as an unexpected error with a
     traceback rather than as the setting they need to correct.
@@ -312,9 +344,63 @@ def _parse_configured_version(version_str: str) -> Version:
         return Version.parse(version_str)
     except ValueError as e:
         raise ConfigurationError(
-            f"TAILWIND_CLI_VERSION is not a valid version: {version_str!r}. "
-            "Use 'latest' or a full version like '4.1.3'."
+            f"{setting} is not a valid version: {version_str!r}. Use 'latest' or a full version like '4.1.3'."
         ) from e
+
+
+def _latest_version(repo_url: str, fallback: str) -> tuple[str, Version]:
+    """Return the repository's latest release from the cache or GitHub, else ``fallback``."""
+    cached = _load_cached_version(repo_url)
+    if cached:
+        return cached.version_str, cached.version
+
+    timeout = getattr(settings, "TAILWIND_CLI_REQUEST_TIMEOUT", 10)
+    try:
+        success, location = http.fetch_redirect_location(
+            f"https://github.com/{repo_url}/releases/latest/", timeout=timeout
+        )
+        if success and location:
+            version_str = location.rstrip("/").split("/")[-1].replace("v", "")
+            version = Version.parse(version_str)
+            _save_cached_version(repo_url, version_str)
+            return version_str, version
+    except (http.RequestError, ValueError):
+        # A failed latest-release lookup must not prevent builds with the fallback version.
+        pass
+
+    return fallback, Version.parse(fallback)
+
+
+def _get_daisy_ui_source() -> str:
+    """Return TAILWIND_CLI_DAISY_UI_SOURCE, rejecting unknown values."""
+    source = getattr(settings, "TAILWIND_CLI_DAISY_UI_SOURCE", "extra")
+    if source not in DAISY_UI_SOURCES:
+        raise ConfigurationError(
+            f"TAILWIND_CLI_DAISY_UI_SOURCE must be one of {', '.join(map(repr, DAISY_UI_SOURCES))}, got {source!r}."
+        )
+    return source
+
+
+def uses_cli_extra() -> bool:
+    """Return True when daisyUI comes bundled in tailwind-cli-extra."""
+    return bool(getattr(settings, "TAILWIND_CLI_USE_DAISY_UI", False)) and _get_daisy_ui_source() == "extra"
+
+
+def _resolve_repository() -> tuple[str, str]:
+    """Return the CLI repository and asset name: the settings, else the DaisyUI-aware defaults."""
+    if uses_cli_extra():
+        default_repo, default_asset = CLI_EXTRA_REPO, "tailwindcss-extra"
+    else:
+        default_repo, default_asset = TAILWIND_REPO, "tailwindcss"
+    return (
+        getattr(settings, "TAILWIND_CLI_SRC_REPO", default_repo),
+        getattr(settings, "TAILWIND_CLI_ASSET_NAME", default_asset),
+    )
+
+
+def downloads_cli_extra() -> bool:
+    """Return True when the CLI comes from tailwind-cli-extra, by default or by TAILWIND_CLI_SRC_REPO."""
+    return _resolve_repository()[0] == CLI_EXTRA_REPO
 
 
 def get_version() -> tuple[str, Version]:
@@ -324,36 +410,14 @@ def get_version() -> tuple[str, Version]:
     FALLBACK_VERSION if the lookup fails. Invalid configured versions and an empty
     repository raise ConfigurationError; official Tailwind versions below 4 are rejected.
     """
-    use_daisy_ui = getattr(settings, "TAILWIND_CLI_USE_DAISY_UI", False)
     version_str = getattr(settings, "TAILWIND_CLI_VERSION", "latest")
-    repo_url = getattr(
-        settings,
-        "TAILWIND_CLI_SRC_REPO",
-        "tailwindlabs/tailwindcss" if not use_daisy_ui else "dobicinaitis/tailwind-cli-extra",
-    )
+    repo_url = _resolve_repository()[0]
     if not repo_url:
         raise ConfigurationError("TAILWIND_CLI_SRC_REPO must not be None.")
 
     if version_str == "latest":
-        cached = _load_cached_version(repo_url)
-        if cached:
-            return cached.version_str, cached.version
-
-        timeout = getattr(settings, "TAILWIND_CLI_REQUEST_TIMEOUT", 10)
-        try:
-            success, location = http.fetch_redirect_location(
-                f"https://github.com/{repo_url}/releases/latest/", timeout=timeout
-            )
-            if success and location:
-                version_str = location.rstrip("/").split("/")[-1].replace("v", "")
-                _save_cached_version(repo_url, version_str)
-                return version_str, Version.parse(version_str)
-        except (http.RequestError, ValueError):
-            # A failed latest-release lookup must not prevent builds with the fallback version.
-            pass
-
-        return FALLBACK_VERSION, Version.parse(FALLBACK_VERSION)
-    elif repo_url == "tailwindlabs/tailwindcss":
+        return _latest_version(repo_url, FALLBACK_VERSION)
+    elif repo_url == TAILWIND_REPO:
         version = _parse_configured_version(version_str)
         if version.major < 4:
             raise ConfigurationError(
@@ -362,6 +426,17 @@ def get_version() -> tuple[str, Version]:
         return version_str, version
     else:
         return version_str, _parse_configured_version(version_str)
+
+
+def get_daisy_ui_version() -> str:
+    """Return the configured daisyUI version, resolving 'latest' like TAILWIND_CLI_VERSION."""
+    version_str = getattr(settings, "TAILWIND_CLI_DAISY_UI_VERSION", "latest")
+    if version_str == "latest":
+        # A failed lookup keeps the installed files instead of replacing them with the fallback version.
+        fallback = installed_daisy_ui_version() or FALLBACK_DAISY_UI_VERSION
+        return _latest_version(DAISY_UI_REPO, fallback)[0]
+    _parse_configured_version(version_str, "TAILWIND_CLI_DAISY_UI_VERSION")
+    return version_str
 
 
 _VERSION_PATTERN = re.compile(r"tailwindcss v(\d+\.\d+\.\d+)")
@@ -432,19 +507,19 @@ def _resolve_system_binary(binary_name: str) -> Path:
     return Path(found)
 
 
-def _get_system_binary_name(*, use_daisy_ui: bool) -> str:
+def _get_system_binary_name(*, uses_cli_extra: bool) -> str:
     """Return the explicit binary name or the DaisyUI-aware default."""
     override = getattr(settings, "TAILWIND_CLI_SYSTEM_BINARY_NAME", None)
     if override:
         return override
-    return "tailwindcss-extra" if use_daisy_ui else "tailwindcss"
+    return "tailwindcss-extra" if uses_cli_extra else "tailwindcss"
 
 
 def _resolve_cli_path(platform_info: PlatformInfo, version_str: str, asset_name: str) -> tuple[Path, bool]:
     """Return the CLI path and whether the library manages the binary at that path."""
     cli_path = getattr(settings, "TAILWIND_CLI_PATH", None)
     if not cli_path:
-        cli_path = ".django_tailwind_cli"
+        cli_path = MANAGED_DIR
 
     cli_path = Path(cli_path)
     if not cli_path.is_absolute():
@@ -542,7 +617,7 @@ def _resolve_css_paths() -> tuple[list[CSSEntry], bool]:
 
     src_css = getattr(settings, "TAILWIND_CLI_SRC_CSS", None)
     if not src_css:
-        src_css = ".django_tailwind_cli/source.css"
+        src_css = f"{MANAGED_DIR}/source.css"
         overwrite_default_config = True
     else:
         overwrite_default_config = False
@@ -570,29 +645,6 @@ def get_css_entries() -> list[CSSEntry]:
     return entries
 
 
-def _get_repository_settings(*, use_daisy_ui: bool) -> tuple[str, str]:
-    """Return repository and asset names, using DaisyUI-aware defaults.
-
-    An empty asset name raises ConfigurationError.
-    """
-    if use_daisy_ui:
-        default_repo = "dobicinaitis/tailwind-cli-extra"
-        default_asset = "tailwindcss-extra"
-    else:
-        default_repo = "tailwindlabs/tailwindcss"
-        default_asset = "tailwindcss"
-
-    repo_url = getattr(settings, "TAILWIND_CLI_SRC_REPO", default_repo)
-    asset_name = getattr(settings, "TAILWIND_CLI_ASSET_NAME", default_asset)
-
-    if not asset_name:
-        raise ConfigurationError(
-            "TAILWIND_CLI_ASSET_NAME must not be None. Either remove the setting or provide a valid asset name."
-        )
-
-    return repo_url, asset_name
-
-
 def get_config() -> Config:
     """Resolve validated CLI and stylesheet configuration from Django settings.
 
@@ -602,6 +654,7 @@ def get_config() -> Config:
     _validate_required_settings()
 
     use_daisy_ui = getattr(settings, "TAILWIND_CLI_USE_DAISY_UI", False)
+    daisy_ui_source = _get_daisy_ui_source()
     automatic_download = getattr(settings, "TAILWIND_CLI_AUTOMATIC_DOWNLOAD", True)
     uses_system_binary = bool(getattr(settings, "TAILWIND_CLI_USE_SYSTEM_BINARY", False))
     auto_source_external_apps = bool(getattr(settings, "TAILWIND_CLI_AUTO_SOURCE_EXTERNAL_APPS", False))
@@ -610,10 +663,14 @@ def get_config() -> Config:
 
     version_str, version = get_version()
 
-    repo_url, asset_name = _get_repository_settings(use_daisy_ui=use_daisy_ui)
+    repo_url, asset_name = _resolve_repository()
+    if not asset_name:
+        raise ConfigurationError(
+            "TAILWIND_CLI_ASSET_NAME must not be None. Either remove the setting or provide a valid asset name."
+        )
 
     if uses_system_binary:
-        binary_name = _get_system_binary_name(use_daisy_ui=use_daisy_ui)
+        binary_name = _get_system_binary_name(uses_cli_extra=use_daisy_ui and daisy_ui_source == "extra")
         cli_path = _resolve_system_binary(binary_name)
         # System binary mode implies auto-download is off — we never downloaded it.
         automatic_download = False
@@ -630,6 +687,12 @@ def get_config() -> Config:
         f"{asset_name}-{platform_info.system}-{platform_info.machine}{platform_info.extension}"
     )
 
+    daisy_ui_version_str = ""
+    daisy_ui_plugin_dir = None
+    if use_daisy_ui and daisy_ui_source == "plugin":
+        daisy_ui_version_str = get_daisy_ui_version()
+        daisy_ui_plugin_dir = managed_dir()
+
     return Config(
         version_str=version_str,
         version=version,
@@ -642,7 +705,57 @@ def get_config() -> Config:
         uses_system_binary=uses_system_binary,
         auto_source_external_apps=auto_source_external_apps,
         manages_cli_binary=manages_cli_binary,
+        daisy_ui_source=daisy_ui_source,
+        daisy_ui_version_str=daisy_ui_version_str,
+        daisy_ui_plugin_dir=daisy_ui_plugin_dir,
     )
+
+
+def managed_dir() -> Path:
+    """Return the directory this library owns below BASE_DIR, whatever TAILWIND_CLI_PATH says.
+
+    It holds the managed source CSS and, in plugin mode, daisyUI's bundles.
+    """
+    return Path(settings.BASE_DIR) / MANAGED_DIR
+
+
+def installed_daisy_ui_version() -> str | None:
+    """Return the daisyUI version recorded by the last plugin download, if any."""
+    try:
+        return (managed_dir() / DAISY_UI_VERSION_MARKER).read_text().strip() or None
+    except OSError:
+        return None
+
+
+def daisy_ui_plugin_reference(css_dir: Path) -> str:
+    """Return the plugin directory as a CSS path, relative to ``css_dir`` where possible.
+
+    A relative path keeps a committed source CSS working on other machines. Across Windows drives no
+    relative path exists, and ``os.path.relpath`` raises ValueError.
+    """
+    try:
+        return Path(os.path.relpath(managed_dir(), css_dir)).as_posix()
+    except ValueError:
+        return managed_dir().as_posix()
+
+
+def daisy_ui_directives(plugin_dir: str) -> tuple[str, str]:
+    """Return the ``@source not`` and ``@plugin`` lines that load daisyUI from ``plugin_dir``.
+
+    The bundles hold every daisyUI class name; scanning them would put all of them into the output.
+    """
+    return f'@source not "{plugin_dir}/daisyui{{,*}}.mjs";', f'@plugin "{plugin_dir}/daisyui.mjs";'
+
+
+def find_own_src_css() -> list[Path]:
+    """Return the source CSS files the user owns: an explicit SRC_CSS or every CSS_MAP source.
+
+    Raises:
+        ValueError: If the configuration cannot be resolved at all.
+    """
+    _validate_required_settings()
+    css_entries, managed = _resolve_css_paths()
+    return [] if managed else [entry.src_css for entry in css_entries]
 
 
 def find_src_css_in_static_dirs() -> list[tuple[Path, Path]]:

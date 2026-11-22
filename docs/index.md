@@ -8,6 +8,7 @@
 installation
 usage
 settings
+daisyui
 template_tags
 base_template
 whitenoise

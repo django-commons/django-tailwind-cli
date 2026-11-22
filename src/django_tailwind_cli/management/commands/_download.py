@@ -14,7 +14,15 @@ import click
 from django.conf import settings
 from django.core.management.base import CommandError
 
-from django_tailwind_cli.config import detect_binary_version, get_config, maybe_warn_version_mismatch
+from django_tailwind_cli.config import (
+    DAISY_UI_PLUGIN_NAMES,
+    DAISY_UI_VERSION_MARKER,
+    detect_binary_version,
+    get_config,
+    installed_daisy_ui_version,
+    managed_dir,
+    maybe_warn_version_mismatch,
+)
 from django_tailwind_cli.utils import http
 
 
@@ -31,10 +39,13 @@ def ensure_default_gitignore() -> None:
     """
     if getattr(settings, "TAILWIND_CLI_PATH", None):
         return
-    default_dir = Path(settings.BASE_DIR) / ".django_tailwind_cli"
-    if not default_dir.exists():
-        return
-    gitignore = default_dir / ".gitignore"
+    if managed_dir().exists():
+        _ignore_directory(managed_dir())
+
+
+def _ignore_directory(directory: Path) -> None:
+    """Write a ``*`` .gitignore into ``directory``, unless it already has one."""
+    gitignore = directory / ".gitignore"
     if gitignore.exists():
         return  # Respect whatever the user put there
     gitignore.write_text("*\n")
@@ -158,3 +169,54 @@ def ensure_cli_binary(*, verbose: bool = False, force_download: bool = False) ->
         click.secho(f"📏 File size: {file_stats.st_size:,} bytes", fg="blue")
 
     click.secho(f"Downloaded Tailwind CSS CLI to '{c.cli_path}'.", fg="green")
+
+
+def ensure_daisy_ui_plugin(*, force_download: bool = False) -> None:
+    """Download daisyUI's .mjs bundles when daisyUI is loaded as a plugin.
+
+    The files keep stable names, so a hand-written source CSS can reference them across version
+    changes. A marker file records which version they hold. A system binary turns off automatic
+    downloads, as it does for the CLI; ``force_download`` still fetches the bundles.
+    """
+    c = get_config()
+    plugin_dir = c.daisy_ui_plugin_dir
+    if plugin_dir is None:
+        return
+
+    files = c.daisy_ui_plugin_files
+    present = all(path.exists() for path in files.values())
+
+    if not force_download and present and installed_daisy_ui_version() == c.daisy_ui_version_str:
+        return
+
+    if not force_download and not c.automatic_download:
+        if present:
+            return
+        missing = ", ".join(str(path) for path in files.values() if not path.exists())
+        raise CommandError(
+            f"daisyUI plugin files are missing: {missing}. Automatic download is deactivated. "
+            "Run 'manage.py tailwind download_cli' or download them manually."
+        )
+
+    click.secho(f"Downloading daisyUI {c.daisy_ui_version_str} to '{plugin_dir}'.", fg="yellow")
+    for name, path in files.items():
+        try:
+            http.download_with_progress(c.daisy_ui_download_url(name), path, timeout=30)
+        except http.RequestError as e:
+            raise CommandError(f"Failed to download daisyUI plugin {name}: {e}") from e
+    (plugin_dir / DAISY_UI_VERSION_MARKER).write_text(f"{c.daisy_ui_version_str}\n")
+    # ensure_default_gitignore skips this directory when TAILWIND_CLI_PATH is set.
+    _ignore_directory(plugin_dir)
+
+
+def remove_daisy_ui_plugin() -> list[Path]:
+    """Delete the downloaded daisyUI bundles and their version marker, in any mode.
+
+    Returns the deleted paths.
+    """
+    removed = [
+        path for name in (*DAISY_UI_PLUGIN_NAMES, DAISY_UI_VERSION_MARKER) if (path := managed_dir() / name).exists()
+    ]
+    for path in removed:
+        path.unlink()
+    return removed

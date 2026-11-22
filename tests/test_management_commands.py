@@ -22,7 +22,7 @@ from pytest_mock import MockerFixture
 
 from semver import Version
 
-from django_tailwind_cli.config import get_config
+from django_tailwind_cli.config import get_config, managed_dir
 from django_tailwind_cli.management.commands._process import LIFELINE_ENV
 from django_tailwind_cli.management.commands.tailwind import _run_watch_loop_in_reloader_child
 from django_tailwind_cli.management.commands._source_css import (
@@ -1169,3 +1169,233 @@ class TestCustomCliPathVersionMismatch:
 
         detect.assert_not_called()  # 'latest' accepts whatever is installed, without asking
         assert [w for w in recwarn.list if "reports version" in str(w.message)] == []
+
+
+class TestDaisyUiPluginDownload:
+    """TAILWIND_CLI_DAISY_UI_SOURCE = "plugin" puts daisyUI's .mjs bundles into the managed directory."""
+
+    @pytest.fixture(autouse=True)
+    def plugin_mode(
+        self,
+        tmp_project_with_cli: Path,  # noqa: ARG002  (requested for its side effect)
+        stub_subprocess_run: Mock,  # noqa: ARG002  (requested for its side effect)
+        settings: LazySettings,
+        mocker: MockerFixture,
+    ):
+        settings.TAILWIND_CLI_USE_DAISY_UI = True
+        settings.TAILWIND_CLI_DAISY_UI_SOURCE = "plugin"
+        settings.TAILWIND_CLI_DAISY_UI_VERSION = "5.8.2"
+        self.download = mocker.patch(
+            "django_tailwind_cli.utils.http.download_with_progress", side_effect=write_fake_cli
+        )
+
+    @property
+    def plugin_dir(self) -> Path:
+        return managed_dir()
+
+    def test_build_downloads_both_plugin_files(self):
+        call_command("tailwind", "build")
+
+        assert [call.args[:2] for call in self.download.call_args_list] == [
+            (
+                "https://github.com/saadeghi/daisyui/releases/download/v5.8.2/daisyui.mjs",
+                self.plugin_dir / "daisyui.mjs",
+            ),
+            (
+                "https://github.com/saadeghi/daisyui/releases/download/v5.8.2/daisyui-theme.mjs",
+                self.plugin_dir / "daisyui-theme.mjs",
+            ),
+        ]
+
+    def test_a_second_build_downloads_nothing(self):
+        call_command("tailwind", "build")
+        self.download.reset_mock()
+
+        call_command("tailwind", "build")
+
+        self.download.assert_not_called()
+
+    def test_a_version_change_downloads_again(self, settings: LazySettings):
+        call_command("tailwind", "build")
+        self.download.reset_mock()
+        settings.TAILWIND_CLI_DAISY_UI_VERSION = "5.9.0"
+
+        call_command("tailwind", "build")
+
+        assert self.download.call_count == 2
+        assert "/v5.9.0/" in self.download.call_args_list[0].args[0]
+
+    def test_download_cli_downloads_the_plugin_again(self):
+        call_command("tailwind", "build")
+        self.download.reset_mock()
+
+        call_command("tailwind", "download_cli")
+
+        assert self.download.call_count == 3  # the CLI and both plugin files
+
+    def test_a_failed_download_is_a_command_error(self):
+        from django_tailwind_cli.utils import http
+
+        self.download.side_effect = http.RequestError("connection refused")
+
+        with pytest.raises(CommandError, match="daisyUI"):
+            call_command("tailwind", "build")
+
+    def test_missing_plugin_without_automatic_download_is_a_command_error(self, settings: LazySettings):
+        settings.TAILWIND_CLI_AUTOMATIC_DOWNLOAD = False
+
+        with pytest.raises(CommandError, match="daisyui.mjs"):
+            call_command("tailwind", "build")
+
+        self.download.assert_not_called()
+
+    def test_the_extra_source_downloads_no_plugin(self, settings: LazySettings):
+        settings.TAILWIND_CLI_DAISY_UI_SOURCE = "extra"
+
+        call_command("tailwind", "build")
+
+        assert not any("saadeghi" in call.args[0] for call in self.download.call_args_list)
+
+    def _install_plugin(self, version: str) -> None:
+        for path in get_config().daisy_ui_plugin_files.values():
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("installed")
+        (self.plugin_dir / "daisyui.version").write_text(f"{version}\n")
+
+    def test_a_failed_latest_lookup_keeps_the_installed_plugin(self, settings: LazySettings, mocker: MockerFixture):
+        """Offline, an expired cache must not turn into a download of the fallback version."""
+        settings.TAILWIND_CLI_DAISY_UI_VERSION = "latest"
+        mocker.patch("django_tailwind_cli.utils.http.fetch_redirect_location", return_value=(False, None))
+        self._install_plugin("5.9.0")
+
+        call_command("tailwind", "build")
+
+        self.download.assert_not_called()
+        assert get_config().daisy_ui_version_str == "5.9.0"
+
+    def test_the_plugin_directory_is_ignored_by_git(self):
+        """tmp_project sets TAILWIND_CLI_PATH, so ensure_default_gitignore does not cover this directory."""
+        call_command("tailwind", "build")
+
+        assert (self.plugin_dir / ".gitignore").read_text() == "*\n"
+
+    def test_an_existing_gitignore_is_kept(self):
+        self.plugin_dir.mkdir(parents=True)
+        (self.plugin_dir / ".gitignore").write_text("daisyui*\n")
+
+        call_command("tailwind", "build")
+
+        assert (self.plugin_dir / ".gitignore").read_text() == "daisyui*\n"
+
+    def test_remove_cli_removes_the_plugin_files(self):
+        call_command("tailwind", "build")
+
+        call_command("tailwind", "remove_cli")
+
+        assert not any(path.exists() for path in get_config().daisy_ui_plugin_files.values())
+        assert not (self.plugin_dir / "daisyui.version").exists()
+
+    def test_setup_downloads_the_plugin(self, capsys: CaptureFixture[str]):
+        call_command("tailwind", "setup")
+
+        assert self.download.call_count == 2
+        assert "daisyUI plugin files are in place" in capsys.readouterr().out
+
+
+class TestDaisyUiPluginSourceCss:
+    """In plugin mode the managed source.css loads daisyUI from the managed directory."""
+
+    @pytest.fixture(autouse=True)
+    def plugin_mode(self, settings: LazySettings, tmp_project: Path):  # noqa: ARG002  (requested for its side effect)
+        for name in ("TAILWIND_CLI_SRC_CSS", "TAILWIND_CLI_CSS_MAP"):
+            if hasattr(settings, name):
+                delattr(settings, name)
+        settings.TAILWIND_CLI_USE_DAISY_UI = True
+        settings.TAILWIND_CLI_DAISY_UI_SOURCE = "plugin"
+
+    def _src_css(self, tmp_path: Path) -> Path:
+        return tmp_path / ".django_tailwind_cli" / "source.css"
+
+    def _plugin_css(self, plugin_dir: str) -> str:
+        return (
+            '@import "tailwindcss";\n'
+            f'@source not "{plugin_dir}/daisyui{{,*}}.mjs";\n'
+            f'@plugin "{plugin_dir}/daisyui.mjs";\n'
+        )
+
+    def test_loads_the_plugin_by_a_relative_path(self, tmp_path: Path):
+        ensure_source_css()
+
+        assert self._src_css(tmp_path).read_text() == self._plugin_css(".")
+
+    def test_seeds_an_own_source_css_with_a_path_relative_to_it(self, settings: LazySettings, tmp_path: Path):
+        """The seeded file is the user's from then on and gets committed; an absolute path breaks elsewhere."""
+        settings.TAILWIND_CLI_SRC_CSS = "src/styles/main.css"
+
+        ensure_source_css()
+
+        assert (tmp_path / "src/styles/main.css").read_text() == self._plugin_css("../../.django_tailwind_cli")
+
+    @pytest.mark.parametrize("previous", [DEFAULT_SOURCE_CSS, DAISY_UI_SOURCE_CSS])
+    def test_switching_to_the_plugin_is_not_a_hand_edit(self, tmp_path: Path, previous: str):
+        self._src_css(tmp_path).parent.mkdir(parents=True)
+        self._src_css(tmp_path).write_text(previous)
+
+        ensure_source_css()
+
+        assert not self._src_css(tmp_path).with_suffix(".css.bak").exists()
+
+    def test_switching_back_to_extra_is_not_a_hand_edit(self, settings: LazySettings, tmp_path: Path):
+        ensure_source_css()
+        settings.TAILWIND_CLI_DAISY_UI_SOURCE = "extra"
+
+        ensure_source_css()
+
+        assert self._src_css(tmp_path).read_text() == DAISY_UI_SOURCE_CSS
+        assert not self._src_css(tmp_path).with_suffix(".css.bak").exists()
+
+    def test_plugin_options_are_a_hand_edit(self, tmp_path: Path):
+        plugin_dir = (tmp_path / ".django_tailwind_cli").as_posix()
+        self._src_css(tmp_path).parent.mkdir(parents=True)
+        self._src_css(tmp_path).write_text(
+            f'@import "tailwindcss";\n@plugin "{plugin_dir}/daisyui.mjs" {{\n  themes: nord --default;\n}}\n'
+        )
+
+        ensure_source_css()
+
+        assert self._src_css(tmp_path).with_suffix(".css.bak").exists()
+
+
+class TestDaisyUiPluginWithSystemBinary:
+    """A system binary means no automatic downloads; download_cli still fetches the plugin on request."""
+
+    @pytest.fixture(autouse=True)
+    def system_binary_plugin_mode(
+        self,
+        tmp_project: Path,
+        stub_subprocess_run: Mock,  # noqa: ARG002  (requested for its side effect)
+        settings: LazySettings,
+        mocker: MockerFixture,
+    ):
+        del settings.TAILWIND_CLI_PATH
+        settings.TAILWIND_CLI_USE_SYSTEM_BINARY = True
+        settings.TAILWIND_CLI_USE_DAISY_UI = True
+        settings.TAILWIND_CLI_DAISY_UI_SOURCE = "plugin"
+        settings.TAILWIND_CLI_DAISY_UI_VERSION = "5.8.2"
+        binary = install_fake_cli(tmp_project / "bin" / "tailwindcss")
+        mocker.patch("shutil.which", return_value=str(binary))
+        mocker.patch("django_tailwind_cli.config.detect_binary_version", return_value=None)
+        self.download = mocker.patch(
+            "django_tailwind_cli.utils.http.download_with_progress", side_effect=write_fake_cli
+        )
+
+    def test_build_does_not_download_the_plugin(self):
+        with pytest.raises(CommandError, match="download_cli"):
+            call_command("tailwind", "build")
+
+        self.download.assert_not_called()
+
+    def test_download_cli_downloads_the_plugin(self):
+        call_command("tailwind", "download_cli")
+
+        assert self.download.call_count == 2
