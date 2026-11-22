@@ -7,6 +7,9 @@
 - **tailwind-cli-extra is deprecated as the daisyUI source.** It stays the default for now. The system check `django_tailwind_cli.W002` reports its use. The [migration guide](https://django-tailwind-cli.readthedocs.io/latest/daisyui.html) describes the switch.
 - **The system check `django_tailwind_cli.W003` reports a source CSS that loads daisyUI by name in plugin mode.** The official CLI fails on `@plugin "daisyui";` and `@plugin "daisyui/theme";` with "Can't resolve". The hint names the replacement lines with a path relative to the file.
 
+### 🐛 Bug Fixes
+- **A build without network waits for the latest-release lookup once per repository.** One command resolves its configuration several times. With an expired version cache, each resolution asked GitHub again and waited up to `TAILWIND_CLI_REQUEST_TIMEOUT`. The answer, including a failure, now holds for the rest of the process.
+
 ## 4.9.0 (2026-11-19)
 
 ### 💥 Breaking Changes

@@ -931,3 +931,18 @@ def test_a_malformed_cache_record_drops_only_the_records_after_it(version_cache_
     version_cache_path.write_text("a/repo\n1.0.0\n12.5\n\nb/repo\n2.0.0\n13.5\n")
 
     assert _read_cache_records() == {"a/repo": ("1.0.0", "12.5")}
+
+
+class TestReleaseLookupCache:
+    def test_an_answer_from_this_process_does_not_refresh_the_file_cache(
+        self, settings: Settings, version_cache_path: Path
+    ):
+        """Another process must not read an old answer as fresh."""
+        settings.TAILWIND_CLI_VERSION = "latest"
+        get_version()
+        expired = "tailwindlabs/tailwindcss\n4.1.3\n0\n"
+        version_cache_path.write_text(expired)
+
+        get_version()
+
+        assert version_cache_path.read_text() == expired

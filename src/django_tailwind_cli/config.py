@@ -358,27 +358,41 @@ def _parse_configured_version(version_str: str, setting: str = "TAILWIND_CLI_VER
         ) from e
 
 
-def _latest_version(repo_url: str, fallback: str) -> tuple[str, Version]:
-    """Return the repository's latest release from the cache or GitHub, else ``fallback``."""
-    cached = _load_cached_version(repo_url)
-    if cached:
-        return cached.version_str, cached.version
+@functools.cache
+def _fetch_latest_version(repo_url: str, timeout: int) -> str | None:
+    """Ask GitHub for the repository's latest release, once per process.
 
-    timeout = getattr(settings, "TAILWIND_CLI_REQUEST_TIMEOUT", 10)
+    One command resolves its configuration several times. Without the cache, an expired file cache
+    and an unreachable GitHub cost one timeout per resolution. A failure is cached too.
+
+    Only an actual lookup writes the file cache. A cached answer of this process may be old, and
+    stamping it with the current time would make other processes trust it.
+    """
     try:
         success, location = http.fetch_redirect_location(
             f"https://github.com/{repo_url}/releases/latest/", timeout=timeout
         )
         if success and location:
             version_str = location.rstrip("/").split("/")[-1].replace("v", "")
-            version = Version.parse(version_str)
+            Version.parse(version_str)
             _save_cached_version(repo_url, version_str)
-            return version_str, version
+            return version_str
     except (http.RequestError, ValueError):
         # A failed latest-release lookup must not prevent builds with the fallback version.
         pass
+    return None
 
-    return fallback, Version.parse(fallback)
+
+def _latest_version(repo_url: str, fallback: str) -> tuple[str, Version]:
+    """Return the repository's latest release from the cache or GitHub, else ``fallback``."""
+    cached = _load_cached_version(repo_url)
+    if cached:
+        return cached.version_str, cached.version
+
+    version_str = _fetch_latest_version(repo_url, getattr(settings, "TAILWIND_CLI_REQUEST_TIMEOUT", 10))
+    if version_str is None:
+        return fallback, Version.parse(fallback)
+    return version_str, Version.parse(version_str)
 
 
 def _get_daisy_ui_source() -> str:

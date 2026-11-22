@@ -77,6 +77,20 @@ def reset_binary_version_cache() -> Iterator[None]:
 
 
 @pytest.fixture(autouse=True)
+def reset_release_lookup_cache() -> Iterator[None]:
+    """Keep the per-process latest-release lookup from leaking between tests.
+
+    ``_fetch_latest_version`` is a process-global ``functools.cache``. A test that patches the lookup
+    would otherwise read the answer an earlier test's patch gave.
+    """
+    from django_tailwind_cli.config import _fetch_latest_version  # pyright: ignore[reportPrivateUsage]
+
+    _fetch_latest_version.cache_clear()
+    yield
+    _fetch_latest_version.cache_clear()
+
+
+@pytest.fixture(autouse=True)
 def patch_version_lookup(request: pytest.FixtureRequest, mocker: MockerFixture) -> None:
     """Answer the "what is the latest release" lookup without a network call.
 

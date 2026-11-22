@@ -1407,3 +1407,27 @@ class TestDaisyUiPluginWithSystemBinary:
         call_command("tailwind", "download_cli")
 
         assert self.download.call_count == 2
+
+
+class TestReleaseLookupPerProcess:
+    """A failed latest-release lookup is not repeated for every get_config() call of one command."""
+
+    def test_a_build_looks_up_each_repository_once(
+        self,
+        tmp_project_with_cli: Path,  # noqa: ARG002  (requested for its side effect)
+        stub_subprocess_run: Mock,  # noqa: ARG002  (requested for its side effect)
+        settings: LazySettings,
+        mocker: MockerFixture,
+    ):
+        settings.TAILWIND_CLI_VERSION = "latest"
+        settings.TAILWIND_CLI_USE_DAISY_UI = True
+        settings.TAILWIND_CLI_DAISY_UI_SOURCE = "plugin"
+        mocker.patch("django_tailwind_cli.utils.http.download_with_progress", side_effect=write_fake_cli)
+        lookup = mocker.patch("django_tailwind_cli.utils.http.fetch_redirect_location", return_value=(False, None))
+
+        call_command("tailwind", "build")
+
+        assert sorted(call.args[0] for call in lookup.call_args_list) == [
+            "https://github.com/saadeghi/daisyui/releases/latest/",
+            "https://github.com/tailwindlabs/tailwindcss/releases/latest/",
+        ]
