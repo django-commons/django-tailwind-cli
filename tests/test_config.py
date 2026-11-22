@@ -946,3 +946,12 @@ class TestReleaseLookupCache:
         get_version()
 
         assert version_cache_path.read_text() == expired
+
+    def test_only_the_leading_v_is_stripped_from_a_tag(self, settings: Settings, mocker: MockerFixture):
+        settings.TAILWIND_CLI_SRC_REPO = "someone/tailwind-fork"
+        mocker.patch(
+            "django_tailwind_cli.utils.http.fetch_redirect_location",
+            return_value=(True, "https://github.com/someone/tailwind-fork/releases/tag/v4.1.0-dev.v2"),
+        )
+
+        assert get_version()[0] == "4.1.0-dev.v2"

@@ -9,6 +9,7 @@
 
 ### 🐛 Bug Fixes
 - **A build without network waits for the latest-release lookup once per repository.** One command resolves its configuration several times. With an expired version cache, each resolution asked GitHub again and waited up to `TAILWIND_CLI_REQUEST_TIMEOUT`. The answer, including a failure, now holds for the rest of the process.
+- **Only the leading `v` is stripped from a release tag.** A fork in `TAILWIND_CLI_SRC_REPO` with a tag like `v4.1.0-dev.v2` resolved to `4.1.0-de.2`, a version without a download.
 
 ## 4.9.0 (2026-11-19)
 

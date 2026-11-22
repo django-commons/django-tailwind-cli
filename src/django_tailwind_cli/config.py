@@ -373,7 +373,7 @@ def _fetch_latest_version(repo_url: str, timeout: int) -> str | None:
             f"https://github.com/{repo_url}/releases/latest/", timeout=timeout
         )
         if success and location:
-            version_str = location.rstrip("/").split("/")[-1].replace("v", "")
+            version_str = location.rstrip("/").split("/")[-1].removeprefix("v")
             Version.parse(version_str)
             _save_cached_version(repo_url, version_str)
             return version_str
