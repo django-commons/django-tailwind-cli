@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 4.10.0 (2026-11-22)
 
 ### ✨ New Features
 - **daisyUI works with the official Tailwind CLI.** Set `TAILWIND_CLI_DAISY_UI_SOURCE = "plugin"` next to `TAILWIND_CLI_USE_DAISY_UI = True`. The library then downloads `daisyui.mjs` and `daisyui-theme.mjs` from the daisyUI releases. The generated source CSS loads them with `@plugin`. `TAILWIND_CLI_DAISY_UI_VERSION` pins the daisyUI version.
