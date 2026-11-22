@@ -702,6 +702,12 @@ def get_config() -> Config:
         # when they are about to use it.
         manages_cli_binary = False
     else:
+        if use_daisy_ui and daisy_ui_source == "extra" and repo_url == TAILWIND_REPO:
+            # The managed source CSS loads @plugin "daisyui", which only tailwind-cli-extra resolves.
+            raise ConfigurationError(
+                f"TAILWIND_CLI_SRC_REPO = {TAILWIND_REPO!r} has no daisyUI built in. "
+                'Set TAILWIND_CLI_DAISY_UI_SOURCE = "plugin" to load daisyUI with the official Tailwind CLI.'
+            )
         cli_path, manages_cli_binary = _resolve_cli_path(platform_info, version_str, asset_name)
 
     css_entries, overwrite_default_config = _resolve_css_paths()

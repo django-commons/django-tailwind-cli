@@ -134,6 +134,9 @@ Specifies the repository from which the CLI is downloaded. This is useful if you
 If you use this option, ensure that you update the `TAILWIND_CLI_VERSION` to match the version of the customized CLI you are using. Additionally, you may need to update the `TAILWIND_CLI_ASSET_NAME` if the asset name is different. See the example below.
 :::
 
+With `TAILWIND_CLI_USE_DAISY_UI = True`, the official repository requires `TAILWIND_CLI_DAISY_UI_SOURCE = "plugin"`.
+Otherwise the commands fail with a `ConfigurationError`.
+
 ### TAILWIND_CLI_ASSET_NAME
 
 **Default**: `"tailwindcss"`

@@ -955,3 +955,22 @@ class TestReleaseLookupCache:
         )
 
         assert get_version()[0] == "4.1.0-dev.v2"
+
+
+def test_extra_source_rejects_the_official_repository(settings: Settings):
+    settings.TAILWIND_CLI_USE_DAISY_UI = True
+    settings.TAILWIND_CLI_SRC_REPO = "tailwindlabs/tailwindcss"
+
+    with pytest.raises(ValueError, match='TAILWIND_CLI_DAISY_UI_SOURCE = "plugin"'):
+        get_config()
+
+
+def test_extra_source_with_a_system_binary_ignores_the_repository(settings: Settings, mocker: MockerFixture):
+    settings.TAILWIND_CLI_USE_DAISY_UI = True
+    settings.TAILWIND_CLI_SRC_REPO = "tailwindlabs/tailwindcss"
+    settings.TAILWIND_CLI_USE_SYSTEM_BINARY = True
+    mocker.patch("shutil.which", return_value="/opt/homebrew/bin/tailwindcss-extra")
+
+    c = get_config()
+
+    assert c.daisy_ui_source == "extra"
