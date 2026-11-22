@@ -923,3 +923,11 @@ def test_plugin_source_without_daisy_ui_downloads_no_plugin(settings: Settings):
     c = get_config()
 
     assert c.daisy_ui_plugin_files == {}
+
+
+def test_a_malformed_cache_record_drops_only_the_records_after_it(version_cache_path: Path):
+    from django_tailwind_cli.config import _read_cache_records
+
+    version_cache_path.write_text("a/repo\n1.0.0\n12.5\n\nb/repo\n2.0.0\n13.5\n")
+
+    assert _read_cache_records() == {"a/repo": ("1.0.0", "12.5")}

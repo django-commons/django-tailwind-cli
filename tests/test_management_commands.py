@@ -1389,6 +1389,14 @@ class TestDaisyUiPluginWithSystemBinary:
             "django_tailwind_cli.utils.http.download_with_progress", side_effect=write_fake_cli
         )
 
+    def test_remove_cli_removes_the_plugin_but_not_the_binary(self):
+        call_command("tailwind", "download_cli")
+
+        call_command("tailwind", "remove_cli")
+
+        assert not (managed_dir() / "daisyui.mjs").exists()
+        assert Path(get_config().cli_path).exists()
+
     def test_build_does_not_download_the_plugin(self):
         with pytest.raises(CommandError, match="download_cli"):
             call_command("tailwind", "build")

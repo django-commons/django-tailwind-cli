@@ -295,10 +295,20 @@ def _read_cache_records() -> dict[str, tuple[str, str]]:
     """Return ``{repository: (version, timestamp)}`` from the cache file.
 
     The file holds one three-line record per repository: repository, version, timestamp.
-    Records are read in order, so a malformed one leaves the rest unread.
+    Records are read in order. A malformed one ends the read, so it cannot shift the records after it.
     """
-    lines = _get_cache_path().read_text().splitlines()
-    return {lines[i].strip(): (lines[i + 1].strip(), lines[i + 2].strip()) for i in range(0, len(lines) - 2, 3)}
+    lines = [line.strip() for line in _get_cache_path().read_text().splitlines()]
+    records: dict[str, tuple[str, str]] = {}
+    for i in range(0, len(lines) - 2, 3):
+        repo, version_str, timestamp = lines[i : i + 3]
+        try:
+            float(timestamp)
+        except ValueError:
+            break
+        if not repo or not version_str:
+            break
+        records[repo] = (version_str, timestamp)
+    return records
 
 
 def _load_cached_version(repo_url: str) -> VersionCache | None:

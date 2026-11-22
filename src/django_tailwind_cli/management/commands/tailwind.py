@@ -530,8 +530,12 @@ def show_performance_tips():
 @app.command(name="remove_cli")
 @handle_command_errors
 def remove_cli():
-    """Remove the Tailwind CSS CLI and, in plugin mode, the daisyUI bundles."""
+    """Remove the Tailwind CSS CLI and any downloaded daisyUI bundles."""
     c = get_config()
+
+    # download_cli fetches the bundles in system-binary mode too, so they go before the early return.
+    for path in remove_daisy_ui_plugin():
+        click.secho(f"Removed daisyUI plugin file '{path}'.", fg="green")
 
     if c.uses_system_binary:
         click.secho(
@@ -547,9 +551,6 @@ def remove_cli():
         click.secho(f"Removed Tailwind CSS CLI at '{c.cli_path}'.", fg="green")
     else:
         click.secho(f"Tailwind CSS CLI not found at '{c.cli_path}'.", fg="red")
-
-    for path in remove_daisy_ui_plugin():
-        click.secho(f"Removed daisyUI plugin file '{path}'.", fg="green")
 
 
 @app.command(

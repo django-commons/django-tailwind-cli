@@ -119,8 +119,7 @@ def check_daisy_ui_plugin_reference(app_configs: Any, **kwargs: Any) -> list[Dja
             DjangoWarning(
                 f"The Tailwind source CSS {src_css} loads daisyUI by name with @plugin.",
                 hint=(
-                    'TAILWIND_CLI_DAISY_UI_SOURCE = "plugin" uses the official Tailwind CLI, '
-                    "which cannot resolve that name. "
+                    "The official Tailwind CLI cannot resolve that name. "
                     f'Replace @plugin "daisyui" with {plugin.rstrip(";")}. '
                     f'Replace @plugin "daisyui/theme" with @plugin "{plugin_dir}/daisyui-theme.mjs". '
                     "Keep the options. "

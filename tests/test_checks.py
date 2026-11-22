@@ -284,6 +284,16 @@ class TestBareDaisyUiPluginReference:
 
         assert len(check_daisy_ui_plugin_reference(app_configs=None)) == 1
 
+    def test_an_explicit_official_repository_is_named_as_the_cause(self, settings: Settings, tmp_path: Path):
+        """The source setting may be unset; the hint must not blame it."""
+        settings.TAILWIND_CLI_DAISY_UI_SOURCE = "extra"
+        settings.TAILWIND_CLI_SRC_REPO = "tailwindlabs/tailwindcss"
+        self._own_css(settings, tmp_path, '@plugin "daisyui";\n')
+
+        (warning,) = check_daisy_ui_plugin_reference(app_configs=None)
+
+        assert "TAILWIND_CLI_DAISY_UI_SOURCE" not in (warning.hint or "")
+
     def test_the_hint_names_the_theme_bundle(self, settings: Settings, tmp_path: Path):
         self._own_css(settings, tmp_path, '@plugin "daisyui/theme" { name: "x"; }\n')
 
